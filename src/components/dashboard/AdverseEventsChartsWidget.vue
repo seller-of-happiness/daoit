@@ -26,12 +26,16 @@ const doughnutOptions = computed(() => ({
             onHover: 'handleHover',
             onLeave: 'handleLeave',
             onClick: (event: any, legendItem: any, legend: any) => {
-                // Используем стандартное поведение Chart.js для зачеркивания легенды
                 const index =
                     legendItem.datasetIndex !== undefined
                         ? legendItem.datasetIndex
                         : legendItem.index
                 const chart = legend.chart
+
+                // Добавить эту проверку:
+                if (!chart) {
+                    return
+                }
 
                 if (chart.isDatasetVisible(index)) {
                     chart.hide(index)
