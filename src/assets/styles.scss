@@ -1,0 +1,33 @@
+/* You can add global styles to this file, and also import other style files */
+@use '@/assets/fonts/lato/lato-fonts.scss';
+@use 'primeicons/primeicons.css';
+@use '@/assets/tailwind.css';
+@use '@/assets/layout/layout.scss';
+
+.p-dialog-content {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.dialog-actions {
+    margin-top: auto;
+}
+
+.subtitle {
+    background: var(--surface-card);
+}
+
+.invalid-by-server {
+    border-color: var(--p-message-error-simple-color) !important;
+
+    & .p-placeholder,
+    &.p-textarea::placeholder {
+        color: var(--p-message-error-simple-color) !important;
+    }
+
+    input {
+        border-color: var(--p-message-error-simple-color) !important;
+        color: var(--p-message-error-simple-color) !important;
+    }
+}

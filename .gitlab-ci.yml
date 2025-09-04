@@ -1,0 +1,73 @@
+stages:
+  - setup
+  - build
+  - deploy
+
+variables:
+  ENV_FILE: ".env"
+  NODE_VERSION: "v22.18.0"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+# Установка зависимостей DEV
+install_dependencies_dev:
+  stage: setup
+  #image: npm:latest
+  tags:
+    - devserver
+  script:
+    - pwd
+    - source ~/.bashrc
+
+    #- curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+    - source ~/.nvm/nvm.sh
+    #- nvm install $NODE_VERSION
+    - nvm alias default $NODE_VERSION
+    - nvm use $NODE_VERSION
+
+    #- npm install -g npm@latest
+    - npm ci
+  only:
+    - dev
+
+# Сборка проекта с генерацией .env (DEV)
+build_dev:
+  stage: build
+  #image: npm:latest
+  tags:
+    - devserver
+  script:
+    - rm -f $ENV_FILE
+    - echo "VITE_API_URL=${BACKEND_URL}" >> $ENV_FILE
+    - echo "VUE_APP_BUILD_DATE=$(date)" >> $ENV_FILE
+    - echo "VITE_BASE_URL=${BACKEND_URL}" >> $ENV_FILE
+    - echo "VITE_CENTR_ENDPOINT=http://${SERVER_IP}:8005/connection/websocket" >> $ENV_FILE
+    - echo "VITE_APP_VERSION=$CI_PIPELINE_ID ($CI_PIPELINE_CREATED_AT)" >> $ENV_FILE
+    - echo "VITE_FAST_LOGIN=true" >> $ENV_FILE
+    - cat ${ENV_FILE}  # Для отладки (показывает содержимое .env)
+    - source ~/.nvm/nvm.sh
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+  only:
+    - dev
+
+deploy_dev:
+  stage: deploy
+  before_script:
+    - source ~/.nvm/nvm.sh
+    - echo ${FRONT_DEPLOY_PATH}
+    - echo "Remove all files from WEB dir (assets)"
+    - rm -r ${FRONT_DEPLOY_PATH}/assets/* || true
+  script:
+    - echo "Деплой на production-сервер...s"
+    - cp -r dist/. ${FRONT_DEPLOY_PATH}
+  tags:
+    - devserver
+  only:
+    - dev
+

@@ -1,0 +1,3 @@
+GET https://backend.dev.daoit.ru/api/dashboard/
+Content-Type: application/json
+Authorization: Token feb24ec30642826bb3e41173b1a9efc9f410727b7c9a13cd4402270c3faeed25
