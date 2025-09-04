@@ -17,6 +17,7 @@ import { logger } from '@/refactoring/utils/eventLogger'
 import '@/refactoring/utils/axiosInterceptors'
 import { useAuthStore } from '@/refactoring/modules/authStore/stores/authStore'
 import { useCentrifugeStore } from '@/refactoring/modules/centrifuge/stores/centrifugeStore'
+import Chart from 'primevue/chart'
 
 import '@/assets/styles.scss'
 
@@ -107,6 +108,7 @@ app.component('app-inputtext', InputText)
 app.component('app-menu', Menu)
 app.component('app-confirm-dialog', ConfirmDialog)
 app.directive('app-tooltip', Tooltip)
+app.component('Chart', Chart)
 
 const authStore = useAuthStore()
 await authStore.restoreAuth()

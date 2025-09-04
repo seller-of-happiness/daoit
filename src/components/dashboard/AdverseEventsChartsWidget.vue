@@ -47,7 +47,7 @@ const createOrUpdateDoughnutChart = () => {
                         font: { size: 12 },
                     },
                     onClick: (_, legendItem) => {
-                        const index = legendItem.index
+                        const index = legendItem.datasetIndex
                         if (index !== undefined) {
                             const deptId = adverseCharts.departmentsChartData[index]?.id
                             if (deptId) adverseCharts.toggleDepartment(deptId)
