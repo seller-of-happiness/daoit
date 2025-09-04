@@ -30,18 +30,26 @@ const doughnutOptions = computed(() => ({
                     legendItem.datasetIndex !== undefined
                         ? legendItem.datasetIndex
                         : legendItem.index
-                const chart = legend.chart
 
-                // Добавить эту проверку:
-                if (!chart) {
+                // Безопасные проверки
+                if (!legend?.chart?.data?.labels || index === undefined || index < 0) {
                     return
                 }
 
-                if (chart.isDatasetVisible(index)) {
-                    chart.hide(index)
-                } else {
-                    chart.show(index)
-                }
+                // Получаем название отделения
+                const departmentName = legend.chart.data.labels[index]
+                if (!departmentName) return
+
+                // Находим соответствующий ID отделения
+                const department = adverseCharts.departmentsChartData.find(d => d.name === departmentName)
+                if (!department) return
+
+                // Обновляем store - это автоматически обновит оба графика
+                adverseCharts.toggleDepartment(department.id)
+                
+                // Предотвращаем стандартное поведение Chart.js, так как мы управляем данными через store
+                event.preventDefault?.()
+                return false
             },
             labels: {
                 usePointStyle: true,
