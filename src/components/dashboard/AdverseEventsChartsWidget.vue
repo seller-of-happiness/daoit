@@ -6,110 +6,9 @@
  */
 
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
-import { Chart, registerables } from 'chart.js'
 import { useAdverseChartsStore } from '@/stores/adverseCharts/adverseChartsStore'
 
-Chart.register(...registerables)
-
 const adverseCharts = useAdverseChartsStore()
-
-// refs для chart.js
-const doughnutChart = ref<Chart<'doughnut'> | null>(null)
-const barChart = ref<Chart | null>(null)
-const doughnutCanvasRef = ref<HTMLCanvasElement | null>(null)
-const barCanvasRef = ref<HTMLCanvasElement | null>(null)
-
-// Создание/обновление Doughnut графика
-const createOrUpdateDoughnutChart = () => {
-    if (!doughnutCanvasRef.value) return
-
-    if (doughnutChart.value) {
-        doughnutChart.value.destroy()
-        doughnutChart.value = null
-    }
-
-    if (!adverseCharts.doughnutChartData.labels.length) return
-
-    const ctx = doughnutCanvasRef.value.getContext('2d')
-    if (!ctx) return
-
-    doughnutChart.value = new Chart(ctx, {
-        type: 'doughnut',
-        data: adverseCharts.doughnutChartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        font: { size: 12 },
-                    },
-                    onClick: (_, legendItem) => {
-                        const index = legendItem.datasetIndex
-                        if (index !== undefined) {
-                            const deptId = adverseCharts.departmentsChartData[index]?.id
-                            if (deptId) adverseCharts.toggleDepartment(deptId)
-                        }
-                    },
-                },
-                title: {
-                    display: true,
-                    text: 'Распределение НС по отделениям',
-                    font: { size: 16 },
-                },
-            },
-        },
-    })
-}
-
-// Создание/обновление Bar графика
-const createOrUpdateBarChart = () => {
-    if (!barCanvasRef.value) return
-
-    if (barChart.value) {
-        barChart.value.destroy()
-        barChart.value = null
-    }
-
-    if (!adverseCharts.stackedBarChartData.labels.length) return
-
-    const ctx = barCanvasRef.value.getContext('2d')
-    if (!ctx) return
-
-    barChart.value = new Chart(ctx, {
-        type: 'bar',
-        data: adverseCharts.stackedBarChartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { stacked: true, title: { display: true, text: 'Месяц' } },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    title: { display: true, text: 'Количество случаев' },
-                },
-            },
-            plugins: {
-                legend: { position: 'top', labels: { usePointStyle: true, font: { size: 12 } } },
-                title: {
-                    display: true,
-                    text: 'Распределение НС по рискам и месяцам',
-                    font: { size: 16 },
-                },
-            },
-        },
-    })
-}
-
-// Обновление графиков
-const updateCharts = async () => {
-    await nextTick()
-    createOrUpdateDoughnutChart()
-    createOrUpdateBarChart()
-}
 
 // Управление датами
 const setDateRange = (range: 'month' | 'quarter' | 'year') => {
@@ -124,29 +23,56 @@ const setDateRange = (range: 'month' | 'quarter' | 'year') => {
     adverseCharts.setDateFilter(from, to)
 }
 
-// Отслеживание изменений данных
-watch(
-    [() => adverseCharts.doughnutChartData, () => adverseCharts.stackedBarChartData],
-    () => updateCharts(),
-    { deep: true },
-)
-
-// Загрузка данных при монтировании
-onMounted(async () => {
-    await adverseCharts.fetchChartData()
-    await updateCharts()
-})
-
-// Очистка при размонтировании
-onUnmounted(() => {
-    if (doughnutChart.value) doughnutChart.value.destroy()
-    if (barChart.value) barChart.value.destroy()
-})
-
 // Информация об исключенных отделениях
 const excludedInfo = computed(() => {
     const count = adverseCharts.filters.excluded_departments.length
     return count ? `Скрыто отделений: ${count}` : ''
+})
+
+const doughnutOptions = computed(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'bottom',
+            onHover: 'handleHover',
+            onLeave: 'handleLeave',
+            labels: {
+                usePointStyle: true,
+                font: { size: 12 },
+            },
+        },
+        title: {
+            display: true,
+            text: 'Распределение НС по отделениям',
+            font: { size: 16 },
+        },
+    },
+}))
+
+const barOptions = computed(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        x: { stacked: true, title: { display: true, text: 'Месяц' } },
+        y: {
+            stacked: true,
+            beginAtZero: true,
+            title: { display: true, text: 'Количество случаев' },
+        },
+    },
+    plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, font: { size: 12 } } },
+        title: {
+            display: true,
+            text: 'Распределение НС по рискам и месяцам',
+            font: { size: 16 },
+        },
+    },
+}))
+
+onMounted(async () => {
+    await adverseCharts.fetchChartData()
 })
 
 // Проверка наличия данных
@@ -194,10 +120,13 @@ const hasData = computed(() => adverseCharts.departmentsChartData.length > 0)
                         >
                             <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
                         </div>
-                        <canvas
+                        <Chart
                             v-show="!adverseCharts.isLoading && hasData"
-                            ref="doughnutCanvasRef"
-                        ></canvas>
+                            type="doughnut"
+                            :data="adverseCharts.doughnutChartData"
+                            :options="doughnutOptions"
+                            class="h-full"
+                        />
                         <div
                             v-if="!adverseCharts.isLoading && !hasData"
                             class="flex items-center justify-center h-full text-surface-500"
@@ -222,10 +151,13 @@ const hasData = computed(() => adverseCharts.departmentsChartData.length > 0)
                         >
                             <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
                         </div>
-                        <canvas
+                        <Chart
                             v-show="!adverseCharts.isLoading && hasData"
-                            ref="barCanvasRef"
-                        ></canvas>
+                            type="bar"
+                            :data="adverseCharts.stackedBarChartData"
+                            :options="barOptions"
+                            class="h-full"
+                        />
                         <div
                             v-if="!adverseCharts.isLoading && !hasData"
                             class="flex items-center justify-center h-full text-surface-500"
