@@ -53,10 +53,12 @@ export const useAdverseChartsStore = defineStore('adverseCharts', () => {
             if (!counts[id]) counts[id] = { name, count: 0 }
             counts[id].count++
         })
-        return Object.entries(counts)
+        const result = Object.entries(counts)
             .map(([id, data]) => ({ id, name: data.name, count: data.count }))
             .filter((d) => !filters.value.excluded_departments.includes(d.id))
             .sort((a, b) => b.count - a.count)
+        
+        return result
     })
 
     // Данные для графика рисков
@@ -83,24 +85,27 @@ export const useAdverseChartsStore = defineStore('adverseCharts', () => {
     })
 
     // Chart.js формат
-    const doughnutChartData = computed(() => ({
-        labels: departmentsChartData.value.map((d) => d.name),
-        datasets: [
-            {
-                data: departmentsChartData.value.map((d) => d.count),
-                backgroundColor: [
-                    '#FF6384',
-                    '#36A2EB',
-                    '#FFCE56',
-                    '#4BC0C0',
-                    '#9966FF',
-                    '#FF9F40',
-                    '#C9CBCF',
-                ],
-                borderWidth: 1,
-            },
-        ],
-    }))
+    const doughnutChartData = computed(() => {
+        const chartData = {
+            labels: departmentsChartData.value.map((d) => d.name),
+            datasets: [
+                {
+                    data: departmentsChartData.value.map((d) => d.count),
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF',
+                        '#FF9F40',
+                        '#C9CBCF',
+                    ],
+                    borderWidth: 1,
+                },
+            ],
+        }
+        return chartData
+    })
 
     const stackedBarChartData = computed(() => ({
         labels: risksChartData.value.map((r) => {
