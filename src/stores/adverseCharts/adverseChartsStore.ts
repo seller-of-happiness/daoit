@@ -53,10 +53,12 @@ export const useAdverseChartsStore = defineStore('adverseCharts', () => {
             if (!counts[id]) counts[id] = { name, count: 0 }
             counts[id].count++
         })
-        return Object.entries(counts)
+        const result = Object.entries(counts)
             .map(([id, data]) => ({ id, name: data.name, count: data.count }))
             .filter((d) => !filters.value.excluded_departments.includes(d.id))
             .sort((a, b) => b.count - a.count)
+        
+        return result
     })
 
     // Данные для графика рисков
