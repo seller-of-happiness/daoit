@@ -77,30 +77,35 @@ export const useAdverseChartsStore = defineStore('adverseCharts', () => {
             else if (risk === 'high') monthly[key].high++
         })
 
-        return Object.entries(monthly)
+        const result = Object.entries(monthly)
             .map(([date, risks]) => ({ date, ...risks }))
             .sort((a, b) => a.date.localeCompare(b.date))
+
+        return result
     })
 
     // Chart.js формат
-    const doughnutChartData = computed(() => ({
-        labels: departmentsChartData.value.map((d) => d.name),
-        datasets: [
-            {
-                data: departmentsChartData.value.map((d) => d.count),
-                backgroundColor: [
-                    '#FF6384',
-                    '#36A2EB',
-                    '#FFCE56',
-                    '#4BC0C0',
-                    '#9966FF',
-                    '#FF9F40',
-                    '#C9CBCF',
-                ],
-                borderWidth: 1,
-            },
-        ],
-    }))
+    const doughnutChartData = computed(() => {
+        const chartData = {
+            labels: departmentsChartData.value.map((d) => d.name),
+            datasets: [
+                {
+                    data: departmentsChartData.value.map((d) => d.count),
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF',
+                        '#FF9F40',
+                        '#C9CBCF',
+                    ],
+                    borderWidth: 1,
+                },
+            ],
+        }
+        return chartData
+    })
 
     const stackedBarChartData = computed(() => ({
         labels: risksChartData.value.map((r) => {
