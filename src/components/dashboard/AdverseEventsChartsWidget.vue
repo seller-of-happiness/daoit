@@ -32,15 +32,20 @@ const doughnutOptions = computed(() => ({
                         : legendItem.index
                 const chart = legend.chart
 
-                // Добавить эту проверку:
-                if (!chart) {
+                // Проверка на существование chart и его методов
+                if (!chart || !chart.isDatasetVisible || !chart.hide || !chart.show) {
+                    console.warn('Chart object or required methods are not available')
                     return
                 }
 
-                if (chart.isDatasetVisible(index)) {
-                    chart.hide(index)
-                } else {
-                    chart.show(index)
+                try {
+                    if (chart.isDatasetVisible(index)) {
+                        chart.hide(index)
+                    } else {
+                        chart.show(index)
+                    }
+                } catch (error) {
+                    console.error('Error toggling chart dataset visibility:', error)
                 }
             },
             labels: {
