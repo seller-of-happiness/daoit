@@ -61,6 +61,7 @@ export const useAdverseChartsStore = defineStore('adverseCharts', () => {
 
     // Данные для графика рисков
     const risksChartData = computed((): IRiskData[] => {
+        // Фильтруем данные по датам И по исключенным отделениям
         const filtered = filteredByDateData.value.filter((e) => {
             const id = e.department?.id || 'unknown'
             return !filters.value.excluded_departments.includes(String(id))

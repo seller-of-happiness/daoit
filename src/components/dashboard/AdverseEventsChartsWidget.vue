@@ -7,21 +7,9 @@
 
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useAdverseChartsStore } from '@/stores/adverseCharts/adverseChartsStore'
+import DateRangePicker from '@/components/tableFilters/DateRangePicker.vue'
 
 const adverseCharts = useAdverseChartsStore()
-
-// Управление датами
-const setDateRange = (range: 'month' | 'quarter' | 'year') => {
-    const now = new Date()
-    const to = new Date(now)
-    const from = new Date(now)
-
-    if (range === 'month') from.setMonth(from.getMonth() - 1)
-    if (range === 'quarter') from.setMonth(from.getMonth() - 3)
-    if (range === 'year') from.setFullYear(from.getFullYear() - 1)
-
-    adverseCharts.setDateFilter(from, to)
-}
 
 // Информация об исключенных отделениях
 const excludedInfo = computed(() => {
@@ -37,6 +25,13 @@ const doughnutOptions = computed(() => ({
             position: 'bottom',
             onHover: 'handleHover',
             onLeave: 'handleLeave',
+            onClick: (event: any, legendItem: any) => {
+                // Получаем ID отделения по индексу в легенде
+                const departmentData = adverseCharts.departmentsChartData[legendItem.index]
+                if (departmentData) {
+                    adverseCharts.toggleDepartment(departmentData.id)
+                }
+            },
             labels: {
                 usePointStyle: true,
                 font: { size: 12 },
@@ -86,14 +81,18 @@ const hasData = computed(() => adverseCharts.departmentsChartData.length > 0)
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-semibold">Аналитика нежелательных событий</h3>
                 <div class="flex gap-2">
-                    <Button label="Месяц" size="small" outlined @click="setDateRange('month')" />
-                    <Button
-                        label="Квартал"
-                        size="small"
-                        outlined
-                        @click="setDateRange('quarter')"
+                    <DateRangePicker
+                        :store="{
+                            filters: {
+                                date_from: adverseCharts.filters.date_from,
+                                date_to: adverseCharts.filters.date_to,
+                            },
+                        }"
+                        :loading="adverseCharts.isLoading"
+                        afterKey="date_from"
+                        beforeKey="date_to"
+                        @change="adverseCharts.fetchChartData()"
                     />
-                    <Button label="Год" size="small" outlined @click="setDateRange('year')" />
                     <Button
                         label="Сбросить"
                         icon="pi pi-refresh"
