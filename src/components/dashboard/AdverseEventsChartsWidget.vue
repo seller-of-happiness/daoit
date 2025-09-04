@@ -25,11 +25,18 @@ const doughnutOptions = computed(() => ({
             position: 'bottom',
             onHover: 'handleHover',
             onLeave: 'handleLeave',
-            onClick: (event: any, legendItem: any) => {
-                // Получаем ID отделения по индексу в легенде
-                const departmentData = adverseCharts.departmentsChartData[legendItem.index]
-                if (departmentData) {
-                    adverseCharts.toggleDepartment(departmentData.id)
+            onClick: (event: any, legendItem: any, legend: any) => {
+                // Используем стандартное поведение Chart.js для зачеркивания легенды
+                const index =
+                    legendItem.datasetIndex !== undefined
+                        ? legendItem.datasetIndex
+                        : legendItem.index
+                const chart = legend.chart
+
+                if (chart.isDatasetVisible(index)) {
+                    chart.hide(index)
+                } else {
+                    chart.show(index)
                 }
             },
             labels: {
@@ -82,12 +89,7 @@ const hasData = computed(() => adverseCharts.departmentsChartData.length > 0)
                 <h3 class="text-xl font-semibold">Аналитика нежелательных событий</h3>
                 <div class="flex gap-2">
                     <DateRangePicker
-                        :store="{
-                            filters: {
-                                date_from: adverseCharts.filters.date_from,
-                                date_to: adverseCharts.filters.date_to,
-                            },
-                        }"
+                        :store="adverseCharts"
                         :loading="adverseCharts.isLoading"
                         afterKey="date_from"
                         beforeKey="date_to"

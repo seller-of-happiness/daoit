@@ -139,9 +139,17 @@ export const useAdverseChartsStore = defineStore('adverseCharts', () => {
     async function fetchChartData() {
         isLoading.value = true
         try {
-            const res = await axios.get(`${BASE_URL}/api/adverse/adverse-event/`, {
-                params: { is_active: false, is_high_risk: false, limit: 1000 },
-            })
+            const params: any = { is_active: false, is_high_risk: false, limit: 1000 }
+
+            // Добавляем фильтры по датам если они установлены
+            if (filters.value.date_from) {
+                params.date_from = filters.value.date_from.toISOString()
+            }
+            if (filters.value.date_to) {
+                params.date_to = filters.value.date_to.toISOString()
+            }
+
+            const res = await axios.get(`${BASE_URL}/api/adverse/adverse-event/`, { params })
             rawData.value = res.data.results || []
         } catch (err) {
             console.error('Error fetching chart data:', err)
