@@ -51,7 +51,6 @@
                     @create-dialog="createNewDialog"
                     @search="performSearch"
                     @clear-search="clearSearch"
-                    @join-public-chat="joinPublicChat"
                     class="!pt-0"
                 />
 
@@ -192,7 +191,6 @@ const {
     performSearch,
     clearSearch,
     createNewDialog,
-    joinPublicChat,
     sendMessage,
     uploadFile,
     createChat: createChatBase,

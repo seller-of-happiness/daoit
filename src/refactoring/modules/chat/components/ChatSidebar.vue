@@ -88,13 +88,7 @@
                         <div class="chat-sub">{{ chat.description }}</div>
                     </div>
 
-                    <Button
-                        icon="pi pi-plus"
-                        size="small"
-                        severity="success"
-                        @click="joinPublicChat(chat)"
-                        v-tooltip.left="'Присоединиться'"
-                    />
+                    <!-- Join functionality removed - use invitations instead -->
                 </div>
             </div>
 
@@ -294,10 +288,7 @@ const getChatInitials = (chat: IChat) => {
     return generateChatInitials(chat.title)
 }
 
-// Присоединение к публичному каналу
-const joinPublicChat = (chat: IChat) => {
-    emit('join-public-chat', chat)
-}
+// joinPublicChat removed - use invitations instead
 
 // Реактивный поиск с debounce
 let searchDebounceId: number | null = null
