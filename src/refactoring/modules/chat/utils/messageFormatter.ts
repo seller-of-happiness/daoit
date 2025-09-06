@@ -39,16 +39,3 @@ export function getMessageDisplayText(message: IMessage): string {
     return ''
 }
 
-/**
- * Проверяет, является ли сообщение отправленным текущим пользователем
- * @param message - объект сообщения
- * @param currentUserId - ID текущего пользователя
- */
-export function isOwnMessage(message: IMessage, currentUserId: string | number | null): boolean {
-    if (!currentUserId) return false
-
-    const currentUserIdStr = String(currentUserId)
-    const messageAuthorId = String(message.author_id || message.user_id || message.author || '')
-
-    return messageAuthorId === currentUserIdStr
-}

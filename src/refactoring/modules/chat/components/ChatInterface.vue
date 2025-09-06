@@ -12,7 +12,6 @@
             @create-dialog="createNewDialog"
             @search="performSearch"
             @clear-search="clearSearch"
-            @join-public-chat="joinPublicChat"
         />
 
         <!-- Основная область чата -->
@@ -131,7 +130,6 @@ const {
     performSearch,
     clearSearch,
     createNewDialog,
-    joinPublicChat,
     sendMessage,
     uploadFile,
     createChat: createChatBase,

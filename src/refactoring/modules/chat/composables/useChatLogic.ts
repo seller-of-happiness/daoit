@@ -118,16 +118,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         }
     }
 
-    const joinPublicChat = async (chat: IChat) => {
-        try {
-            await chatStore.joinPublicChat(chat.id)
-            await chatStore.openChat(chat)
-            if (isMobile.value) mobileView.value = 'chat'
-            options.onChatOpen?.(chat)
-        } catch (error) {
-            console.error('Ошибка присоединения к каналу:', error)
-        }
-    }
+    // joinPublicChat removed - use invitations instead
 
     const sendMessage = async (content: string) => {
         await chatStore.sendMessage(content)
@@ -212,7 +203,6 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         try {
             // Загрузка чатов (ошибки обрабатываются внутри функции)
             await chatStore.fetchChats()
-            await chatStore.fetchLastMessages()
 
             let chatToOpen: IChat | null = null
 
@@ -359,7 +349,6 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         performSearch,
         clearSearch,
         createNewDialog,
-        joinPublicChat,
         sendMessage,
         uploadFile,
         createChat,
