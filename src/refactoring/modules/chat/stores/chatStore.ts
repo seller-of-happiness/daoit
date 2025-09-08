@@ -104,16 +104,29 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обрабатывает сообщения из центрифуго
         handleCentrifugoMessage(data: any): void {
+            console.log('🔍 Обработка сообщения из центрифуго:', data)
+            
             const eventType = data?.event_type || data?.event || data?.type
 
             switch (eventType) {
                 case 'message':
                 case 'new_message':
-                    this.handleNewMessage(data.message || data.object || data, data.chat_id)
+                    // Проверяем структуру данных из центрифуго
+                    const messageData = data?.data?.message || data.message || data.object || data
+                    const chatId = data?.data?.chat_id || data.chat_id
+                    
+                    console.log('📨 Обработка нового сообщения:', { messageData, chatId })
+                    
+                    if (messageData && chatId) {
+                        this.handleNewMessage(messageData, chatId)
+                    } else {
+                        console.warn('⚠️ Некорректная структура данных для нового сообщения:', data)
+                    }
                     break
 
                 case 'chat_updated':
-                    this.handleChatUpdated(data.chat || data.object || data)
+                    const chatData = data?.data?.chat || data.chat || data.object || data
+                    this.handleChatUpdated(chatData)
                     break
 
                 case 'reaction_added':
@@ -127,6 +140,7 @@ export const useChatStore = defineStore('chatStore', {
                     break
 
                 default:
+                    console.log('🤷 Неизвестный тип события:', eventType, data)
                     // Fallback: если нет event_type, но есть id и content - считаем новым сообщением
                     if (data?.id && data?.content !== undefined) {
                         this.handleNewMessage(data, data.chat_id)
@@ -509,6 +523,14 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обрабатывает новое сообщение из WebSocket
         handleNewMessage(message: IMessage, chatId: number): void {
+            console.log('✉️ Обработка нового сообщения:', {
+                messageId: message.id,
+                chatId,
+                currentChatId: this.currentChat?.id,
+                messageContent: message.content,
+                messageCreatedBy: message.created_by
+            })
+            
             const currentUserInfo = useCurrentUser(this.currentChat)
             const isFromCurrentUser = isMyMessage(
                 message,
@@ -517,13 +539,24 @@ export const useChatStore = defineStore('chatStore', {
             )
             const isCurrentChat = this.currentChat?.id === chatId
 
+            console.log('📊 Контекст обработки сообщения:', {
+                isCurrentChat,
+                isFromCurrentUser,
+                currentUserId: currentUserInfo.id.value,
+                messagesCountBefore: this.messages.length
+            })
+
             // Если это текущий чат - добавляем сообщение в список
             if (isCurrentChat) {
                 // Проверяем что сообщение еще не добавлено
                 const exists = this.messages.some((m) => m.id === message.id)
                 if (!exists) {
+                    console.log('➕ Добавляем новое сообщение в текущий чат')
                     this.messages.push(message)
                     this.messages.sort(compareMessagesAscending)
+                    console.log('📈 Сообщений после добавления:', this.messages.length)
+                } else {
+                    console.log('⚠️ Сообщение уже существует, пропускаем')
                 }
 
                 // Отмечаем как прочитанное
@@ -534,6 +567,7 @@ export const useChatStore = defineStore('chatStore', {
                 // Если это другой чат - увеличиваем счетчик непрочитанных
                 const chatIndex = this.chats.findIndex((c) => c.id === chatId)
                 if (chatIndex !== -1) {
+                    console.log('📈 Увеличиваем счетчик непрочитанных для чата', chatId)
                     const oldCount = this.chats[chatIndex].unread_count || 0
                     const updatedChats = [...this.chats]
                     updatedChats[chatIndex] = {
@@ -543,11 +577,14 @@ export const useChatStore = defineStore('chatStore', {
                         last_message: message,
                     }
                     this.chats = updatedChats
+                } else {
+                    console.warn('⚠️ Чат не найден в списке:', chatId)
                 }
             }
 
             // Воспроизводим звук для всех чужих сообщений (и в активном, и в неактивном чате)
             if (!isFromCurrentUser) {
+                console.log('🔊 Воспроизводим звук для чужого сообщения')
                 soundService.playNewMessageSound().catch(() => {
                     // Игнорируем ошибки воспроизведения звука
                 })
@@ -1047,6 +1084,38 @@ export const useChatStore = defineStore('chatStore', {
                 })
                 throw error
             }
+        },
+
+        // ============ ОТЛАДОЧНЫЕ МЕТОДЫ ============
+
+        // Метод для тестирования обработки сообщений из центрифуго
+        debugTestCentrifugeMessage(testData?: any): void {
+            console.log('🧪 Тестирование обработки сообщения из центрифуго')
+            
+            // Используем тестовые данные или данные из примера пользователя
+            const mockData = testData || {
+                event_type: "new_message",
+                data: {
+                    chat_id: 16,
+                    message: {
+                        id: 373,
+                        content: "12423423 42 ыф цу",
+                        is_read: false,
+                        is_edited: false,
+                        attachments: [],
+                        created_at: new Date().toISOString(),
+                        created_by: {
+                            id: "365aa564-af67-4495-bf21-a5c58e97002e",
+                            first_name: "Михаил",
+                            last_name: "Стельмах"
+                        },
+                        reactions: []
+                    }
+                }
+            }
+            
+            console.log('🧪 Тестовые данные:', mockData)
+            this.handleCentrifugoMessage(mockData)
         },
 
         // ============ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ============
