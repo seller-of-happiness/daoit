@@ -279,7 +279,7 @@ const downvote = async (id: number) => {
 const onCreateSubmit = async (payload: {
     title: string
     text: string
-    department: { id: string }
+    department: { id: string } | null
 }) => {
     await improvements.createSuggestion(payload)
     showCreate.value = false
@@ -331,10 +331,10 @@ const openEdit = (row: any) => {
     showEdit.value = true
 }
 
-const onEditSubmit = async (payload: { status: string | null; answer: string }) => {
+const onEditSubmit = async (payload: { status: string | null; answer: string | null }) => {
     if (!editForm.value.id) return
     await improvements.updateSuggestion(editForm.value.id, {
-        status: (payload.status ?? undefined) as any,
+        status: payload.status,
         answer: payload.answer,
     })
     showEdit.value = false

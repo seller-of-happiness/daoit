@@ -40,7 +40,7 @@ export const useImprovementsStore = defineStore('improvementsStore', {
          * Возвращает суммарное число голосов: серверные + локальные изменения
          */
         countVotes: (state) => (id: number) => {
-            const serverVotes = (state.items.find((i) => i.id === id)?.votes ?? 0) as number
+            const serverVotes = (state.items.find((i: IImprovementSuggestion) => i.id === id)?.votes ?? 0) as number
             const local = state.localVotes[id] || 0
             return serverVotes + local
         },
