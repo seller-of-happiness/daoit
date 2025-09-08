@@ -12,10 +12,15 @@
         <div class="space-y-4">
             <!-- Поиск пользователей -->
             <div>
-                <div class="label">Поиск пользователей</div>
+                <div class="label">
+                    Поиск пользователей
+                    <span v-if="searchQuery.trim() && !isSearching && filteredAvailableUsers.length > 0" class="result-count">
+                        (найдено: {{ filteredAvailableUsers.length }})
+                    </span>
+                </div>
                 <app-inputtext
                     v-model="searchQuery"
-                    placeholder="Введите имя пользователя..."
+                    placeholder="Введите имя, email, должность или отделение..."
                     class="w-full"
                     @input="onSearchInput"
                 />
@@ -61,6 +66,9 @@
                                     </span>
                                     <span v-if="user.department" class="department">
                                         {{ user.department.name }}
+                                    </span>
+                                    <span v-if="user.email" class="email">
+                                        {{ user.email }}
                                     </span>
                                 </div>
                             </div>
@@ -113,6 +121,7 @@
 import { computed, ref, watch } from 'vue'
 import { debounce } from 'lodash-es'
 import { useChatStore } from '@/refactoring/modules/chat/stores/chatStore'
+import { useApiStore } from '@/refactoring/modules/apiStore/stores/apiStore'
 import type { IChat, IEmployee } from '@/refactoring/modules/chat/types/IChat'
 
 interface Props {
@@ -130,6 +139,7 @@ const emit = defineEmits<Emits>()
 
 // Хранилища
 const chatStore = useChatStore()
+const apiStore = useApiStore()
 
 // Состояние компонента
 const searchQuery = ref('')
@@ -153,8 +163,15 @@ const isUserSelected = (user: IEmployee) => {
 const filteredAvailableUsers = computed(() => {
     if (!props.chat) return availableUsers.value
 
-    const existingMemberIds = props.chat.members.map((member) => member.user)
-    return availableUsers.value.filter((user) => !existingMemberIds.includes(user.id))
+    // Получаем список ID участников чата (поддерживаем разные форматы)
+    const existingMemberIds = props.chat.members.map((member) => 
+        member.user_uuid || member.user || String(member.user)
+    )
+    
+    // Исключаем пользователей, которые уже есть в чате
+    return availableUsers.value.filter((user) => 
+        !existingMemberIds.includes(user.id) && !existingMemberIds.includes(String(user.id))
+    )
 })
 
 // Обработчики событий
@@ -174,7 +191,42 @@ const removeUserFromSelection = (user: IEmployee) => {
     }
 }
 
-// Поиск пользователей (debounced)
+// Функция поиска по локальным данным сотрудников
+const searchLocalEmployees = (query: string): IEmployee[] => {
+    if (!query.trim()) return []
+    
+    const searchTerm = query.toLowerCase().trim()
+    
+    // Преобразуем сотрудников из apiStore в формат IEmployee для чата
+    return apiStore.employees
+        .filter(employee => {
+            // Формируем полное имя для поиска
+            const fullName = `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.toLowerCase()
+            const email = employee.email?.toLowerCase() || ''
+            const position = employee.position?.name?.toLowerCase() || ''
+            const department = employee.department?.name?.toLowerCase() || ''
+            
+            // Поиск по имени, email, должности или отделению
+            return fullName.includes(searchTerm) ||
+                   email.includes(searchTerm) ||
+                   position.includes(searchTerm) ||
+                   department.includes(searchTerm)
+        })
+        .map(employee => ({
+            id: employee.id,
+            full_name: `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.trim(),
+            email: employee.email,
+            department: employee.department ? {
+                id: employee.department.id,
+                name: employee.department.name
+            } : null,
+            position: employee.position?.name || null,
+            can_create_dialog: true // Предполагаем что все сотрудники могут создавать диалоги
+        }))
+        .slice(0, 50) // Ограничиваем количество результатов для производительности
+}
+
+// Поиск пользователей (debounced) - теперь использует локальные данные
 const debouncedSearch = debounce(async (query: string) => {
     if (!query.trim()) {
         availableUsers.value = []
@@ -183,17 +235,39 @@ const debouncedSearch = debounce(async (query: string) => {
 
     isSearching.value = true
     try {
-        const results = await chatStore.searchChats(query)
-        availableUsers.value = results.new_dialogs || []
+        // Проверяем, загружены ли данные сотрудников
+        if (apiStore.employees.length === 0) {
+            console.log('Загружаем данные сотрудников для поиска...')
+            await apiStore.fetchAllEmployees()
+        }
+        
+        // Используем локальный поиск вместо API
+        availableUsers.value = searchLocalEmployees(query)
     } catch (error) {
         console.error('Error searching users:', error)
         availableUsers.value = []
+        
+        // Если локальный поиск не удался, можно fallback на серверный поиск
+        try {
+            console.log('Fallback к серверному поиску...')
+            const results = await chatStore.searchChats(query)
+            availableUsers.value = results.new_dialogs || []
+        } catch (fallbackError) {
+            console.error('Fallback search also failed:', fallbackError)
+        }
     } finally {
         isSearching.value = false
     }
-}, 300)
+}, 100) // Уменьшили debounce время, так как поиск теперь локальный
 
 const onSearchInput = () => {
+    // Логируем для отладки
+    console.log('🔍 Поиск пользователей:', {
+        query: searchQuery.value,
+        employeesInStore: apiStore.employees.length,
+        useLocalSearch: apiStore.employees.length > 0
+    })
+    
     debouncedSearch(searchQuery.value)
 }
 
@@ -225,12 +299,22 @@ const resetForm = () => {
     isInviting.value = false
 }
 
-// Сброс формы при закрытии диалога
+// Сброс формы при закрытии диалога и предзагрузка данных при открытии
 watch(
     () => props.visible,
-    (visible) => {
+    async (visible) => {
         if (!visible) {
             resetForm()
+        } else {
+            // Предварительно загружаем данные сотрудников при открытии диалога
+            if (apiStore.employees.length === 0) {
+                try {
+                    console.log('Предварительная загрузка данных сотрудников...')
+                    await apiStore.fetchAllEmployees()
+                } catch (error) {
+                    console.warn('Не удалось предварительно загрузить данные сотрудников:', error)
+                }
+            }
         }
     },
 )
@@ -286,10 +370,16 @@ watch(
 }
 
 .position,
-.department {
+.department,
+.email {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.email {
+    font-style: italic;
+    opacity: 0.8;
 }
 
 .selected-users-list {
@@ -366,6 +456,12 @@ watch(
 
 .mt-2 {
     margin-top: 0.5rem;
+}
+
+.result-count {
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+    font-weight: normal;
 }
 
 </style>
