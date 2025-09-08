@@ -30,9 +30,13 @@ defineProps<{ href: string; name: string; time: string; mine: boolean }>()
 .attachment-file-card.mine {
     background: #34d399;
     color: #0f172a;
+    box-shadow: 0 2px 8px rgba(52, 211, 153, 0.3);
 }
 .attachment-file-card.theirs {
-    background: var(--p-surface-100);
+    background: #f1f5f9;
+    color: #334155;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 .attachment-file-card .thumb {
     width: 56px;
@@ -63,5 +67,13 @@ defineProps<{ href: string; name: string; time: string; mine: boolean }>()
 .attachment-file-card .time-inline {
     font-size: 12px;
     opacity: 0.85;
+}
+
+/* Стили для темной темы */
+:root[class*='app-dark'] .attachment-file-card.theirs {
+    background: #374151;
+    color: #f3f4f6;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 </style>

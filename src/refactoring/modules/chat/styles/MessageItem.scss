@@ -15,11 +15,11 @@
       background: #059669 !important; 
       border-radius: 16px 4px 16px 16px !important;
       color: white !important;
-      box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
     }
     
     .time {
-      color: rgba(255, 255, 255, 0.8) !important;
+      color: rgba(255, 255, 255, 0.85) !important;
     }
   }
   
@@ -28,10 +28,15 @@
     margin-right: auto;
     
     .message-content {
-      background: var(--p-surface-100) !important;
+      background: #f1f5f9 !important;
       border-radius: 4px 16px 16px 16px !important;
-      color: var(--p-surface-600) !important;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      color: #334155 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    
+    .time {
+      color: #64748b !important;
     }
   }
 
@@ -269,3 +274,34 @@
 :deep(.attachment-file-card .meta) { font-size: 12px; opacity: 0.9; }
 :deep(.attachment-file-card .open-link) { text-decoration: underline; }
 :deep(.attachment-file-card .time-inline) { font-size: 12px; opacity: 0.85; }
+
+// Стили для темной темы
+:root[class*='app-dark'] {
+  .message {
+    &--mine {
+      .message-content {
+        background: #059669 !important; 
+        color: white !important;
+        box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
+      }
+      
+      .time {
+        color: rgba(255, 255, 255, 0.85) !important;
+      }
+    }
+    
+    &--theirs {
+      .message-content {
+        background: #374151 !important;
+        border-radius: 4px 16px 16px 16px !important;
+        color: #f3f4f6 !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      
+      .time {
+        color: #9ca3af !important;
+      }
+    }
+  }
+}

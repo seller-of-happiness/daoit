@@ -2,7 +2,7 @@
  * Композабл для работы с текущим пользователем в контексте чата
  * Централизует логику определения пользователя, его ID и имени
  */
-import { computed, ComputedRef } from 'vue'
+import { computed, type ComputedRef } from 'vue'
 import { useUserStore } from '@/refactoring/modules/user/stores/userStore'
 import type { IChat, IChatMember, IUser, IMessage } from '@/refactoring/modules/chat/types/IChat'
 
