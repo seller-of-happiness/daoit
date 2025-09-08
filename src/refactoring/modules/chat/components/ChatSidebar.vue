@@ -225,11 +225,6 @@ const foundChats = computed(() => {
         return typeMatch && isMember
     })
 
-    console.log('📋 Найденные чаты (где пользователь состоит):', {
-        userChats,
-        allSearchResults: props.searchResults.chats,
-        foundChats: result,
-    })
 
     return result
 })
@@ -247,11 +242,6 @@ const publicChats = computed(() => {
         return typeMatch && isNotMember && isPublic
     })
 
-    console.log('🔓 Публичные каналы для присоединения:', {
-        userChats,
-        allSearchResults: props.searchResults.chats,
-        publicChats: result,
-        activeFilter: activeFilter.value,
     })
 
     return result

@@ -9,6 +9,21 @@ import { useCurrentUser } from './useCurrentUser'
 export function useChatTitle(chat: ComputedRef<IChat | null>) {
     const { id: currentUserId } = useCurrentUser()
 
+    // Вспомогательная функция для поиска собеседника
+    const findCompanion = (chatValue: IChat) => {
+        if (!chatValue.members || !Array.isArray(chatValue.members)) {
+            return null
+        }
+
+        return chatValue.members.find((member) => {
+            if (!member) return false
+
+            const memberUserId = String(member.user || member.user_uuid || '')
+            const currentUserIdStr = String(currentUserId.value || '')
+            return memberUserId !== currentUserIdStr && memberUserId !== ''
+        })
+    }
+
     /**
      * Определяет название чата в зависимости от его типа
      */
@@ -16,31 +31,12 @@ export function useChatTitle(chat: ComputedRef<IChat | null>) {
         if (!chat.value) return ''
 
         if (chat.value.type === 'direct' || chat.value.type === 'dialog') {
-            // Проверяем что members существует и это массив
-            if (!chat.value.members || !Array.isArray(chat.value.members)) {
-                return chat.value.title || 'Диалог'
-            }
-
-            // Для личных диалогов показываем имя собеседника
-            const companion = chat.value.members.find((member) => {
-                if (!member) return false // Проверка на существование member
-
-                const memberUserId = String(member.user || member.user_uuid || '')
-                const currentUserIdStr = String(currentUserId.value || '')
-                return memberUserId !== currentUserIdStr && memberUserId !== ''
-            })
-
-            // Используем user_name или извлекаем имя из других полей
+            const companion = findCompanion(chat.value)
             const companionName = companion?.user_name?.trim()
-            if (companionName) {
-                return companionName
-            }
-
-            // Fallback - используем title чата
-            return chat.value.title || 'Диалог'
+            
+            return companionName || chat.value.title || 'Диалог'
         }
 
-        // Для групп и каналов используем title
         return chat.value.title || 'Без названия'
     })
 
@@ -51,20 +47,6 @@ export function useChatTitle(chat: ComputedRef<IChat | null>) {
         if (!chat.value) return null
 
         if (chat.value.type === 'direct' || chat.value.type === 'dialog') {
-            // Проверяем что members существует и это массив
-            if (!chat.value.members || !Array.isArray(chat.value.members)) {
-                return null
-            }
-
-            // Для личных диалогов ищем аватар собеседника
-            const companion = chat.value.members.find((member) => {
-                if (!member) return false // Проверка на существование member
-
-                const memberUserId = String(member.user || member.user_uuid || '')
-                const currentUserIdStr = String(currentUserId.value || '')
-                return memberUserId !== currentUserIdStr && memberUserId !== ''
-            })
-
             return null // IChatMember не содержит avatar
         }
 
