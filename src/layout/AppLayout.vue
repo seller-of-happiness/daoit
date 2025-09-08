@@ -219,8 +219,9 @@ const layoutContainerName = computed(() => {
         <!-- Overlay-маска для меню -->
         <div class="layout-mask animate-fadein"></div>
 
-        <!-- Скользящий чат -->
+        <!-- Скользящий чат (не показываем на полной странице чата) -->
         <SlidingChat
+            v-if="router.currentRoute.value.name !== 'chat'"
             v-model:visible="isSlidingChatVisible"
             :initial-chat-id="slidingChatInitialChatId"
             :initial-user-id="slidingChatInitialUserId"

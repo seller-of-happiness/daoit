@@ -55,6 +55,9 @@ export const useChatStore = defineStore('chatStore', {
         isSending: false,
         searchResults: null,
         isSearching: false,
+        // Флаг для предотвращения дублирования инициализации
+        isInitialized: false,
+        isInitializing: false,
     }),
     actions: {
         // Получает UUID текущего пользователя для подписки на центрифуго
@@ -130,6 +133,37 @@ export const useChatStore = defineStore('chatStore', {
                     }
                     break
             }
+        },
+
+        // Инициализирует чаты только один раз для предотвращения дублирования запросов
+        async initializeOnce(): Promise<void> {
+            // Если уже инициализировано или идет инициализация - выходим
+            if (this.isInitialized || this.isInitializing) {
+                return
+            }
+
+            this.isInitializing = true
+
+            try {
+                await this.fetchChats()
+                this.isInitialized = true
+            } catch (error) {
+                console.error('Ошибка при инициализации чатов:', error)
+                // Не устанавливаем isInitialized в true при ошибке,
+                // чтобы можно было повторить инициализацию
+            } finally {
+                this.isInitializing = false
+            }
+        },
+
+        // Сбрасывает состояние инициализации (например, при логауте)
+        resetInitialization(): void {
+            this.isInitialized = false
+            this.isInitializing = false
+            this.chats = []
+            this.currentChat = null
+            this.messages = []
+            this.searchResults = null
         },
 
         // Загружает список чатов. Управляет глобальным индикатором загрузки, логирует ошибки
