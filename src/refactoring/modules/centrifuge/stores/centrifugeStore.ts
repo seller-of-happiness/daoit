@@ -281,13 +281,24 @@ export const useCentrifugeStore = defineStore('centrifuge', {
                         offset: ctx.offset,
                         tags: ctx.tags,
                     })
+                    
+                    // Дополнительное логирование для отладки
+                    console.log('🔔 Centrifuge publication received:', {
+                        channel,
+                        fullContext: ctx,
+                        data: ctx.data
+                    })
+                    
                     const handler = this.handlers.get(channel)
                     if (handler) {
                         try {
                             handler(ctx.data)
                         } catch (e) {
                             this.logEvent('Handler error', e)
+                            console.error('❌ Centrifuge handler error:', e)
                         }
+                    } else {
+                        console.warn('⚠️ No handler found for channel:', channel)
                     }
                 })
 
