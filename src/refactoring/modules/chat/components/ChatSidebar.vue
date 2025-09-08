@@ -242,8 +242,6 @@ const publicChats = computed(() => {
         return typeMatch && isNotMember && isPublic
     })
 
-    })
-
     return result
 })
 
