@@ -203,6 +203,7 @@ const props = defineProps<{
     reactionTypes: IReactionType[]
     currentUserId?: string | number | null
     currentUserName?: string | null
+    chatMembers?: Array<{ user: string; user_name: string; user_uuid?: string }>
 }>()
 
 const emit = defineEmits<{
@@ -221,6 +222,7 @@ const reactions = useReactions(
     props.message,
     props.currentUserId?.toString() || currentUser.id.value,
     props.reactionTypes,
+    props.chatMembers,
 )
 
 // Состояние компонента

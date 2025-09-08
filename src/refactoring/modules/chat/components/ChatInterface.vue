@@ -43,6 +43,7 @@
                             :reaction-types="chatStore.reactionTypes"
                             :current-user-id="currentUser.id.value"
                             :current-user-name="currentUser.nameForChat.value"
+                            :chat-members="chatStore.currentChat?.members"
                             @change-reaction="changeReaction"
                             @remove-my-reaction="removeMyReaction"
                         />

@@ -26,6 +26,7 @@ export function useReactions(
     message: IMessage,
     currentUserId: string | null,
     reactionTypes: IReactionType[],
+    chatMembers?: Array<{ user: string; user_name: string; user_uuid?: string }>,
 ) {
     const optimisticReactions = ref<OptimisticReaction[]>([])
     const hasQuickLike = ref(false)
@@ -69,9 +70,9 @@ export function useReactions(
 
         // Обработка различных форматов данных от сервера
         if (Array.isArray(raw)) {
-            processArrayFormat(raw, addUserToGroup)
+            processArrayFormat(raw, addUserToGroup, chatMembers, reactionTypes)
         } else if (raw && typeof raw === 'object') {
-            processObjectFormat(raw, addUserToGroup)
+            processObjectFormat(raw, addUserToGroup, chatMembers, reactionTypes)
         }
 
         // Добавляем оптимистичные реакции
@@ -100,7 +101,7 @@ export function useReactions(
         if (isOptimisticallyCleared.value) return null
 
         // Проверяем оптимистичные реакции
-        const optimistic = optimisticReactions.value.find((r) => pickUserId(r) === currentUserId)
+        const optimistic = optimisticReactions.value.find((r: OptimisticReaction) => pickUserId(r) === currentUserId)
         if (optimistic) {
             const id = Number(optimistic.id)
             return Number.isFinite(id) ? id : null
@@ -146,7 +147,7 @@ export function useReactions(
         const key = String(id)
         const userId = String(user?.user ?? user?.id ?? user?.user_id ?? 'me')
         const exists = optimisticReactions.value.some(
-            (r) => String(r.id) === key && pickUserId(r) === userId,
+            (r: OptimisticReaction) => String(r.id) === key && pickUserId(r) === userId,
         )
         if (!exists) {
             optimisticReactions.value.push({ id: key, name, icon, user })
@@ -158,7 +159,7 @@ export function useReactions(
     const clearOptimisticForMe = () => {
         if (!currentUserId) return
         optimisticReactions.value = optimisticReactions.value.filter(
-            (r) => pickUserId(r) !== currentUserId,
+            (r: OptimisticReaction) => pickUserId(r) !== currentUserId,
         )
         isOptimisticallyCleared.value = true
     }
@@ -193,20 +194,30 @@ export function useReactions(
 
 // Вспомогательные функции
 
-function processArrayFormat(array: any[], addUserToGroup: Function) {
+function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?: Array<{ user: string; user_name: string; user_uuid?: string }>, reactionTypes?: IReactionType[]) {
     for (const item of array) {
         const id = String(
             item?.type_id ??
                 item?.reaction_id ??
+                item?.reaction_type_id ??
                 item?.id ??
                 item?.type ??
                 item?.reaction?.id ??
                 '',
         )
-        const name =
+        let name =
             item?.type_name ?? item?.reaction_name ?? item?.name ?? item?.reaction?.name ?? ''
-        const icon =
+        let icon =
             item?.type_icon ?? item?.reaction_icon ?? item?.icon ?? item?.reaction?.icon ?? null
+
+        // Если у нас есть типы реакций и ID, попробуем найти правильную информацию
+        if (reactionTypes && id) {
+            const reactionType = reactionTypes.find(rt => String(rt.id) === String(id))
+            if (reactionType) {
+                name = name || reactionType.name
+                icon = icon || reactionType.icon
+            }
+        }
 
         const usersSources = [
             item?.users,
@@ -221,17 +232,36 @@ function processArrayFormat(array: any[], addUserToGroup: Function) {
 
         if (item?.user) usersSources.push(item.user)
 
+        // Обработка формата {user_id: "...", reaction_type_id: 2}
+        if (item?.user_id && !usersSources.length) {
+            const userId = item.user_id
+            // Ищем пользователя в участниках чата
+            const chatMember = chatMembers?.find(m => 
+                m.user === userId || m.user_uuid === userId
+            )
+            
+            // Создаем объект пользователя из user_id
+            const userObj = {
+                id: userId,
+                user: userId,
+                user_id: userId,
+                name: chatMember?.user_name || 'Пользователь',
+                user_name: chatMember?.user_name || 'Пользователь'
+            }
+            usersSources.push(userObj)
+        }
+
         for (const user of usersSources.filter(Boolean)) {
             addUserToGroup(id, name, icon, user)
         }
     }
 }
 
-function processObjectFormat(obj: any, addUserToGroup: Function) {
+function processObjectFormat(obj: any, addUserToGroup: Function, chatMembers?: Array<{ user: string; user_name: string; user_uuid?: string }>, reactionTypes?: IReactionType[]) {
     for (const [key, val] of Object.entries(obj)) {
         const v: any = val
         if (Array.isArray(v)) {
-            processArrayFormat(v, addUserToGroup)
+            processArrayFormat(v, addUserToGroup, chatMembers, reactionTypes)
         } else {
             const users =
                 [v?.users, v?.users_preview, v?.reactors, v?.members].find(Array.isArray) || []
@@ -285,14 +315,19 @@ function extractMyReactionFromServer(message: any, currentUserId: string): numbe
                 .filter(Boolean)
                 .flat()
 
+            // Проверяем обычные списки пользователей
             const hasMyUser = users.some(
                 (u: any) => String(u?.user ?? u?.id ?? u?.user_id ?? '') === currentUserId,
             )
 
-            if (hasMyUser) {
+            // Проверяем формат {user_id: "...", reaction_type_id: 2}
+            const isMyDirectReaction = item?.user_id && String(item.user_id) === currentUserId
+
+            if (hasMyUser || isMyDirectReaction) {
                 const id = Number(
                     item?.type_id ??
                         item?.reaction_id ??
+                        item?.reaction_type_id ??
                         item?.id ??
                         item?.type ??
                         item?.reaction?.id ??
