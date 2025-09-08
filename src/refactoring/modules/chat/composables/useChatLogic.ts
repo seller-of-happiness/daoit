@@ -160,23 +160,16 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         reactionId: number,
         prevReactionId: number | null,
     ) => {
-        console.log('🚀 Отправляем реакцию на сервер:', {messageId, reactionId, prevReactionId})
-        
         // Если пользователь кликает на ту же реакцию - удаляем её
         if (prevReactionId && prevReactionId === reactionId) {
-            console.log('⚠️ Попытка поставить ту же реакцию, удаляем её')
             await chatStore.clearMyReactions(messageId)
             return
         }
 
-        console.log('🎭 Обрабатываем изменение реакции:', {messageId, reactionId, prevReactionId})
-        
         // Если у пользователя уже есть реакция - используем эксклюзивную установку
         if (prevReactionId !== null) {
-            console.log('🔄 У пользователя уже есть реакция, используем эксклюзивную установку')
             await chatStore.setExclusiveReaction(messageId, reactionId)
         } else {
-            console.log('✨ У пользователя нет реакций, просто добавляем новую')
             await chatStore.addReaction(messageId, reactionId)
         }
     }

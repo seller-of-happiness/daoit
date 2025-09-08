@@ -161,7 +161,7 @@ const isUserSelected = (user: IEmployee) => {
 
 // Фильтруем пользователей, которые уже есть в чате
 const filteredAvailableUsers = computed(() => {
-    if (!props.chat) return availableUsers.value
+    if (!props.chat || !props.chat.members) return availableUsers.value
 
     // Получаем список ID участников чата (поддерживаем разные форматы)
     const existingMemberIds = props.chat.members.map((member) => 
@@ -237,7 +237,6 @@ const debouncedSearch = debounce(async (query: string) => {
     try {
         // Проверяем, загружены ли данные сотрудников
         if (apiStore.employees.length === 0) {
-            console.log('Загружаем данные сотрудников для поиска...')
             await apiStore.fetchAllEmployees()
         }
         
@@ -249,7 +248,6 @@ const debouncedSearch = debounce(async (query: string) => {
         
         // Если локальный поиск не удался, можно fallback на серверный поиск
         try {
-            console.log('Fallback к серверному поиску...')
             const results = await chatStore.searchChats(query)
             availableUsers.value = results.new_dialogs || []
         } catch (fallbackError) {
@@ -261,13 +259,6 @@ const debouncedSearch = debounce(async (query: string) => {
 }, 100) // Уменьшили debounce время, так как поиск теперь локальный
 
 const onSearchInput = () => {
-    // Логируем для отладки
-    console.log('🔍 Поиск пользователей:', {
-        query: searchQuery.value,
-        employeesInStore: apiStore.employees.length,
-        useLocalSearch: apiStore.employees.length > 0
-    })
-    
     debouncedSearch(searchQuery.value)
 }
 
@@ -309,7 +300,6 @@ watch(
             // Предварительно загружаем данные сотрудников при открытии диалога
             if (apiStore.employees.length === 0) {
                 try {
-                    console.log('Предварительная загрузка данных сотрудников...')
                     await apiStore.fetchAllEmployees()
                 } catch (error) {
                     console.warn('Не удалось предварительно загрузить данные сотрудников:', error)
@@ -321,8 +311,6 @@ watch(
 </script>
 
 <style scoped>
-
-
 .user-item {
     display: flex;
     align-items: center;

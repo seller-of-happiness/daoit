@@ -256,7 +256,6 @@ const isMine = computed(() => {
         props.currentUserName || currentUser.name.value,
     )
 
-    console.log(`💬 Сообщение ${props.message.id}: isMine = ${result}`)
     return result
 })
 
