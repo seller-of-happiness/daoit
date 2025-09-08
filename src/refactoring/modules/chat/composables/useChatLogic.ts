@@ -201,8 +201,8 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         }
 
         try {
-            // Загрузка чатов (ошибки обрабатываются внутри функции)
-            await chatStore.fetchChats()
+            // Загрузка чатов только один раз (предотвращение дублирования запросов)
+            await chatStore.initializeOnce()
 
             let chatToOpen: IChat | null = null
 

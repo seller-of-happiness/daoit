@@ -102,6 +102,9 @@ export interface IChatStoreState {
     isSending: boolean
     searchResults: ISearchResults | null
     isSearching: boolean
+    // Флаги для предотвращения дублирования инициализации
+    isInitialized: boolean
+    isInitializing: boolean
 }
 
 // Улучшенные типы для реакций

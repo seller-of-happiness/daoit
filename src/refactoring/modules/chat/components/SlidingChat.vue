@@ -298,7 +298,8 @@ watch(
                 } else if (newChatId) {
                     chatToOpen = chatStore.chats.find((c) => c.id === newChatId) || null
                     if (!chatToOpen) {
-                        await chatStore.fetchChats()
+                        // Попытаемся инициализировать чаты, если они еще не загружены
+                        await chatStore.initializeOnce()
                         chatToOpen = chatStore.chats.find((c) => c.id === newChatId) || null
                     }
                 }
