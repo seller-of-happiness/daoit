@@ -8,6 +8,9 @@ export interface IUserType {
     last_name: string
     first_name: string
     middle_name: string
+    full_name?: string // Полное имя пользователя
+    user_name?: string // Имя пользователя для чатов
+    username?: string // Альтернативное имя пользователя
     gender: string
     birth_date: string | null
     position: {
