@@ -171,11 +171,19 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
 
         console.log('🎭 Обрабатываем изменение реакции:', {messageId, reactionId, prevReactionId})
         
-        try {
-            await chatStore.clearMyReactions(messageId)
-        } catch {
-            // Игнорируем ошибки очистки
+        // Очищаем старые реакции только если они есть
+        if (prevReactionId !== null) {
+            try {
+                console.log('🧹 Очищаем существующую реакцию:', prevReactionId)
+                await chatStore.clearMyReactions(messageId)
+            } catch {
+                // Игнорируем ошибки очистки
+                console.warn('⚠️ Не удалось очистить существующую реакцию')
+            }
+        } else {
+            console.log('✨ У пользователя нет реакций, сразу добавляем новую')
         }
+        
         await chatStore.addReaction(messageId, reactionId)
     }
 
