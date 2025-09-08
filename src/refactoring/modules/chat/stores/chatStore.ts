@@ -528,7 +528,12 @@ export const useChatStore = defineStore('chatStore', {
                 chatId,
                 currentChatId: this.currentChat?.id,
                 messageContent: message.content,
-                messageCreatedBy: message.created_by
+                messageAuthor: message.author,
+                messageAuthorId: message.author_id,
+                messageAuthorName: message.author_name,
+                messageUserId: message.user_id,
+                messageName: message.name,
+                fullMessage: message
             })
             
             const currentUserInfo = useCurrentUser(this.currentChat)
@@ -686,6 +691,17 @@ export const useChatStore = defineStore('chatStore', {
             try {
                 const res = await axios.get(`${BASE_URL}/api/chat/chat/${chatId}/message/`)
                 const list = (res.data?.results ?? res.data) as IMessage[]
+
+                // Отладка: показываем структуру полученных сообщений
+                console.log('📥 Загружены сообщения для чата:', chatId, list.slice(0, 3).map(msg => ({
+                    id: msg.id,
+                    content: msg.content?.substring(0, 50),
+                    author: msg.author,
+                    author_id: msg.author_id,
+                    author_name: msg.author_name,
+                    user_id: msg.user_id,
+                    name: msg.name
+                })))
 
                 // Используйте правильное реактивное присваивание
                 const sortedMessages = [...list].sort(compareMessagesAscending)
