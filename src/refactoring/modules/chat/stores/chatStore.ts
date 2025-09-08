@@ -476,8 +476,8 @@ export const useChatStore = defineStore('chatStore', {
         // Получает счетчики непрочитанных сообщений для всех чатов
         async fetchUnreadCounts(): Promise<void> {
             try {
-                // Используем POST вместо GET, как указано в комментарии к эндпоинту
-                const res = await axios.post(`${BASE_URL}/api/chat/chat/unread-counts/`)
+                // Используем GET для получения счетчиков непрочитанных сообщений
+                const res = await axios.get(`${BASE_URL}/api/chat/chat/unread-counts/`)
                 const unreadData = res.data?.results ?? res.data
 
                 // Проверяем формат ответа - может быть массив объектов или объект с ключами chat_id
@@ -618,22 +618,10 @@ export const useChatStore = defineStore('chatStore', {
             this.fetchChats()
         },
 
-        // Отмечает сообщения в чате как прочитанные
+        // Отмечает сообщения в чате как прочитанные (только локально)
         async markChatAsRead(chatId: number, lastMessageId?: number): Promise<void> {
             try {
-                const payload: any = {}
-                if (lastMessageId) {
-                    payload.last_message_id = lastMessageId
-                }
-
-                // Пытаемся отправить на сервер, но не блокируем при ошибке
-                try {
-                    await axios.post(`${BASE_URL}/api/chat/chat/${chatId}/mark-read/`, payload)
-                } catch (apiError) {
-                    // API может быть не реализован
-                }
-
-                // Всегда обновляем локальное состояние
+                // Обновляем локальное состояние
                 const chatIndex = this.chats.findIndex((c) => c.id === chatId)
                 if (chatIndex !== -1) {
                     const updatedChats = [...this.chats]
@@ -654,7 +642,7 @@ export const useChatStore = defineStore('chatStore', {
                     })
                 }
             } catch (error) {
-                // Критическая ошибка в логике (не API)
+                // Критическая ошибка в логике
             }
         },
 
