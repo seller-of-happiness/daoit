@@ -4,6 +4,7 @@
 
 /**
  * Генерирует инициалы из названия чата
+ * Для имен пользователей берет первую букву имени и первую букву фамилии
  */
 export function generateChatInitials(name: string): string {
     if (!name?.trim()) return ''
@@ -15,6 +16,20 @@ export function generateChatInitials(name: string): string {
     }
     
     if (parts.length >= 2) {
+        // Для русских имен: если первое слово похоже на имя, а второе на фамилию
+        // то берем инициалы в порядке Имя + Фамилия
+        const firstName = parts[0]
+        const lastName = parts[1]
+        
+        // Проверяем, является ли первое слово именем (начинается с заглавной и не очень длинное)
+        // и второе слово фамилией
+        const isLikelyNameSurname = firstName.length <= 15 && lastName.length <= 20
+        
+        if (isLikelyNameSurname) {
+            return (firstName[0] + lastName[0]).toUpperCase()
+        }
+        
+        // Для остальных случаев (названия групп, каналов и т.д.) - как было
         return (parts[0][0] + parts[1][0]).toUpperCase()
     }
     
