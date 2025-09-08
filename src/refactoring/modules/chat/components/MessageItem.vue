@@ -372,11 +372,14 @@ function selectReaction(r: IReactionType) {
         avatar: null,
     }
 
+    // Сохраняем предыдущее значение реакции ДО изменения оптимистичного состояния
+    const prevReactionId = reactions.myReactionId.value
+
     reactions.clearOptimisticForMe()
     reactions.addOptimisticReaction(r.id, r.name, r.icon, user)
 
     if (String(r.id) !== String(-1)) {
-        emit('change-reaction', props.message.id, r.id, reactions.myReactionId.value)
+        emit('change-reaction', props.message.id, r.id, prevReactionId)
     }
 }
 
@@ -433,8 +436,10 @@ function onMessageLeave() {
 
 function onTriggerClick() {
     if (reactions.hasMyReaction.value) {
+        // Сохраняем ID реакции ДО очистки оптимистичного состояния
+        const prevReactionId = reactions.myReactionId.value
         reactions.clearOptimisticForMe()
-        emit('remove-my-reaction', props.message.id, reactions.myReactionId.value)
+        emit('remove-my-reaction', props.message.id, prevReactionId)
         closePicker()
         showTrigger.value = false
         isHoverTrigger.value = false
