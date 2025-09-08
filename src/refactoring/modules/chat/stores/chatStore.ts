@@ -885,17 +885,26 @@ export const useChatStore = defineStore('chatStore', {
         async removeReaction(messageId: number): Promise<void> {
             if (!this.currentChat) return
             try {
-                // ✅ Параметры не передаем - API автоматически удалит реакцию текущего пользователя
-                await axios.delete(
+                // Используем POST с action=remove (аналогично clearMyReactions)
+                await axios.post(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
+                    { action: 'remove' }
                 )
             } catch (error) {
-                logger.error('chat_removeReaction_error', {
-                    file: 'chatStore',
-                    function: 'removeReaction',
-                    condition: String(error),
-                })
-                throw error
+                // Пробуем альтернативный способ через POST на отдельный endpoint
+                try {
+                    await axios.post(
+                        `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/remove/`,
+                        {}
+                    )
+                } catch (postError) {
+                    logger.error('chat_removeReaction_error', {
+                        file: 'chatStore',
+                        function: 'removeReaction',
+                        condition: String(error),
+                    })
+                    throw error
+                }
             } finally {
                 await this.fetchMessages(this.currentChat.id)
             }
@@ -917,14 +926,43 @@ export const useChatStore = defineStore('chatStore', {
         // Очищает все мои реакции с сообщения
         async clearMyReactions(messageId: number): Promise<void> {
             if (!this.currentChat) return
+            
+            console.log(`🧹 Попытка очистить реакции для сообщения ${messageId}`)
+            
             try {
-                // ✅ Используем тот же DELETE эндпоинт без параметров
-                await axios.delete(
+                // Пробуем POST с action=remove (наиболее вероятный вариант для Django REST)
+                console.log('🔄 Метод 1: POST с action=remove')
+                await axios.post(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
+                    { action: 'remove' }
                 )
+                console.log('✅ Метод 1 сработал!')
             } catch (error) {
-                // Игнорируем ошибки при очистке (возможно реакции уже нет)
-                console.warn('Не удалось очистить реакции:', error)
+                console.log('❌ Метод 1 не сработал:', error.response?.status, error.response?.data)
+                try {
+                    // Альтернативный вариант: POST на отдельный endpoint
+                    console.log('🔄 Метод 2: POST на /remove/')
+                    await axios.post(
+                        `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/remove/`,
+                        {}
+                    )
+                    console.log('✅ Метод 2 сработал!')
+                } catch (postError) {
+                    console.log('❌ Метод 2 не сработал:', postError.response?.status, postError.response?.data)
+                    try {
+                        // Третий вариант: POST с reaction_type_id = null или 0
+                        console.log('🔄 Метод 3: POST с reaction_type_id=null')
+                        await axios.post(
+                            `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
+                            { reaction_type_id: null }
+                        )
+                        console.log('✅ Метод 3 сработал!')
+                    } catch (nullError) {
+                        console.log('❌ Метод 3 не сработал:', nullError.response?.status, nullError.response?.data)
+                        // Игнорируем ошибки при очистке (возможно реакции уже нет)
+                        console.warn('⚠️ Все методы очистки реакций не сработали. Исходная ошибка:', error)
+                    }
+                }
             } finally {
                 // Перезагружаем сообщения для обновления состояния
                 await this.fetchMessages(this.currentChat.id)
