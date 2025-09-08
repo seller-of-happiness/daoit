@@ -693,14 +693,17 @@ export const useChatStore = defineStore('chatStore', {
                 const list = (res.data?.results ?? res.data) as IMessage[]
 
                 // Отладка: показываем структуру полученных сообщений
-                console.log('📥 Загружены сообщения для чата:', chatId, list.slice(0, 3).map(msg => ({
+                console.log('📥 Загружены сообщения для чата:', chatId, `(${list.length})`, list.slice(0, 3).map(msg => ({
                     id: msg.id,
                     content: msg.content?.substring(0, 50),
                     author: msg.author,
                     author_id: msg.author_id,
                     author_name: msg.author_name,
                     user_id: msg.user_id,
-                    name: msg.name
+                    name: msg.name,
+                    created_by: msg.created_by,
+                    // Показываем все доступные поля для первого сообщения
+                    ...(list.indexOf(msg) === 0 ? { allFields: Object.keys(msg) } : {})
                 })))
 
                 // Используйте правильное реактивное присваивание

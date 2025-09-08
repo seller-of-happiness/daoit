@@ -18,7 +18,8 @@ export function useCurrentUser(currentChat?: IChat | null): CurrentUserInfo {
     // Централизованное получение ID пользователя
     const currentUserId = computed(() => {
         const user = userStore.user
-        return user?.id?.toString() ?? null
+        // Пробуем UUID в первую очередь, затем ID
+        return user?.uuid?.toString() ?? user?.id?.toString() ?? null
     })
 
     // Централизованное получение имени пользователя
@@ -118,6 +119,7 @@ export function isMyMessage(
         messageAuthor: message?.author,
         messageAuthorName: message?.author_name,
         messageName: message?.name,
+        messageCreatedBy: message?.created_by,
         currentUserId,
         currentUserName,
     })
@@ -132,13 +134,23 @@ export function isMyMessage(
         const messageUserIds = [
             message?.author_id,
             message?.user_id,
+            message?.created_by?.id,
             typeof message?.author === 'number' ? message.author : null,
+            typeof message?.author === 'string' ? message.author : null,
         ]
             .filter((id) => id !== undefined && id !== null)
             .map((id) => id.toString())
 
-        console.log('🆔 Сравнение ID:', { messageUserIds, currentUserId })
+        console.log('🆔 Сравнение ID:', { 
+            messageUserIds, 
+            currentUserId,
+            messageCreatedById: message?.created_by?.id,
+            messageAuthor: message?.author,
+            messageAuthorId: message?.author_id,
+            messageUserId: message?.user_id
+        })
 
+        // Проверяем точное совпадение
         if (messageUserIds.some((id) => id === currentUserId)) {
             console.log('✅ Совпадение по ID - это мое сообщение')
             return true
@@ -151,10 +163,21 @@ export function isMyMessage(
 
     // Сравнение по имени (основной способ в этом проекте)
     if (currentUserName) {
+        // Извлекаем имя из разных возможных полей
         const messageUserName =
             message?.author_name ??
             (typeof message?.author === 'string' ? message.author : null) ??
-            message?.name
+            message?.name ??
+            // Пробуем извлечь имя из created_by
+            message?.created_by?.full_name ??
+            (message?.created_by?.first_name && message?.created_by?.last_name 
+                ? `${message.created_by.first_name} ${message.created_by.last_name}`.trim()
+                : null) ??
+            (message?.created_by?.last_name && message?.created_by?.first_name 
+                ? `${message.created_by.last_name} ${message.created_by.first_name}`.trim()
+                : null) ??
+            message?.created_by?.user_name ??
+            message?.created_by?.username
 
         console.log('👤 Найденное имя в сообщении:', messageUserName)
 

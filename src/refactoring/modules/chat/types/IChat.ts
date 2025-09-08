@@ -73,6 +73,15 @@ export interface IMessage {
     author_name?: string
     user_id?: string | number
     name?: string
+    created_by?: {
+        id: string
+        first_name?: string
+        last_name?: string
+        full_name?: string
+        user_name?: string
+        username?: string
+        email?: string
+    }
     attachments: IMessageAttachment[]
     created_at: string
     reactions?: IMessageReaction[]

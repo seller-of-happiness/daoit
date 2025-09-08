@@ -456,19 +456,4 @@ function onTriggerClick() {
 
 <style scoped lang="scss">
 @use '../styles/MessageItem.scss' as *;
-
-/* Временные стили для отладки */
-.message {
-    border: 2px solid transparent;
-}
-
-.message--mine {
-    border-color: green !important;
-    background-color: rgba(0, 255, 0, 0.1) !important;
-}
-
-.message--theirs {
-    border-color: red !important;
-    background-color: rgba(255, 0, 0, 0.1) !important;
-}
 </style>
