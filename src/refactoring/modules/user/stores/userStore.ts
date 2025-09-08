@@ -14,6 +14,18 @@ export const useUserStore = defineStore('userStore', {
             // Деструктурируем объект user из payload
             const { user } = payload
             this.user = user
+            
+            // Отладка: показываем данные пользователя
+            console.log('👤 Инициализирован пользователь:', {
+                id: user?.id,
+                uuid: user?.uuid,
+                full_name: user?.full_name,
+                first_name: user?.first_name,
+                last_name: user?.last_name,
+                user_name: user?.user_name,
+                username: user?.username,
+                email: user?.email
+            })
         },
     },
 })

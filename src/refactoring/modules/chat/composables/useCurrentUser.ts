@@ -66,6 +66,7 @@ export function normalizeName(value: unknown): string {
         .replace(/\s+/g, ' ')
         .trim()
 
+    console.log(`🔤 normalizeName: "${value}" -> "${normalized}"`)
     return normalized
 }
 
@@ -76,8 +77,11 @@ function compareNames(name1: string, name2: string): boolean {
     const norm1 = normalizeName(name1)
     const norm2 = normalizeName(name2)
 
+    console.log(`🔍 compareNames: "${norm1}" vs "${norm2}"`)
+
     // Прямое сравнение
     if (norm1 === norm2) {
+        console.log('✅ Прямое совпадение имен')
         return true
     }
 
@@ -90,9 +94,11 @@ function compareNames(name1: string, name2: string): boolean {
         const reversed2 = `${words2[1]} ${words2[0]}`
 
         const match = norm1 === reversed2 || norm2 === reversed1
+        console.log(`🔄 Проверка перестановки: ${match}`)
         return match
     }
 
+    console.log('❌ Имена не совпадают')
     return false
 }
 
@@ -104,21 +110,24 @@ export function isMyMessage(
     currentUserId: string | null,
     currentUserName: string | null,
 ): boolean {
-    // Отладочная информация (закомментировано для чистоты консоли)
-    // console.log('🔍 Проверка сообщения:', {
-    //     messageId: message?.id,
-    //     messageAuthorId: message?.author_id,
-    //     messageUserId: message?.user_id,
-    //     messageAuthor: message?.author,
-    //     messageAuthorName: message?.author_name,
-    //     messageName: message?.name,
-    //     currentUserId,
-    //     currentUserName,
-    // })
+    // Отладочная информация (временно включена для диагностики)
+    console.log('🔍 Проверка сообщения:', {
+        messageId: message?.id,
+        messageAuthorId: message?.author_id,
+        messageUserId: message?.user_id,
+        messageAuthor: message?.author,
+        messageAuthorName: message?.author_name,
+        messageName: message?.name,
+        currentUserId,
+        currentUserName,
+    })
 
-    if (!currentUserId && !currentUserName) return false
+    if (!currentUserId && !currentUserName) {
+        console.log('❌ Нет данных о текущем пользователе')
+        return false
+    }
 
-    // Пробуем сравнение по ID
+    // Пробуем сравнение по ID (самый надежный способ)
     if (currentUserId) {
         const messageUserIds = [
             message?.author_id,
@@ -128,14 +137,16 @@ export function isMyMessage(
             .filter((id) => id !== undefined && id !== null)
             .map((id) => id.toString())
 
+        console.log('🆔 Сравнение ID:', { messageUserIds, currentUserId })
+
         if (messageUserIds.some((id) => id === currentUserId)) {
+            console.log('✅ Совпадение по ID - это мое сообщение')
             return true
         }
 
-        // Если у сообщения есть ID, но не совпал - точно не моё
-        if (messageUserIds.length > 0) {
-            return false
-        }
+        // Если у сообщения есть ID, но не совпал - НЕ ВОЗВРАЩАЕМ false сразу
+        // Пробуем еще по имени, так как ID могут быть в разных форматах
+        console.log('⚠️ ID не совпадают, пробуем по имени')
     }
 
     // Сравнение по имени (основной способ в этом проекте)
@@ -145,13 +156,17 @@ export function isMyMessage(
             (typeof message?.author === 'string' ? message.author : null) ??
             message?.name
 
+        console.log('👤 Найденное имя в сообщении:', messageUserName)
+
         if (messageUserName) {
             const result = compareNames(messageUserName, currentUserName)
-            // console.log(`📝 Сравнение имен: "${messageUserName}" vs "${currentUserName}" = ${result}`)
+            console.log(`📝 Сравнение имен: "${messageUserName}" vs "${currentUserName}" = ${result}`)
             return result
+        } else {
+            console.log('⚠️ В сообщении не найдено имя автора')
         }
     }
 
-    // console.log('❌ Сообщение определено как чужое (нет данных для сравнения)')
+    console.log('❌ Сообщение определено как чужое (нет данных для сравнения)')
     return false
 }
