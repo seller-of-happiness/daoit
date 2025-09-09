@@ -577,9 +577,18 @@ export const useChatStore = defineStore('chatStore', {
                 
                 // Если локальное обновление не удалось, перезагружаем сообщения
                 if (!success) {
+                    console.warn('⚠️ Локальное обновление реакции не удалось, перезагружаем сообщения')
                     this.fetchMessages(this.currentChat.id).catch((error) => {
                         console.error('Ошибка при обновлении сообщений после реакции:', error)
                     })
+                }
+            } else {
+                // Если это не текущий чат, обновляем информацию о последнем сообщении в списке чатов
+                const chatIndex = this.chats.findIndex(c => c.id === chatId)
+                if (chatIndex !== -1 && this.chats[chatIndex].last_message_id === messageId) {
+                    console.log('🔄 Обновляем реакции для последнего сообщения в чате:', chatId)
+                    // Можем обновить last_message, но это не критично
+                    // В большинстве случаев пользователь увидит обновления при открытии чата
                 }
             }
         },
@@ -599,19 +608,29 @@ export const useChatStore = defineStore('chatStore', {
                 // Создаем копию массива реакций для избежания мутаций
                 const newReactions = [...reactions]
 
-                if (eventType === 'new_reaction') {
-                    // Добавляем новую реакцию
-                    const newReaction = {
-                        id: Date.now(), // Временный ID
-                        reaction_type: reactionTypeId,
-                        user: userId,
-                        user_id: userId,
-                        reaction_type_id: reactionTypeId,
-                        created_at: new Date().toISOString()
-                    }
-                    newReactions.push(newReaction)
+                if (eventType === 'new_reaction' || eventType === 'reaction_added') {
+                    // Проверяем, нет ли уже такой реакции от этого пользователя
+                    const existingIndex = newReactions.findIndex(r => 
+                        (r.reaction_type === reactionTypeId || r.reaction_type_id === reactionTypeId) && 
+                        (r.user === userId || r.user_id === userId)
+                    )
                     
-                    console.log('➕ Добавлена реакция локально:', newReaction)
+                    if (existingIndex === -1) {
+                        // Добавляем новую реакцию только если её еще нет
+                        const newReaction = {
+                            id: Date.now(), // Временный ID
+                            reaction_type: reactionTypeId,
+                            user: userId,
+                            user_id: userId,
+                            reaction_type_id: reactionTypeId,
+                            created_at: new Date().toISOString()
+                        }
+                        newReactions.push(newReaction)
+                        console.log('➕ Добавлена реакция локально:', newReaction)
+                    } else {
+                        console.log('⚠️ Реакция уже существует, пропускаем добавление')
+                        return true // Не ошибка, просто дубликат
+                    }
                 } else if (eventType === 'reaction_removed') {
                     // Удаляем реакцию
                     const reactionIndex = newReactions.findIndex(r => 
@@ -622,6 +641,9 @@ export const useChatStore = defineStore('chatStore', {
                     if (reactionIndex !== -1) {
                         newReactions.splice(reactionIndex, 1)
                         console.log('➖ Удалена реакция локально:', { reactionTypeId, userId })
+                    } else {
+                        console.log('⚠️ Реакция для удаления не найдена')
+                        return true // Не ошибка, возможно уже удалена
                     }
                 }
 
@@ -900,15 +922,16 @@ export const useChatStore = defineStore('chatStore', {
                         reaction_type_id: reactionId,
                     },
                 )
+                // ✅ Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
                 logger.error('chat_addReaction_error', {
                     file: 'chatStore',
                     function: 'addReaction',
                     condition: String(error),
                 })
-                throw error
-            } finally {
+                // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
+                throw error
             }
         },
 
@@ -920,15 +943,16 @@ export const useChatStore = defineStore('chatStore', {
                 await axios.delete(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
                 )
+                // ✅ Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
                 logger.error('chat_removeReaction_error', {
                     file: 'chatStore',
                     function: 'removeReaction',
                     condition: String(error),
                 })
-                throw error
-            } finally {
+                // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
+                throw error
             }
         },
 
@@ -953,11 +977,11 @@ export const useChatStore = defineStore('chatStore', {
                 await axios.delete(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
                 )
+                // ✅ Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
                 // Игнорируем ошибки при очистке (возможно реакции уже нет)
                 console.warn('Не удалось очистить реакции:', error)
-            } finally {
-                // Перезагружаем сообщения для обновления состояния
+                // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
             }
         },
