@@ -204,6 +204,9 @@ export const useChatStore = defineStore('chatStore', {
                 // Загружаем счетчики непрочитанных сообщений (с обработкой ошибок)
                 await this.fetchUnreadCounts()
 
+                // Обновляем счетчик в заголовке после загрузки чатов
+                this.updateTitleUnreadCount()
+
                 // Подписываемся на единый канал пользователя для получения уведомлений о всех чатах
                 this.subscribeToUserChannel()
             } catch (error) {
@@ -517,6 +520,14 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
+        // Обновляет счетчик непрочитанных сообщений в заголовке страницы
+        updateTitleUnreadCount(): void {
+            const totalUnread = this.chats.reduce((total, chat) => total + (chat.unread_count || 0), 0)
+            
+            // Устанавливаем счетчик через специальный метод
+            globalUnreadMessages.setUnreadCount(totalUnread)
+        },
+
         // Обрабатывает новое сообщение из WebSocket
         handleNewMessage(message: IMessage, chatId: number): void {
             const currentUserInfo = useCurrentUser(this.currentChat)
@@ -553,14 +564,14 @@ export const useChatStore = defineStore('chatStore', {
                         last_message: message,
                     }
                     this.chats = updatedChats
+                    
+                    // Обновляем счетчик в заголовке после изменения счетчиков чатов
+                    this.updateTitleUnreadCount()
                 }
             }
 
-            // Увеличиваем счетчик в заголовке для чужих сообщений
-            // (только если вкладка неактивна - логика внутри composable)
+            // Для чужих сообщений воспроизводим звук
             if (!isFromCurrentUser) {
-                globalUnreadMessages.incrementUnread()
-                
                 // Воспроизводим звук для всех чужих сообщений (и в активном, и в неактивном чате)
                 soundService.playNewMessageSound().catch(() => {
                     // Игнорируем ошибки воспроизведения звука
@@ -787,6 +798,9 @@ export const useChatStore = defineStore('chatStore', {
                         ...(lastMessageId && { last_read_message_id: lastMessageId }),
                     }
                     this.chats = updatedChats
+                    
+                    // Обновляем счетчик в заголовке после изменения счетчиков чатов
+                    this.updateTitleUnreadCount()
                 }
 
                 // Если это текущий чат, обновляем флаги прочитанности сообщений
@@ -806,9 +820,6 @@ export const useChatStore = defineStore('chatStore', {
         async openChat(chat: IChat): Promise<void> {
             // Устанавливаем текущий чат сразу, чтобы UI не ломался
             this.currentChat = chat
-
-            // Сбрасываем счетчик непрочитанных сообщений в заголовке при открытии чата
-            globalUnreadMessages.resetUnread()
 
             try {
                 localStorage.setItem('selectedChatId', String(chat.id))
@@ -837,6 +848,9 @@ export const useChatStore = defineStore('chatStore', {
                 } catch (error) {
                     console.warn('Не удалось отметить чат как прочитанный:', error)
                 }
+            } else {
+                // Если нет сообщений, все равно отмечаем чат как прочитанный
+                await this.markChatAsRead(chat.id)
             }
         },
 
