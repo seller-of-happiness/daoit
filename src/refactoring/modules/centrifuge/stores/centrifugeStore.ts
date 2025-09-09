@@ -285,15 +285,28 @@ export const useCentrifugeStore = defineStore('centrifuge', {
                     // Дополнительное логирование для отладки реакций
                     const eventType = ctx.data?.event_type || ctx.data?.event || ctx.data?.type
                     if (eventType && eventType.includes('reaction')) {
+                        const reactionData = ctx.data?.data || ctx.data
+                        const userId = reactionData?.user_id || reactionData?.user || ctx.data?.user_id || ctx.data?.user
+                        
                         console.log('🎭 Centrifuge reaction event received:', {
                             channel,
                             eventType,
-                            chatId: ctx.data?.data?.chat_id || ctx.data?.chat_id,
-                            messageId: ctx.data?.data?.message_id || ctx.data?.message_id,
-                            reactionTypeId: ctx.data?.data?.reaction_type_id || ctx.data?.reaction_type_id,
-                            userId: ctx.data?.data?.user_id || ctx.data?.user_id,
+                            chatId: reactionData?.chat_id || ctx.data?.chat_id,
+                            messageId: reactionData?.message_id || ctx.data?.message_id,
+                            reactionTypeId: reactionData?.reaction_type_id || ctx.data?.reaction_type_id,
+                            userId,
+                            hasUserId: !!userId,
                             fullData: ctx.data
                         })
+                        
+                        // Предупреждение если userId отсутствует
+                        if (!userId) {
+                            console.warn('⚠️ WebSocket реакция без userId - потребуется перезагрузка сообщений:', {
+                                eventType,
+                                chatId: reactionData?.chat_id || ctx.data?.chat_id,
+                                messageId: reactionData?.message_id || ctx.data?.message_id,
+                            })
+                        }
                     } else {
                         console.log('🔔 Centrifuge publication received:', {
                             channel,
