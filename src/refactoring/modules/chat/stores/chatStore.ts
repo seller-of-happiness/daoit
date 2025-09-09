@@ -577,7 +577,7 @@ export const useChatStore = defineStore('chatStore', {
                 return
             }
             
-            // Если это текущий чат, обновляем локально и принудительно обновляем реактивность
+            // Если это текущий чат, обновляем локально
             if (this.currentChat && chatId === this.currentChat.id) {
                 const success = this.updateMessageReactionLocally(messageId, reactionTypeId, userId, eventType)
                 
@@ -585,23 +585,6 @@ export const useChatStore = defineStore('chatStore', {
                     // Принудительно обновляем реактивность, создавая новый массив сообщений
                     console.log('✅ Принудительное обновление реактивности сообщений')
                     this.messages = [...this.messages]
-                    
-                    // Дополнительная проверка: убеждаемся, что изменения применились
-                    setTimeout(() => {
-                        const updatedMessage = this.messages.find(m => m.id === messageId)
-                        if (updatedMessage) {
-                            const hasReactionFromUser = (updatedMessage.reactions || updatedMessage.message_reactions || [])
-                                .some(r => r.user === userId || r.user_id === userId)
-                            
-                            if (eventType.includes('added') && !hasReactionFromUser) {
-                                console.warn('⚠️ Реакция не была добавлена локально, перезагружаем сообщения')
-                                this.fetchMessages(this.currentChat.id).catch(console.error)
-                            } else if (eventType.includes('removed') && hasReactionFromUser) {
-                                console.warn('⚠️ Реакция не была удалена локально, перезагружаем сообщения')
-                                this.fetchMessages(this.currentChat.id).catch(console.error)
-                            }
-                        }
-                    }, 500)
                 } else {
                     // Если локальное обновление не удалось, перезагружаем сообщения
                     console.warn('⚠️ Локальное обновление реакции не удалось, перезагружаем сообщения')
@@ -633,28 +616,29 @@ export const useChatStore = defineStore('chatStore', {
                 let reactions = message.reactions || message.message_reactions || []
 
                 // Создаем глубокую копию массива реакций для избежания мутаций
-                const newReactions = reactions.map(r => ({ ...r }))
+                const newReactions = JSON.parse(JSON.stringify(reactions))
 
                 if (eventType === 'new_reaction' || eventType === 'reaction_added') {
                     // Сначала удаляем все предыдущие реакции этого пользователя (эксклюзивность)
-                    const filteredReactions = newReactions.filter(r => 
-                        !(r.user === userId || r.user_id === userId)
-                    )
+                    const filteredReactions = newReactions.filter(r => {
+                        const reactionUserId = String(r.user || r.user_id || '')
+                        return reactionUserId !== String(userId)
+                    })
                     
                     // Добавляем новую реакцию
                     const newReaction = {
                         id: Date.now(), // Временный ID
                         reaction_type: reactionTypeId,
+                        reaction_type_id: reactionTypeId,
                         user: userId,
                         user_id: userId,
-                        reaction_type_id: reactionTypeId,
                         created_at: new Date().toISOString()
                     }
                     filteredReactions.push(newReaction)
                     
                     console.log('➕ Добавлена эксклюзивная реакция локально:', newReaction)
                     
-                    // Обновляем сообщение с новыми реакциями
+                    // Создаем новое сообщение с обновленными реакциями
                     const updatedMessage = {
                         ...message,
                         reactions: filteredReactions,
@@ -662,17 +646,18 @@ export const useChatStore = defineStore('chatStore', {
                     }
 
                     // Заменяем сообщение в массиве
-                    this.messages[messageIndex] = updatedMessage
+                    this.messages.splice(messageIndex, 1, updatedMessage)
                     
                 } else if (eventType === 'reaction_removed') {
                     // Удаляем все реакции этого пользователя
-                    const filteredReactions = newReactions.filter(r => 
-                        !(r.user === userId || r.user_id === userId)
-                    )
+                    const filteredReactions = newReactions.filter(r => {
+                        const reactionUserId = String(r.user || r.user_id || '')
+                        return reactionUserId !== String(userId)
+                    })
                     
                     console.log('➖ Удалены все реакции пользователя локально:', userId)
                     
-                    // Обновляем сообщение с новыми реакциями
+                    // Создаем новое сообщение с обновленными реакциями
                     const updatedMessage = {
                         ...message,
                         reactions: filteredReactions,
@@ -680,7 +665,7 @@ export const useChatStore = defineStore('chatStore', {
                     }
 
                     // Заменяем сообщение в массиве
-                    this.messages[messageIndex] = updatedMessage
+                    this.messages.splice(messageIndex, 1, updatedMessage)
                 }
                 
                 console.log('✅ Реакция обновлена локально для сообщения:', messageId)
