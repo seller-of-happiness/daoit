@@ -203,13 +203,17 @@ export function useReactions(
         (newReactions, oldReactions) => {
             // Если серверные реакции изменились и у нас есть оптимистичные реакции
             if (newReactions !== oldReactions && optimisticReactions.value.length > 0) {
-                // Убираем задержку - мгновенная синхронизация с серверными данными
-                console.log('🔄 Автоматическая очистка оптимистичных реакций при изменении серверных данных')
-                optimisticReactions.value = []
-                isOptimisticallyCleared.value = false
+                // Небольшая задержка для избежания конфликтов с WebSocket обновлениями
+                setTimeout(() => {
+                    if (optimisticReactions.value.length > 0) {
+                        console.log('🔄 Автоматическая очистка оптимистичных реакций при изменении серверных данных')
+                        optimisticReactions.value = []
+                        isOptimisticallyCleared.value = false
+                    }
+                }, 500)
             }
         },
-        { deep: true, immediate: true }
+        { deep: true, immediate: false }
     )
 
     // Принудительное обновление реактивности

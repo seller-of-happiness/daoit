@@ -282,13 +282,25 @@ export const useCentrifugeStore = defineStore('centrifuge', {
                         tags: ctx.tags,
                     })
                     
-                    // Дополнительное логирование для отладки
-                    console.log('🔔 Centrifuge publication received:', {
-                        channel,
-                        fullContext: ctx,
-                        data: ctx.data,
-                        eventType: ctx.data?.event_type || ctx.data?.event || ctx.data?.type
-                    })
+                    // Дополнительное логирование для отладки реакций
+                    const eventType = ctx.data?.event_type || ctx.data?.event || ctx.data?.type
+                    if (eventType && eventType.includes('reaction')) {
+                        console.log('🎭 Centrifuge reaction event received:', {
+                            channel,
+                            eventType,
+                            chatId: ctx.data?.data?.chat_id || ctx.data?.chat_id,
+                            messageId: ctx.data?.data?.message_id || ctx.data?.message_id,
+                            reactionTypeId: ctx.data?.data?.reaction_type_id || ctx.data?.reaction_type_id,
+                            userId: ctx.data?.data?.user_id || ctx.data?.user_id,
+                            fullData: ctx.data
+                        })
+                    } else {
+                        console.log('🔔 Centrifuge publication received:', {
+                            channel,
+                            eventType,
+                            data: ctx.data
+                        })
+                    }
                     
                     const handler = this.handlers.get(channel)
                     if (handler) {
