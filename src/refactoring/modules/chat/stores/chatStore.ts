@@ -1223,7 +1223,7 @@ export const useChatStore = defineStore('chatStore', {
         async declineInvitation(invitationId: number): Promise<void> {
             try {
                 // Используем правильный endpoint для отклонения приглашения
-                await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/`)
+                await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/decline/`)
 
                 // Удаляем приглашение из списка
                 this.invitations = this.invitations.filter(inv => inv.id !== invitationId)
