@@ -1,6 +1,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, shallowRef } from 'vue'
 import { useChatStore } from '@/refactoring/modules/chat/stores/chatStore'
 import { useCurrentUser } from '@/refactoring/modules/chat/composables/useCurrentUser'
+import { useApiStore } from '@/refactoring/modules/apiStore/stores/apiStore'
 import { toApiDate, formatDateOnly } from '@/refactoring/utils/formatters'
 
 import type {
@@ -33,6 +34,7 @@ interface MessageGroup {
 export function useChatLogic(options: ChatLogicOptions = {}) {
     const chatStore = useChatStore()
     const currentUser = useCurrentUser(chatStore.currentChat)
+    const apiStore = useApiStore()
 
     // Состояние компонента
     const messagesContainer = shallowRef<HTMLElement | null>(null)
@@ -198,6 +200,15 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         try {
             // Загрузка чатов только один раз (предотвращение дублирования запросов)
             await chatStore.initializeOnce()
+            
+            // Загружаем сотрудников для корректного отображения реакций
+            if (apiStore.employees.length === 0) {
+                try {
+                    await apiStore.fetchAllEmployees()
+                } catch (error) {
+                    console.warn('Не удалось загрузить данные сотрудников для чата:', error)
+                }
+            }
 
             let chatToOpen: IChat | null = null
 
@@ -209,13 +220,13 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                     chatToOpen = await chatStore.findOrCreateDirectChat(options.initialUserId)
                 } else if (options.initialChatId) {
                     // Ищем чат по ID в загруженном списке
-                    chatToOpen = chatStore.chats.find((c) => c.id === options.initialChatId) || null
+                    chatToOpen = chatStore.chats.find((c: IChat) => c.id === options.initialChatId) || null
                 } else {
                     // Попытка восстановить последний выбранный чат из localStorage
                     try {
                         const savedId = Number(localStorage.getItem('selectedChatId') || '')
                         if (savedId && !Number.isNaN(savedId)) {
-                            chatToOpen = chatStore.chats.find((c) => c.id === savedId) || null
+                            chatToOpen = chatStore.chats.find((c: IChat) => c.id === savedId) || null
                         }
                     } catch (e) {
                         // Игнорируем ошибки localStorage

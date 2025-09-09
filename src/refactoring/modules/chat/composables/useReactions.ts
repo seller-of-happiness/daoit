@@ -3,6 +3,8 @@
  * Выносит сложную логику реакций из MessageItem
  */
 import { computed, ref } from 'vue'
+import { useApiStore } from '@/refactoring/modules/apiStore/stores/apiStore'
+import type { IEmployee } from '@/refactoring/modules/apiStore/types/employees/IEmployee'
 import type {
     IMessage,
     IReactionType,
@@ -20,6 +22,29 @@ type ReactionLike = {
 const pickUserId = (r: ReactionLike): string | undefined => {
     const v = r?.user?.id ?? r?.user?.user ?? r?.user?.user_id ?? r?.id ?? r?.user_id
     return v == null ? undefined : String(v)
+}
+
+/**
+ * Получает информацию о пользователе из apiStore
+ * @param userId ID пользователя
+ * @returns Объект с именем и аватаркой пользователя
+ */
+function getUserInfo(userId: string): { name: string; avatar: string | null } {
+    const apiStore = useApiStore()
+    const employee = apiStore.employees.find((emp: IEmployee) => emp.id === userId)
+    
+    if (employee) {
+        const fullName = `${employee.first_name} ${employee.last_name}`.trim()
+        return {
+            name: fullName || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || `User ${userId}`,
+            avatar: null // В типе IEmployee нет поля avatar, но можно добавить позже
+        }
+    }
+    
+    return {
+        name: `User ${userId}`,
+        avatar: null
+    }
 }
 
 export function useReactions(
@@ -48,10 +73,15 @@ export function useReactions(
             const key = String(id || name || icon || 'unknown')
             const emoji = getReactionEmoji({ id: 0, name, icon } as IReactionType)
 
+            const userId = String(user?.user ?? user?.id ?? user?.user_id ?? Math.random())
+            
+            // Получаем информацию о пользователе из apiStore
+            const userInfo = getUserInfo(userId)
+            
             const userEntry: ReactionUser = {
-                id: String(user?.user ?? user?.id ?? user?.user_id ?? Math.random()),
-                name: String(user?.user_name ?? user?.full_name ?? user?.name ?? `User ${user?.user ?? user?.id ?? user?.user_id ?? 'Unknown'}`),
-                avatar: user?.avatar || user?.icon || user?.photo || null,
+                id: userId,
+                name: user?.user_name ?? user?.full_name ?? user?.name ?? userInfo.name,
+                avatar: user?.avatar || user?.icon || user?.photo || userInfo.avatar,
             }
 
             const existing = groups.get(key)
@@ -240,13 +270,17 @@ function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?
                 m.user === userId || m.user_uuid === userId
             )
             
+            // Получаем информацию о пользователе из apiStore
+            const userInfo = getUserInfo(userId)
+            
             // Создаем объект пользователя из user_id
             const userObj = {
                 id: userId,
                 user: userId,
                 user_id: userId,
-                name: chatMember?.user_name || `User ${userId}`,
-                user_name: chatMember?.user_name || `User ${userId}`
+                name: chatMember?.user_name || userInfo.name,
+                user_name: chatMember?.user_name || userInfo.name,
+                avatar: userInfo.avatar
             }
             usersSources.push(userObj)
         }
