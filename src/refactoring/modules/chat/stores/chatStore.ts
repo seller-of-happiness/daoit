@@ -29,6 +29,7 @@ import type {
     IReactionType,
     IEmployee,
     ISearchResults,
+    IChatInvitation,
 } from '@/refactoring/modules/chat/types/IChat'
 import { useCentrifugeStore } from '@/refactoring/modules/centrifuge/stores/centrifugeStore'
 import { useUserStore } from '@/refactoring/modules/user/stores/userStore'
@@ -62,6 +63,8 @@ export const useChatStore = defineStore('chatStore', {
         // Флаг для предотвращения дублирования инициализации
         isInitialized: false,
         isInitializing: false,
+        // Приглашения в чаты
+        invitations: [],
     }),
     actions: {
         // Получает UUID текущего пользователя для подписки на центрифуго
@@ -125,6 +128,11 @@ export const useChatStore = defineStore('chatStore', {
                     this.handleMembershipUpdate(data)
                     break
 
+                case 'new_invite':
+                    // Обрабатываем новое приглашение в чат
+                    this.handleNewInvitation(data)
+                    break
+
                 default:
                     // Fallback: если нет event_type, но есть id и content - считаем новым сообщением
                     if (data?.id && data?.content !== undefined) {
@@ -167,6 +175,7 @@ export const useChatStore = defineStore('chatStore', {
             this.currentChat = null
             this.messages = []
             this.searchResults = null
+            this.invitations = []
             // Сбрасываем счетчик непрочитанных сообщений в заголовке
             globalUnreadMessages.resetUnread()
         },
@@ -692,6 +701,64 @@ export const useChatStore = defineStore('chatStore', {
             this.fetchChats()
         },
 
+        // Обрабатывает новое приглашение в чат
+        handleNewInvitation(data: any): void {
+            console.log('🎯 Получено новое приглашение:', data)
+
+            try {
+                // Извлекаем данные приглашения из WebSocket сообщения
+                const invitationData = data?.data || data
+                
+                if (!invitationData?.chat || !invitationData?.invited_user || !invitationData?.created_by) {
+                    console.warn('⚠️ Некорректная структура данных приглашения:', data)
+                    return
+                }
+
+                const invitation: IChatInvitation = {
+                    id: invitationData.id,
+                    chat: invitationData.chat,
+                    created_by: invitationData.created_by,
+                    invited_user: invitationData.invited_user,
+                    is_accepted: invitationData.is_accepted || false,
+                    created_at: new Date().toISOString()
+                }
+
+                // Проверяем, что приглашение для текущего пользователя
+                const currentUserUuid = this.getCurrentUserUuid()
+                if (invitation.invited_user.id !== currentUserUuid) {
+                    console.log('⚠️ Приглашение не для текущего пользователя, игнорируем')
+                    return
+                }
+
+                // Добавляем приглашение в список, если его еще нет
+                const existingIndex = this.invitations.findIndex(
+                    inv => inv.chat.id === invitation.chat.id && 
+                           inv.invited_user.id === invitation.invited_user.id
+                )
+
+                if (existingIndex !== -1) {
+                    // Обновляем существующее приглашение
+                    this.invitations.splice(existingIndex, 1, invitation)
+                } else {
+                    // Добавляем новое приглашение в начало списка
+                    this.invitations.unshift(invitation)
+                }
+
+                // Показываем уведомление
+                const fb = useFeedbackStore()
+                fb.showToast({
+                    type: 'info',
+                    title: 'Новое приглашение',
+                    message: `${invitation.created_by.first_name} ${invitation.created_by.last_name} пригласил вас в "${invitation.chat.title}"`,
+                    time: 5000,
+                })
+
+                console.log('✅ Приглашение обработано и добавлено в список')
+            } catch (error) {
+                console.error('❌ Ошибка при обработке приглашения:', error)
+            }
+        },
+
         // Отмечает сообщения в чате как прочитанные (только локально)
         async markChatAsRead(chatId: number, lastMessageId?: number): Promise<void> {
             try {
@@ -1074,6 +1141,9 @@ export const useChatStore = defineStore('chatStore', {
             try {
                 await axios.post(`${BASE_URL}/api/chat/invite/${invitationId}/accept/`)
 
+                // Удаляем приглашение из списка
+                this.invitations = this.invitations.filter(inv => inv.id !== invitationId)
+
                 // Обновляем список чатов после принятия приглашения
                 await this.fetchChats()
 
@@ -1103,6 +1173,9 @@ export const useChatStore = defineStore('chatStore', {
         async declineInvitation(invitationId: number): Promise<void> {
             try {
                 await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/decline/`)
+
+                // Удаляем приглашение из списка
+                this.invitations = this.invitations.filter(inv => inv.id !== invitationId)
 
                 useFeedbackStore().showToast({
                     type: 'info',

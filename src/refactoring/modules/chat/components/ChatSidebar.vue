@@ -120,16 +120,42 @@
 
         <!-- Список чатов -->
         <div v-else class="chat-list">
-            <ChatListItem
-                v-for="chat in filteredChats"
-                :key="chat.id"
-                :chat="chat"
-                :is-active="currentChatId === chat.id"
-                @select="$emit('select-chat', chat)"
-            />
+            <!-- Приглашения в чаты -->
+            <div v-if="invitations.length > 0" class="invitations-section">
+                <div class="section-header">
+                    <h4 class="section-title">
+                        <i class="pi pi-bell mr-2"></i>
+                        Приглашения ({{ invitations.length }})
+                    </h4>
+                </div>
+                <InvitationListItem
+                    v-for="invitation in invitations"
+                    :key="`invitation-${invitation.chat.id}-${invitation.invited_user.id}`"
+                    :invitation="invitation"
+                    @accept="$emit('accept-invitation', invitation)"
+                    @decline="$emit('decline-invitation', invitation)"
+                />
+            </div>
+
+            <!-- Обычные чаты -->
+            <div v-if="filteredChats.length > 0" class="chats-section">
+                <div v-if="invitations.length > 0" class="section-header">
+                    <h4 class="section-title">
+                        <i class="pi pi-comments mr-2"></i>
+                        Чаты
+                    </h4>
+                </div>
+                <ChatListItem
+                    v-for="chat in filteredChats"
+                    :key="chat.id"
+                    :chat="chat"
+                    :is-active="currentChatId === chat.id"
+                    @select="$emit('select-chat', chat)"
+                />
+            </div>
 
             <!-- Подсказка для пустого списка -->
-            <div v-if="filteredChats.length === 0" class="text-center py-8 text-surface-500">
+            <div v-if="filteredChats.length === 0 && invitations.length === 0" class="text-center py-8 text-surface-500">
                 <div class="mb-2">
                     <i class="pi pi-comments text-4xl mb-4 block"></i>
                 </div>
@@ -151,7 +177,8 @@ import { computed, ref, watch } from 'vue'
 import { generateChatInitials, withBase } from '@/refactoring/modules/chat/utils/chatHelpers'
 import ChatListItem from './ChatListItem.vue'
 import EmployeeListItem from './EmployeeListItem.vue'
-import type { IChat, IEmployee, ISearchResults } from '@/refactoring/modules/chat/types/IChat'
+import InvitationListItem from './InvitationListItem.vue'
+import type { IChat, IEmployee, ISearchResults, IChatInvitation } from '@/refactoring/modules/chat/types/IChat'
 
 interface Props {
     chats: IChat[]
@@ -159,6 +186,7 @@ interface Props {
     searchResults: ISearchResults | null
     isSearching: boolean
     mobileClass?: string[]
+    invitations: IChatInvitation[]
 }
 
 interface Emits {
@@ -168,6 +196,8 @@ interface Emits {
     (e: 'search', query: string): void
     (e: 'clear-search'): void
     (e: 'join-public-chat', chat: IChat): void
+    (e: 'accept-invitation', invitation: IChatInvitation): void
+    (e: 'decline-invitation', invitation: IChatInvitation): void
 }
 
 const props = defineProps<Props>()
@@ -301,6 +331,29 @@ watch(
 </script>
 
 <style scoped>
+/* Секции */
+.invitations-section,
+.chats-section {
+    border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.section-header {
+    padding: 8px 14px;
+    background: var(--p-surface-100);
+    border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--p-surface-700);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
 /* Стили для публичных каналов */
 .public-chat {
     display: flex;
