@@ -34,6 +34,7 @@ import { useCentrifugeStore } from '@/refactoring/modules/centrifuge/stores/cent
 import { useUserStore } from '@/refactoring/modules/user/stores/userStore'
 import { soundService } from '@/refactoring/utils/soundService'
 import { useCurrentUser, isMyMessage } from '@/refactoring/modules/chat/composables/useCurrentUser'
+import { useUnreadMessages } from '@/refactoring/modules/chat/composables/useUnreadMessages'
 
 // Упорядочивание сообщений по времени (сначала старые)
 function compareMessagesAscending(a: IMessage, b: IMessage): number {
@@ -45,6 +46,9 @@ function compareMessagesAscending(a: IMessage, b: IMessage): number {
     const bId = b?.id ?? 0
     return aId - bId
 }
+
+// Глобальный экземпляр для управления непрочитанными сообщениями в заголовке
+const globalUnreadMessages = useUnreadMessages()
 
 export const useChatStore = defineStore('chatStore', {
     state: (): IChatStoreState => ({
@@ -163,6 +167,8 @@ export const useChatStore = defineStore('chatStore', {
             this.currentChat = null
             this.messages = []
             this.searchResults = null
+            // Сбрасываем счетчик непрочитанных сообщений в заголовке
+            globalUnreadMessages.resetUnread()
         },
 
         // Загружает список чатов. Управляет глобальным индикатором загрузки, логирует ошибки
@@ -537,8 +543,12 @@ export const useChatStore = defineStore('chatStore', {
                 }
             }
 
-            // Воспроизводим звук для всех чужих сообщений (и в активном, и в неактивном чате)
+            // Увеличиваем счетчик в заголовке для чужих сообщений
+            // (только если вкладка неактивна - логика внутри composable)
             if (!isFromCurrentUser) {
+                globalUnreadMessages.incrementUnread()
+                
+                // Воспроизводим звук для всех чужих сообщений (и в активном, и в неактивном чате)
                 soundService.playNewMessageSound().catch(() => {
                     // Игнорируем ошибки воспроизведения звука
                 })
@@ -620,7 +630,7 @@ export const useChatStore = defineStore('chatStore', {
 
                 if (eventType === 'new_reaction' || eventType === 'reaction_added') {
                     // Сначала удаляем все предыдущие реакции этого пользователя (эксклюзивность)
-                    const filteredReactions = newReactions.filter(r => {
+                    const filteredReactions = newReactions.filter((r: any) => {
                         const reactionUserId = String(r.user || r.user_id || '')
                         return reactionUserId !== String(userId)
                     })
@@ -650,7 +660,7 @@ export const useChatStore = defineStore('chatStore', {
                     
                 } else if (eventType === 'reaction_removed') {
                     // Удаляем все реакции этого пользователя
-                    const filteredReactions = newReactions.filter(r => {
+                    const filteredReactions = newReactions.filter((r: any) => {
                         const reactionUserId = String(r.user || r.user_id || '')
                         return reactionUserId !== String(userId)
                     })
@@ -714,6 +724,9 @@ export const useChatStore = defineStore('chatStore', {
         async openChat(chat: IChat): Promise<void> {
             // Устанавливаем текущий чат сразу, чтобы UI не ломался
             this.currentChat = chat
+
+            // Сбрасываем счетчик непрочитанных сообщений в заголовке при открытии чата
+            globalUnreadMessages.resetUnread()
 
             try {
                 localStorage.setItem('selectedChatId', String(chat.id))
@@ -1188,6 +1201,9 @@ export const useChatStore = defineStore('chatStore', {
         // Общее количество непрочитанных сообщений
         totalUnreadCount: (state) =>
             state.chats.reduce((total, chat) => total + (chat.unread_count || 0), 0),
+
+        // Количество непрочитанных сообщений в заголовке
+        titleUnreadCount: () => globalUnreadMessages.unreadCount.value,
 
         // Текущий пользователь UUID/ID
         currentUserId(): string | null {
