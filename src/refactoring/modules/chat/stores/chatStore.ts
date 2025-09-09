@@ -713,23 +713,34 @@ export const useChatStore = defineStore('chatStore', {
                 // Извлекаем данные приглашения из WebSocket сообщения
                 const invitationData = data?.data || data
                 
-                if (!invitationData?.chat || !invitationData?.invited_user || !invitationData?.created_by) {
+                if (!invitationData?.chat || !invitationData?.created_by) {
                     console.warn('⚠️ Некорректная структура данных приглашения:', data)
                     return
                 }
+
+                // Получаем данные текущего пользователя если invited_user отсутствует
+                const userStore = useUserStore()
+                const currentUser = userStore.user
+                const currentUserUuid = this.getCurrentUserUuid()
 
                 const invitation: IChatInvitation = {
                     id: invitationData.id,
                     chat: invitationData.chat,
                     created_by: invitationData.created_by,
-                    invited_user: invitationData.invited_user,
+                    invited_user: invitationData.invited_user || (currentUser ? {
+                        id: currentUser.uuid || currentUser.id?.toString() || '',
+                        first_name: currentUser.first_name || '',
+                        last_name: currentUser.last_name || '',
+                        middle_name: currentUser.middle_name || '',
+                        phone_number: currentUser.phone_number || '',
+                        birth_date: currentUser.birth_date || null,
+                    } : undefined),
                     is_accepted: invitationData.is_accepted || false,
                     created_at: new Date().toISOString()
                 }
 
                 // Проверяем, что приглашение для текущего пользователя
-                const currentUserUuid = this.getCurrentUserUuid()
-                if (invitation.invited_user.id !== currentUserUuid) {
+                if (invitation.invited_user && invitation.invited_user.id !== currentUserUuid) {
                     console.log('⚠️ Приглашение не для текущего пользователя, игнорируем')
                     return
                 }
@@ -737,7 +748,7 @@ export const useChatStore = defineStore('chatStore', {
                 // Добавляем приглашение в список, если его еще нет
                 const existingIndex = this.invitations.findIndex(
                     inv => inv.chat.id === invitation.chat.id && 
-                           inv.invited_user.id === invitation.invited_user.id
+                           inv.invited_user?.id === invitation.invited_user?.id
                 )
 
                 if (existingIndex !== -1) {
@@ -1091,7 +1102,33 @@ export const useChatStore = defineStore('chatStore', {
                 
                 // Проверяем что получили массив и сохраняем в состояние
                 if (Array.isArray(invitationsData)) {
-                    this.invitations = invitationsData
+                    // Получаем данные текущего пользователя
+                    const userStore = useUserStore()
+                    const currentUser = userStore.user
+                    
+                    console.log('🔄 Обрабатываем приглашения из API:', invitationsData.length)
+                    
+                    // Дополняем каждое приглашение полем invited_user если его нет
+                    this.invitations = invitationsData.map(invitation => {
+                        // Если invited_user отсутствует, добавляем данные текущего пользователя
+                        if (!invitation.invited_user && currentUser) {
+                            console.log('✅ Добавляем invited_user для приглашения:', invitation.id)
+                            return {
+                                ...invitation,
+                                invited_user: {
+                                    id: currentUser.uuid || currentUser.id?.toString() || '',
+                                    first_name: currentUser.first_name || '',
+                                    last_name: currentUser.last_name || '',
+                                    middle_name: currentUser.middle_name || '',
+                                    phone_number: currentUser.phone_number || '',
+                                    birth_date: currentUser.birth_date || null,
+                                }
+                            }
+                        }
+                        return invitation
+                    })
+                    
+                    console.log('✅ Обработано приглашений:', this.invitations.length)
                 } else {
                     console.warn('Получены некорректные данные приглашений:', invitationsData)
                     this.invitations = []

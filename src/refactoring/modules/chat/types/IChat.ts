@@ -114,7 +114,7 @@ export interface IChatInvitation {
         phone_number?: string
         birth_date?: string | null
     }
-    invited_user: {
+    invited_user?: {
         id: string
         first_name: string
         last_name: string
