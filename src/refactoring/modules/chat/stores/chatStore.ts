@@ -67,6 +67,7 @@ export const useChatStore = defineStore('chatStore', {
         },
 
         // Подписывается на единый канал пользователя для получения уведомлений о всех чатах
+        // Используется новая система: один канал chats:user#${userUuid} вместо подписки на каждый чат отдельно
         subscribeToUserChannel(): void {
             const centrifuge = useCentrifugeStore()
             const userUuid = this.getCurrentUserUuid()
@@ -83,12 +84,6 @@ export const useChatStore = defineStore('chatStore', {
             })
         },
 
-        // Подписывается на единый канал пользователя (новая система)
-        subscribeToAllChats(): void {
-            // Теперь используем только единый канал пользователя
-            // Старая система подписки на каждый чат отдельно больше не нужна
-            this.subscribeToUserChannel()
-        },
 
         // Обрабатывает сообщения из центрифуго
         handleCentrifugoMessage(data: any): void {
@@ -184,8 +179,8 @@ export const useChatStore = defineStore('chatStore', {
                 // Загружаем счетчики непрочитанных сообщений (с обработкой ошибок)
                 await this.fetchUnreadCounts()
 
-                // Подписываемся на все чаты для получения уведомлений о новых сообщениях
-                this.subscribeToAllChats()
+                // Подписываемся на единый канал пользователя для получения уведомлений о всех чатах
+                this.subscribeToUserChannel()
             } catch (error) {
                 logger.error('chat_fetchChats_error', {
                     file: 'chatStore',
