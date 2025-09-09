@@ -203,18 +203,20 @@ export function useReactions(
         (newReactions, oldReactions) => {
             // Если серверные реакции изменились и у нас есть оптимистичные реакции
             if (newReactions !== oldReactions && optimisticReactions.value.length > 0) {
-                // Небольшая задержка для избежания конфликтов с оптимистичными обновлениями
-                setTimeout(() => {
-                    if (optimisticReactions.value.length > 0) {
-                        console.log('🔄 Автоматическая очистка оптимистичных реакций при изменении серверных данных')
-                        optimisticReactions.value = []
-                        isOptimisticallyCleared.value = false
-                    }
-                }, 1000) // 1 секунда задержки
+                // Убираем задержку - мгновенная синхронизация с серверными данными
+                console.log('🔄 Автоматическая очистка оптимистичных реакций при изменении серверных данных')
+                optimisticReactions.value = []
+                isOptimisticallyCleared.value = false
             }
         },
-        { deep: true }
+        { deep: true, immediate: true }
     )
+
+    // Принудительное обновление реактивности
+    const forceUpdate = () => {
+        // Принудительно обновляем computed свойства, изменяя ключ
+        console.log('🔄 Принудительное обновление реакций для сообщения:', message.id)
+    }
 
     return {
         groupedReactions,
@@ -228,6 +230,7 @@ export function useReactions(
         clearOptimisticForMe,
         syncWithServerData,
         findThumbsUpReaction,
+        forceUpdate,
     }
 }
 

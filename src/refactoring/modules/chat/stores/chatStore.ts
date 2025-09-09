@@ -111,6 +111,8 @@ export const useChatStore = defineStore('chatStore', {
                 case 'reaction_added':
                 case 'reaction_removed':
                 case 'new_reaction':
+                case 'reaction_update':
+                case 'reaction_changed':
                     this.handleReactionUpdate(data)
                     break
 
@@ -123,6 +125,10 @@ export const useChatStore = defineStore('chatStore', {
                     // Fallback: если нет event_type, но есть id и content - считаем новым сообщением
                     if (data?.id && data?.content !== undefined) {
                         this.handleNewMessage(data, data.chat_id)
+                    } else if (data?.message_id && (data?.reaction_type_id || data?.reaction_type)) {
+                        // Fallback для реакций без явного типа события
+                        console.log('🔄 Обрабатываем реакцию без явного типа события:', data)
+                        this.handleReactionUpdate(data)
                     }
                     break
             }
@@ -560,9 +566,9 @@ export const useChatStore = defineStore('chatStore', {
             const reactionData = data?.data || data
             const chatId = reactionData?.chat_id || data?.chat_id
             const messageId = reactionData?.message_id || data?.message_id
-            const reactionTypeId = reactionData?.reaction_type_id || data?.reaction_type_id
+            const reactionTypeId = reactionData?.reaction_type_id || reactionData?.reaction_type || data?.reaction_type_id || data?.reaction_type
             const eventType = data?.event_type || data?.event || data?.type
-            const userId = reactionData?.user_id || data?.user_id
+            const userId = reactionData?.user_id || reactionData?.user || data?.user_id || data?.user
             
             console.log('🎭 Данные реакции:', { chatId, messageId, reactionTypeId, eventType, userId })
             
@@ -571,12 +577,33 @@ export const useChatStore = defineStore('chatStore', {
                 return
             }
             
-            // Если это текущий чат, пытаемся обновить локально
+            // Если это текущий чат, обновляем локально и принудительно обновляем реактивность
             if (this.currentChat && chatId === this.currentChat.id) {
                 const success = this.updateMessageReactionLocally(messageId, reactionTypeId, userId, eventType)
                 
-                // Если локальное обновление не удалось, перезагружаем сообщения
-                if (!success) {
+                if (success) {
+                    // Принудительно обновляем реактивность, создавая новый массив сообщений
+                    console.log('✅ Принудительное обновление реактивности сообщений')
+                    this.messages = [...this.messages]
+                    
+                    // Дополнительная проверка: убеждаемся, что изменения применились
+                    setTimeout(() => {
+                        const updatedMessage = this.messages.find(m => m.id === messageId)
+                        if (updatedMessage) {
+                            const hasReactionFromUser = (updatedMessage.reactions || updatedMessage.message_reactions || [])
+                                .some(r => r.user === userId || r.user_id === userId)
+                            
+                            if (eventType.includes('added') && !hasReactionFromUser) {
+                                console.warn('⚠️ Реакция не была добавлена локально, перезагружаем сообщения')
+                                this.fetchMessages(this.currentChat.id).catch(console.error)
+                            } else if (eventType.includes('removed') && hasReactionFromUser) {
+                                console.warn('⚠️ Реакция не была удалена локально, перезагружаем сообщения')
+                                this.fetchMessages(this.currentChat.id).catch(console.error)
+                            }
+                        }
+                    }, 500)
+                } else {
+                    // Если локальное обновление не удалось, перезагружаем сообщения
                     console.warn('⚠️ Локальное обновление реакции не удалось, перезагружаем сообщения')
                     this.fetchMessages(this.currentChat.id).catch((error) => {
                         console.error('Ошибка при обновлении сообщений после реакции:', error)
@@ -605,57 +632,56 @@ export const useChatStore = defineStore('chatStore', {
                 const message = this.messages[messageIndex]
                 let reactions = message.reactions || message.message_reactions || []
 
-                // Создаем копию массива реакций для избежания мутаций
-                const newReactions = [...reactions]
+                // Создаем глубокую копию массива реакций для избежания мутаций
+                const newReactions = reactions.map(r => ({ ...r }))
 
                 if (eventType === 'new_reaction' || eventType === 'reaction_added') {
-                    // Проверяем, нет ли уже такой реакции от этого пользователя
-                    const existingIndex = newReactions.findIndex(r => 
-                        (r.reaction_type === reactionTypeId || r.reaction_type_id === reactionTypeId) && 
-                        (r.user === userId || r.user_id === userId)
+                    // Сначала удаляем все предыдущие реакции этого пользователя (эксклюзивность)
+                    const filteredReactions = newReactions.filter(r => 
+                        !(r.user === userId || r.user_id === userId)
                     )
                     
-                    if (existingIndex === -1) {
-                        // Добавляем новую реакцию только если её еще нет
-                        const newReaction = {
-                            id: Date.now(), // Временный ID
-                            reaction_type: reactionTypeId,
-                            user: userId,
-                            user_id: userId,
-                            reaction_type_id: reactionTypeId,
-                            created_at: new Date().toISOString()
-                        }
-                        newReactions.push(newReaction)
-                        console.log('➕ Добавлена реакция локально:', newReaction)
-                    } else {
-                        console.log('⚠️ Реакция уже существует, пропускаем добавление')
-                        return true // Не ошибка, просто дубликат
+                    // Добавляем новую реакцию
+                    const newReaction = {
+                        id: Date.now(), // Временный ID
+                        reaction_type: reactionTypeId,
+                        user: userId,
+                        user_id: userId,
+                        reaction_type_id: reactionTypeId,
+                        created_at: new Date().toISOString()
                     }
+                    filteredReactions.push(newReaction)
+                    
+                    console.log('➕ Добавлена эксклюзивная реакция локально:', newReaction)
+                    
+                    // Обновляем сообщение с новыми реакциями
+                    const updatedMessage = {
+                        ...message,
+                        reactions: filteredReactions,
+                        message_reactions: filteredReactions
+                    }
+
+                    // Заменяем сообщение в массиве
+                    this.messages[messageIndex] = updatedMessage
+                    
                 } else if (eventType === 'reaction_removed') {
-                    // Удаляем реакцию
-                    const reactionIndex = newReactions.findIndex(r => 
-                        (r.reaction_type === reactionTypeId || r.reaction_type_id === reactionTypeId) && 
-                        (r.user === userId || r.user_id === userId)
+                    // Удаляем все реакции этого пользователя
+                    const filteredReactions = newReactions.filter(r => 
+                        !(r.user === userId || r.user_id === userId)
                     )
                     
-                    if (reactionIndex !== -1) {
-                        newReactions.splice(reactionIndex, 1)
-                        console.log('➖ Удалена реакция локально:', { reactionTypeId, userId })
-                    } else {
-                        console.log('⚠️ Реакция для удаления не найдена')
-                        return true // Не ошибка, возможно уже удалена
+                    console.log('➖ Удалены все реакции пользователя локально:', userId)
+                    
+                    // Обновляем сообщение с новыми реакциями
+                    const updatedMessage = {
+                        ...message,
+                        reactions: filteredReactions,
+                        message_reactions: filteredReactions
                     }
-                }
 
-                // Обновляем сообщение с новыми реакциями
-                const updatedMessage = {
-                    ...message,
-                    reactions: newReactions,
-                    message_reactions: newReactions
+                    // Заменяем сообщение в массиве
+                    this.messages[messageIndex] = updatedMessage
                 }
-
-                // Заменяем сообщение в массиве
-                this.messages.splice(messageIndex, 1, updatedMessage)
                 
                 console.log('✅ Реакция обновлена локально для сообщения:', messageId)
                 return true
