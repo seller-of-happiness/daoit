@@ -130,7 +130,7 @@
                 </div>
                 <InvitationListItem
                     v-for="invitation in invitations"
-                    :key="`invitation-${invitation.chat.id}-${invitation.invited_user.id}`"
+                    :key="`invitation-${invitation.chat.id}-${invitation.invited_user?.id || invitation.id}`"
                     :invitation="invitation"
                     @accept="$emit('accept-invitation', invitation)"
                     @decline="$emit('decline-invitation', invitation)"
