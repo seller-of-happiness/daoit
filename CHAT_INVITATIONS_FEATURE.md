@@ -53,7 +53,7 @@
 ### POST /api/chat/invite/{id}/accept/
 Принятие приглашения в чат.
 
-### DELETE /api/chat/invite/{id}/
+### DELETE /api/chat/invite/{id}/decline/
 Отклонение приглашения в чат.
 
 ## Изменения в коде
@@ -64,7 +64,7 @@
 
 - **`initializeOnce()`** - добавлен вызов `fetchInvitations()` после загрузки чатов
 - **`fetchInvitations()`** - теперь сохраняет приглашения в состояние store
-- **`declineInvitation()`** - исправлен API endpoint с `/decline/` на `/`
+- **`declineInvitation()`** - использует API endpoint `/decline/` для отклонения приглашения
 
 #### Новая функциональность:
 
@@ -137,7 +137,7 @@ Content-Type: application/json
 POST {{BASE_URL}}/api/chat/invite/1/accept/
 
 # Отклонить приглашение  
-DELETE {{BASE_URL}}/api/chat/invite/1/
+DELETE {{BASE_URL}}/api/chat/invite/1/decline/
 ```
 
 ## Особенности реализации
