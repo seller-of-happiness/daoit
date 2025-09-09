@@ -157,6 +157,10 @@ export const useChatStore = defineStore('chatStore', {
 
             try {
                 await this.fetchChats()
+                
+                // Загружаем приглашения после загрузки чатов
+                await this.fetchInvitations()
+                
                 this.isInitialized = true
             } catch (error) {
                 console.error('Ошибка при инициализации чатов:', error)
@@ -1080,17 +1084,26 @@ export const useChatStore = defineStore('chatStore', {
         // ============ ПРИГЛАШЕНИЯ В ЧАТЫ ============
 
         // Получает список приглашений в чаты
-        async fetchInvitations(): Promise<any[]> {
+        async fetchInvitations(): Promise<void> {
             try {
                 const res = await axios.get(`${BASE_URL}/api/chat/invite/`)
-                return res.data?.results ?? res.data
+                const invitationsData = res.data?.results ?? res.data
+                
+                // Проверяем что получили массив и сохраняем в состояние
+                if (Array.isArray(invitationsData)) {
+                    this.invitations = invitationsData
+                } else {
+                    console.warn('Получены некорректные данные приглашений:', invitationsData)
+                    this.invitations = []
+                }
             } catch (error) {
                 logger.error('chat_fetchInvitations_error', {
                     file: 'chatStore',
                     function: 'fetchInvitations',
                     condition: String(error),
                 })
-                return []
+                // При ошибке устанавливаем пустой массив
+                this.invitations = []
             }
         },
 
@@ -1172,7 +1185,8 @@ export const useChatStore = defineStore('chatStore', {
         // Отклоняет полученное приглашение
         async declineInvitation(invitationId: number): Promise<void> {
             try {
-                await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/decline/`)
+                // Используем правильный endpoint для отклонения приглашения
+                await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/`)
 
                 // Удаляем приглашение из списка
                 this.invitations = this.invitations.filter(inv => inv.id !== invitationId)
