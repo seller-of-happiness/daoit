@@ -84,19 +84,127 @@ function testCentrifugeFix() {
     }, 1000);
 }
 
-// Запускаем тест
+// Запускаем тесты
 testCentrifugeFix();
+
+// Запускаем тест реакций через 3 секунды после основного теста
+setTimeout(() => {
+    console.log('🚀 Запускаем тест реакций...');
+    testReactionUpdate();
+}, 3000);
+
+// Тестируем обновление реакций
+function testReactionUpdate() {
+    const chatStore = getChatStore();
+    if (!chatStore) return;
+
+    console.log('🎭 Тестируем обновление реакций...');
+    
+    // Проверяем, есть ли сообщения для тестирования
+    if (!chatStore.messages || chatStore.messages.length === 0) {
+        console.warn('⚠️ Нет сообщений для тестирования реакций');
+        return;
+    }
+
+    const testMessage = chatStore.messages[chatStore.messages.length - 1];
+    console.log('📝 Тестируем с сообщением:', testMessage);
+
+    // Тестовые данные реакции как из вашего примера
+    const testReactionData = {
+        event_type: "new_reaction",
+        data: {
+            chat_id: chatStore.currentChat?.id || 16,
+            message_id: testMessage.id,
+            reaction_type_id: 3,
+            user_id: "test-user-123"
+        }
+    };
+
+    console.log('🧪 Тестируем добавление реакции:', testReactionData);
+    
+    // Вызываем обработчик
+    if (typeof chatStore.handleCentrifugoMessage === 'function') {
+        chatStore.handleCentrifugoMessage(testReactionData);
+    } else if (typeof chatStore.handleReactionUpdate === 'function') {
+        chatStore.handleReactionUpdate(testReactionData);
+    } else {
+        console.error('❌ Методы обработки реакций не найдены');
+        return;
+    }
+
+    // Проверяем результат
+    setTimeout(() => {
+        const updatedMessage = chatStore.messages.find(m => m.id === testMessage.id);
+        console.log('✅ Результат обновления реакции:', {
+            messageId: testMessage.id,
+            originalReactions: testMessage.reactions || testMessage.message_reactions || [],
+            updatedReactions: updatedMessage?.reactions || updatedMessage?.message_reactions || []
+        });
+    }, 500);
+
+    // Тестируем удаление реакции
+    setTimeout(() => {
+        const removeReactionData = {
+            event_type: "reaction_removed",
+            data: {
+                chat_id: chatStore.currentChat?.id || 16,
+                message_id: testMessage.id,
+                reaction_type_id: 3,
+                user_id: "test-user-123"
+            }
+        };
+
+        console.log('🧪 Тестируем удаление реакции:', removeReactionData);
+        
+        if (typeof chatStore.handleCentrifugoMessage === 'function') {
+            chatStore.handleCentrifugoMessage(removeReactionData);
+        } else if (typeof chatStore.handleReactionUpdate === 'function') {
+            chatStore.handleReactionUpdate(removeReactionData);
+        }
+
+        setTimeout(() => {
+            const finalMessage = chatStore.messages.find(m => m.id === testMessage.id);
+            console.log('✅ Результат удаления реакции:', {
+                messageId: testMessage.id,
+                finalReactions: finalMessage?.reactions || finalMessage?.message_reactions || []
+            });
+        }, 500);
+    }, 2000);
+}
 
 // Экспортируем функции для повторного использования
 window.debugCentrifuge = {
     getChatStore,
     testCentrifugeFix,
+    testReactionUpdate,
     
     // Прямой тест с пользовательскими данными
     testWithData: (data) => {
         const chatStore = getChatStore();
         if (chatStore && typeof chatStore.handleCentrifugoMessage === 'function') {
             chatStore.handleCentrifugoMessage(data);
+        }
+    },
+    
+    // Тест реакции с пользовательскими данными
+    testReaction: (chatId, messageId, reactionTypeId, userId, eventType = 'new_reaction') => {
+        const chatStore = getChatStore();
+        if (!chatStore) return;
+        
+        const reactionData = {
+            event_type: eventType,
+            data: {
+                chat_id: chatId,
+                message_id: messageId,
+                reaction_type_id: reactionTypeId,
+                user_id: userId
+            }
+        };
+        
+        console.log('🎭 Тестируем реакцию с данными:', reactionData);
+        
+        if (typeof chatStore.handleCentrifugoMessage === 'function') {
+            chatStore.handleCentrifugoMessage(reactionData);
         }
     }
 };
