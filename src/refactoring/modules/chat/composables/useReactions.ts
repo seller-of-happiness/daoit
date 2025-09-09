@@ -2,7 +2,7 @@
  * Композабл для работы с реакциями в сообщениях
  * Выносит сложную логику реакций из MessageItem
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type {
     IMessage,
     IReactionType,
@@ -146,22 +146,31 @@ export function useReactions(
     ) => {
         const key = String(id)
         const userId = String(user?.user ?? user?.id ?? user?.user_id ?? 'me')
-        const exists = optimisticReactions.value.some(
-            (r: OptimisticReaction) => String(r.id) === key && pickUserId(r) === userId,
+        
+        // Очищаем все предыдущие оптимистичные реакции от этого пользователя (эксклюзивность)
+        optimisticReactions.value = optimisticReactions.value.filter(
+            (r: OptimisticReaction) => pickUserId(r) !== userId,
         )
-        if (!exists) {
-            optimisticReactions.value.push({ id: key, name, icon, user })
-        }
+        
+        // Добавляем новую оптимистичную реакцию
+        optimisticReactions.value.push({ id: key, name, icon, user })
+        
         // Сбрасываем флаг очистки при добавлении новой реакции
         isOptimisticallyCleared.value = false
+        
+        console.log('🚀 Добавлена оптимистичная реакция:', { id: key, name, userId })
     }
 
     const clearOptimisticForMe = () => {
         if (!currentUserId) return
+        const beforeCount = optimisticReactions.value.length
         optimisticReactions.value = optimisticReactions.value.filter(
             (r: OptimisticReaction) => pickUserId(r) !== currentUserId,
         )
+        const afterCount = optimisticReactions.value.length
         isOptimisticallyCleared.value = true
+        
+        console.log('🧹 Очищены оптимистичные реакции пользователя:', currentUserId, `(${beforeCount} -> ${afterCount})`)
     }
 
     const findThumbsUpReaction = (): IReactionType | null => {
@@ -178,6 +187,35 @@ export function useReactions(
         return byName || null
     }
 
+    // Функция для синхронизации с серверными данными
+    const syncWithServerData = () => {
+        // Очищаем оптимистичные реакции, так как получили актуальные данные с сервера
+        if (optimisticReactions.value.length > 0) {
+            console.log('🔄 Синхронизация с серверными данными, очищаем оптимистичные реакции')
+            optimisticReactions.value = []
+            isOptimisticallyCleared.value = false
+        }
+    }
+
+    // Автоматическая очистка оптимистичных реакций при изменении серверных данных
+    watch(
+        () => message?.reactions || message?.message_reactions,
+        (newReactions, oldReactions) => {
+            // Если серверные реакции изменились и у нас есть оптимистичные реакции
+            if (newReactions !== oldReactions && optimisticReactions.value.length > 0) {
+                // Небольшая задержка для избежания конфликтов с оптимистичными обновлениями
+                setTimeout(() => {
+                    if (optimisticReactions.value.length > 0) {
+                        console.log('🔄 Автоматическая очистка оптимистичных реакций при изменении серверных данных')
+                        optimisticReactions.value = []
+                        isOptimisticallyCleared.value = false
+                    }
+                }, 1000) // 1 секунда задержки
+            }
+        },
+        { deep: true }
+    )
+
     return {
         groupedReactions,
         myReactionId,
@@ -188,6 +226,7 @@ export function useReactions(
         forceShowLike,
         addOptimisticReaction,
         clearOptimisticForMe,
+        syncWithServerData,
         findThumbsUpReaction,
     }
 }
