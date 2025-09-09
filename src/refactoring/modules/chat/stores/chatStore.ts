@@ -83,20 +83,10 @@ export const useChatStore = defineStore('chatStore', {
             })
         },
 
-        // Подписывается на все чаты для получения уведомлений
+        // Подписывается на единый канал пользователя (новая система)
         subscribeToAllChats(): void {
-            const centrifuge = useCentrifugeStore()
-
-            // Подписываемся на каждый чат отдельно
-            this.chats.forEach((chat) => {
-                const channelName = `chat:${chat.id}`
-
-                centrifuge.subscribe(channelName, (data: any) => {
-                    this.handleCentrifugoMessage({ ...data, chat_id: chat.id })
-                })
-            })
-
-            // Также подписываемся на общий канал пользователя
+            // Теперь используем только единый канал пользователя
+            // Старая система подписки на каждый чат отдельно больше не нужна
             this.subscribeToUserChannel()
         },
 
@@ -125,6 +115,7 @@ export const useChatStore = defineStore('chatStore', {
 
                 case 'reaction_added':
                 case 'reaction_removed':
+                case 'new_reaction':
                     this.handleReactionUpdate(data)
                     break
 
@@ -568,9 +559,29 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обрабатывает обновление реакций
         handleReactionUpdate(data: any): void {
-            // Если это текущий чат, перезагружаем сообщения
-            if (this.currentChat && data.chat_id === this.currentChat.id) {
-                this.fetchMessages(this.currentChat.id)
+            console.log('🎭 Обработка реакции:', data)
+            
+            // Извлекаем данные реакции из разных форматов
+            const reactionData = data?.data || data
+            const chatId = reactionData?.chat_id || data?.chat_id
+            const messageId = reactionData?.message_id || data?.message_id
+            const reactionTypeId = reactionData?.reaction_type_id || data?.reaction_type_id
+            const eventType = data?.event_type || data?.event || data?.type
+            
+            console.log('🎭 Данные реакции:', { chatId, messageId, reactionTypeId, eventType })
+            
+            if (!chatId || !messageId) {
+                console.warn('⚠️ Некорректные данные реакции:', data)
+                return
+            }
+            
+            // Если это текущий чат, обновляем локально или перезагружаем сообщения
+            if (this.currentChat && chatId === this.currentChat.id) {
+                // Для более быстрого обновления можно попробовать обновить локально
+                // Но пока используем надежный метод - перезагрузку сообщений
+                this.fetchMessages(this.currentChat.id).catch((error) => {
+                    console.error('Ошибка при обновлении сообщений после реакции:', error)
+                })
             }
         },
 

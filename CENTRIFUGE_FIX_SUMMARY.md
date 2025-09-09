@@ -1,10 +1,13 @@
-# Исправление обработки сообщений Centrifuge
+# Исправление обработки сообщений и реакций Centrifuge
 
 ## Проблема
-Сообщения из Centrifuge не обновлялись в чатах. Анализ показал несоответствие между структурой данных, получаемых от WebSocket, и логикой их обработки.
+1. Сообщения из Centrifuge не обновлялись в чатах. Анализ показал несоответствие между структурой данных, получаемых от WebSocket, и логикой их обработки.
+2. Реакции не обрабатывались через WebSocket, требовалась ручная перезагрузка страницы.
+3. Двойная подписка на чаты (индивидуальные каналы + общий канал пользователя).
 
 ## Структура данных от Centrifuge
-Согласно логам пользователя, данные приходят в следующем формате:
+
+### Новые сообщения
 ```json
 {
   "push": {
@@ -35,6 +38,25 @@
 }
 ```
 
+### Новые реакции
+```json
+{
+  "push": {
+    "channel": "chats:user#61fd72aa-9457-42b8-9098-7c0a676cad6e",
+    "pub": {
+      "data": {
+        "event_type": "new_reaction",
+        "data": {
+          "chat_id": 16,
+          "message_id": 378,
+          "reaction_type_id": 1
+        }
+      }
+    }
+  }
+}
+```
+
 ## Изменения
 
 ### 1. Исправлена логика обработки в `handleCentrifugoMessage`
@@ -54,8 +76,6 @@ case 'new_message':
     const messageData = data?.data?.message || data.message || data.object || data
     const chatId = data?.data?.chat_id || data.chat_id
     
-    console.log('📨 Обработка нового сообщения:', { messageData, chatId })
-    
     if (messageData && chatId) {
         this.handleNewMessage(messageData, chatId)
     } else {
@@ -64,24 +84,82 @@ case 'new_message':
     break
 ```
 
-### 2. Добавлено подробное логирование
-- В `centrifugeStore.ts` добавлено логирование получаемых публикаций
-- В `chatStore.ts` добавлено логирование обработки сообщений
-- Добавлен метод `debugTestCentrifugeMessage` для тестирования
+### 2. Добавлена обработка реакций через WebSocket
+**Файл:** `/workspace/src/refactoring/modules/chat/stores/chatStore.ts`
 
-### 3. Улучшена обработка ошибок
+```typescript
+case 'reaction_added':
+case 'reaction_removed':
+case 'new_reaction':
+    this.handleReactionUpdate(data)
+    break
+```
+
+**Улучшенный метод `handleReactionUpdate`:**
+```typescript
+handleReactionUpdate(data: any): void {
+    console.log('🎭 Обработка реакции:', data)
+    
+    const reactionData = data?.data || data
+    const chatId = reactionData?.chat_id || data?.chat_id
+    const messageId = reactionData?.message_id || data?.message_id
+    const reactionTypeId = reactionData?.reaction_type_id || data?.reaction_type_id
+    
+    if (!chatId || !messageId) {
+        console.warn('⚠️ Некорректные данные реакции:', data)
+        return
+    }
+    
+    if (this.currentChat && chatId === this.currentChat.id) {
+        this.fetchMessages(this.currentChat.id).catch((error) => {
+            console.error('Ошибка при обновлении сообщений после реакции:', error)
+        })
+    }
+}
+```
+
+### 3. Оптимизирована система подписки на чаты
+**Файл:** `/workspace/src/refactoring/modules/chat/stores/chatStore.ts`
+
+**Убрана двойная подписка:**
+```typescript
+// Подписывается на единый канал пользователя (новая система)
+subscribeToAllChats(): void {
+    // Теперь используем только единый канал пользователя
+    // Старая система подписки на каждый чат отдельно больше не нужна
+    this.subscribeToUserChannel()
+}
+```
+
+### 4. Добавлено подробное логирование
+- В `centrifugeStore.ts` добавлено логирование получаемых публикаций с типом события
+- В `chatStore.ts` добавлено логирование обработки сообщений и реакций
+- Создан тестовый файл `test-reaction-handling.js` для отладки
+
+### 5. Улучшена обработка ошибок
 - Добавлены проверки на корректность структуры данных
 - Добавлены предупреждения при некорректных данных
+- Добавлена обработка ошибок при обновлении сообщений
 
 ## Тестирование
 
-### 1. Автоматическое тестирование
+### 1. Тестирование реакций
+Запустите файл `test-reaction-handling.js` в консоли браузера:
+```javascript
+// Скопируйте содержимое test-reaction-handling.js в консоль браузера
+// Затем вызовите:
+testReactionHandling()
+```
+
+### 2. Автоматическое тестирование сообщений
 Запустите файл `debug-centrifuge-fix.js` в консоли браузера:
 ```javascript
 // Скопируйте содержимое debug-centrifuge-fix.js в консоль браузера
 ```
 
-### 2. Ручное тестирование через консоль
+### 3. Ручное тестирование через консоль
+
+#### Тестирование сообщений:
 ```javascript
 // Получить store чата
 const chatStore = window.debugCentrifuge.getChatStore();
@@ -109,17 +187,44 @@ window.debugCentrifuge.testWithData({
 });
 ```
 
-### 3. Проверка в реальных условиях
+#### Тестирование реакций:
+```javascript
+// Получить store чата напрямую
+const { useChatStore } = window.pinia;
+const chatStore = useChatStore();
+
+// Протестировать реакцию
+chatStore.handleCentrifugoMessage({
+  event_type: "new_reaction",
+  data: {
+    chat_id: 16,
+    message_id: 378,
+    reaction_type_id: 1
+  }
+});
+```
+
+### 4. Проверка в реальных условиях
+
+#### Тестирование сообщений:
 1. Откройте чат в приложении
 2. Отправьте сообщение из другого устройства/браузера
 3. Проверьте, что сообщение появляется без перезагрузки страницы
 4. Проверьте консоль на наличие логов с эмодзи (🔔, 📨, ✉️)
 
+#### Тестирование реакций:
+1. Откройте чат в приложении
+2. Поставьте реакцию на сообщение из другого устройства/браузера
+3. Проверьте, что реакция появляется без перезагрузки страницы
+4. Проверьте консоль на наличие логов с эмодзи (🎭)
+
 ## Ожидаемые результаты
 - Сообщения должны появляться в чате в реальном времени
-- В консоли должны появляться логи с соответствующими эмодзи
+- Реакции должны обновляться в реальном времени
+- В консоли должны появляться логи с соответствующими эмодзи (🔔, 📨, 🎭)
 - Счетчики непрочитанных сообщений должны обновляться
 - Звуки уведомлений должны воспроизводиться
+- Система подписки использует только единый канал `chats:user#${userUuid}`
 
 ## Откат изменений
 Если что-то пойдет не так, можно откатить изменения:
