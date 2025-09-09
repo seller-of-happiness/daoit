@@ -45,6 +45,19 @@ function getInitials(name: string): string {
         .split(/\s+/)
     if (parts.length === 0) return ''
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    
+    // Для имен пользователей берем инициалы в правильном порядке: Имя + Фамилия
+    const firstName = parts[0]
+    const lastName = parts[1]
+    
+    // Проверяем, является ли это именем пользователя
+    const isLikelyNameSurname = firstName.length <= 15 && lastName.length <= 20
+    
+    if (isLikelyNameSurname) {
+        return (firstName[0] + lastName[0]).toUpperCase()
+    }
+    
+    // Для остальных случаев - как было
     return (parts[0][0] + parts[1][0]).toUpperCase()
 }
 </script>
