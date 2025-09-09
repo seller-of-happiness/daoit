@@ -103,6 +103,29 @@ export interface IReactionType {
     icon: string | null
 }
 
+export interface IChatInvitation {
+    id: number | null
+    chat: IChat
+    created_by: {
+        id: string
+        first_name: string
+        last_name: string
+        middle_name?: string
+        phone_number?: string
+        birth_date?: string | null
+    }
+    invited_user: {
+        id: string
+        first_name: string
+        last_name: string
+        middle_name?: string
+        phone_number?: string
+        birth_date?: string | null
+    }
+    is_accepted: boolean
+    created_at?: string
+}
+
 export interface IChatStoreState {
     chats: IChat[]
     currentChat: IChat | null
@@ -114,6 +137,8 @@ export interface IChatStoreState {
     // Флаги для предотвращения дублирования инициализации
     isInitialized: boolean
     isInitializing: boolean
+    // Приглашения в чаты
+    invitations: IChatInvitation[]
 }
 
 // Улучшенные типы для реакций

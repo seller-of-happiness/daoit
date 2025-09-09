@@ -6,12 +6,15 @@
             :current-chat-id="chatStore.currentChat?.id || null"
             :search-results="chatStore.searchResults"
             :is-searching="chatStore.isSearching"
+            :invitations="chatStore.invitations"
             :mobile-class="mobileAsideClass"
             @select-chat="openChatFromList"
             @create-chat="showCreate = true"
             @create-dialog="createNewDialog"
             @search="performSearch"
             @clear-search="clearSearch"
+            @accept-invitation="acceptInvitation"
+            @decline-invitation="declineInvitation"
         />
 
         <!-- Основная область чата -->
@@ -182,6 +185,26 @@ const createChat = async (payload: {
 const inviteUsers = async (userIds: string[]) => {
     await inviteUsersToChat(userIds)
     showInviteDialog.value = false
+}
+
+const acceptInvitation = async (invitation: any) => {
+    try {
+        if (invitation.id) {
+            await chatStore.acceptInvitation(invitation.id)
+        }
+    } catch (error) {
+        console.error('Ошибка при принятии приглашения:', error)
+    }
+}
+
+const declineInvitation = async (invitation: any) => {
+    try {
+        if (invitation.id) {
+            await chatStore.declineInvitation(invitation.id)
+        }
+    } catch (error) {
+        console.error('Ошибка при отклонении приглашения:', error)
+    }
 }
 
 // Lifecycle hooks
