@@ -1,11 +1,11 @@
-import { ref, watchEffect, readonly } from 'vue'
+import { ref, watchEffect, readonly, computed } from 'vue'
 
 /**
  * Composable для управления непрочитанными сообщениями в заголовке страницы
  * 
  * Особенности:
  * - Отслеживает количество непрочитанных сообщений
- * - Обновляет заголовок страницы только когда вкладка неактивна
+ * - Обновляет заголовок страницы всегда когда есть непрочитанные сообщения
  * - Автоматически сбрасывает счетчик при активации вкладки
  * - Сохраняет оригинальный заголовок страницы
  */
@@ -27,11 +27,10 @@ export function useUnreadMessages() {
   // Подписываемся на изменение видимости вкладки
   document.addEventListener('visibilitychange', handleVisibilityChange)
 
-  // watchEffect автоматически отслеживает unreadCount и isTabActive
+  // watchEffect автоматически отслеживает unreadCount
   watchEffect(() => {
-    // Обновляем заголовок только если есть непрочитанные сообщения
-    // и вкладка неактивна
-    document.title = unreadCount.value > 0 && !isTabActive.value
+    // Обновляем заголовок всегда, когда есть непрочитанные сообщения
+    document.title = unreadCount.value > 0
       ? `(${unreadCount.value}) ${originalTitle}`
       : originalTitle
   })
@@ -47,6 +46,10 @@ export function useUnreadMessages() {
     unreadCount.value = 0
   }
 
+  const setUnreadCount = (count: number) => {
+    unreadCount.value = count
+  }
+
   const cleanup = () => {
     document.removeEventListener('visibilitychange', handleVisibilityChange)
     // Восстанавливаем оригинальный заголовок при очистке
@@ -57,6 +60,7 @@ export function useUnreadMessages() {
     unreadCount, 
     incrementUnread, 
     resetUnread, 
+    setUnreadCount,
     cleanup,
     isTabActive: readonly(isTabActive)
   }
