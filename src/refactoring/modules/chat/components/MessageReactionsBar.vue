@@ -40,11 +40,30 @@ const withBase = (path: string | null | undefined) => {
 }
 
 function getInitials(name: string): string {
-    const parts = String(name || '')
-        .trim()
-        .split(/\s+/)
-    if (parts.length === 0) return ''
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    const trimmed = String(name || '').trim()
+    if (!trimmed) return '??'
+    
+    const parts = trimmed.split(/\s+/)
+    
+    // Если это fallback формат "User 123" или "User Unknown"
+    if (parts.length === 2 && parts[0] === 'User') {
+        const userId = parts[1]
+        // Если второй части - это число (ID), используем первые 2 цифры
+        if (/^\d+$/.test(userId)) {
+            return userId.slice(0, 2).padStart(2, '0')
+        }
+        // Если это "Unknown", используем специальные символы
+        if (userId === 'Unknown') {
+            return '??'
+        }
+        // Иначе используем первые 2 символа
+        return userId.slice(0, 2).toUpperCase()
+    }
+    
+    if (parts.length === 1) {
+        const word = parts[0]
+        return word.length === 1 ? word.toUpperCase() + '·' : word.slice(0, 2).toUpperCase()
+    }
     
     // Для имен пользователей берем инициалы в правильном порядке: Имя + Фамилия
     const firstName = parts[0]

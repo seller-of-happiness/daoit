@@ -50,7 +50,7 @@ export function useReactions(
 
             const userEntry: ReactionUser = {
                 id: String(user?.user ?? user?.id ?? user?.user_id ?? Math.random()),
-                name: String(user?.user_name ?? user?.full_name ?? user?.name ?? 'Неизвестно'),
+                name: String(user?.user_name ?? user?.full_name ?? user?.name ?? `User ${user?.user ?? user?.id ?? user?.user_id ?? 'Unknown'}`),
                 avatar: user?.avatar || user?.icon || user?.photo || null,
             }
 
@@ -245,8 +245,8 @@ function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?
                 id: userId,
                 user: userId,
                 user_id: userId,
-                name: chatMember?.user_name || 'Пользователь',
-                user_name: chatMember?.user_name || 'Пользователь'
+                name: chatMember?.user_name || `User ${userId}`,
+                user_name: chatMember?.user_name || `User ${userId}`
             }
             usersSources.push(userObj)
         }
