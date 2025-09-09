@@ -246,7 +246,26 @@ function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?
                 user: userId,
                 user_id: userId,
                 name: chatMember?.user_name || `User ${userId}`,
-                user_name: chatMember?.user_name || `User ${userId}`
+                user_name: chatMember?.user_name || `User ${userId}`,
+                full_name: chatMember?.user_name || `User ${userId}`
+            }
+            usersSources.push(userObj)
+        }
+
+        // Обработка формата с прямым указанием user в корне объекта
+        if (item?.user && !usersSources.some(u => (u?.user || u?.id || u?.user_id) === item.user)) {
+            const userId = item.user
+            const chatMember = chatMembers?.find(m => 
+                m.user === userId || m.user_uuid === userId
+            )
+            
+            const userObj = {
+                id: userId,
+                user: userId,
+                user_id: userId,
+                name: chatMember?.user_name || `User ${userId}`,
+                user_name: chatMember?.user_name || `User ${userId}`,
+                full_name: chatMember?.user_name || `User ${userId}`
             }
             usersSources.push(userObj)
         }
@@ -322,12 +341,16 @@ function extractMyReactionFromServer(message: any, currentUserId: string): numbe
 
             // Проверяем формат {user_id: "...", reaction_type_id: 2}
             const isMyDirectReaction = item?.user_id && String(item.user_id) === currentUserId
+            
+            // Проверяем формат {user: "...", reaction_type: 2}
+            const isMyUserReaction = item?.user && String(item.user) === currentUserId
 
-            if (hasMyUser || isMyDirectReaction) {
+            if (hasMyUser || isMyDirectReaction || isMyUserReaction) {
                 const id = Number(
                     item?.type_id ??
                         item?.reaction_id ??
                         item?.reaction_type_id ??
+                        item?.reaction_type ??
                         item?.id ??
                         item?.type ??
                         item?.reaction?.id ??
