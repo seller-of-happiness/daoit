@@ -286,7 +286,8 @@ export const useCentrifugeStore = defineStore('centrifuge', {
                     console.log('🔔 Centrifuge publication received:', {
                         channel,
                         fullContext: ctx,
-                        data: ctx.data
+                        data: ctx.data,
+                        eventType: ctx.data?.event_type || ctx.data?.event || ctx.data?.type
                     })
                     
                     const handler = this.handlers.get(channel)
