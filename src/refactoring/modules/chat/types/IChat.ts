@@ -114,6 +114,8 @@ export interface IChatStoreState {
     // Флаги для предотвращения дублирования инициализации
     isInitialized: boolean
     isInitializing: boolean
+    // Debounce для перезагрузки сообщений при реакциях
+    reactionReloadTimeout: number | null
 }
 
 // Улучшенные типы для реакций

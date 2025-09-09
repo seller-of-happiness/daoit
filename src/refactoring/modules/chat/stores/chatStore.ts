@@ -58,6 +58,8 @@ export const useChatStore = defineStore('chatStore', {
         // Флаг для предотвращения дублирования инициализации
         isInitialized: false,
         isInitializing: false,
+        // Debounce для перезагрузки сообщений при реакциях
+        reactionReloadTimeout: null as number | null,
     }),
     actions: {
         // Получает UUID текущего пользователя для подписки на центрифуго
@@ -163,6 +165,12 @@ export const useChatStore = defineStore('chatStore', {
             this.currentChat = null
             this.messages = []
             this.searchResults = null
+            
+            // Очищаем таймер перезагрузки реакций
+            if (this.reactionReloadTimeout) {
+                clearTimeout(this.reactionReloadTimeout)
+                this.reactionReloadTimeout = null
+            }
         },
 
         // Загружает список чатов. Управляет глобальным индикатором загрузки, логирует ошибки
@@ -577,8 +585,17 @@ export const useChatStore = defineStore('chatStore', {
                 return
             }
             
-            // Если это текущий чат, обновляем локально
+            // Если это текущий чат
             if (this.currentChat && chatId === this.currentChat.id) {
+                // Если нет userId в WebSocket данных, перезагружаем сообщения с сервера
+                // Это гарантирует правильную синхронизацию реакций между пользователями
+                if (!userId) {
+                    console.log('🔄 Отсутствует userId в WebSocket данных, перезагружаем сообщения')
+                    this.debouncedReloadMessages(this.currentChat.id)
+                    return
+                }
+                
+                // Пытаемся обновить локально только если есть userId
                 const success = this.updateMessageReactionLocally(messageId, reactionTypeId, userId, eventType)
                 
                 if (success) {
@@ -588,9 +605,7 @@ export const useChatStore = defineStore('chatStore', {
                 } else {
                     // Если локальное обновление не удалось, перезагружаем сообщения
                     console.warn('⚠️ Локальное обновление реакции не удалось, перезагружаем сообщения')
-                    this.fetchMessages(this.currentChat.id).catch((error) => {
-                        console.error('Ошибка при обновлении сообщений после реакции:', error)
-                    })
+                    this.debouncedReloadMessages(this.currentChat.id)
                 }
             } else {
                 // Если это не текущий чат, обновляем информацию о последнем сообщении в списке чатов
@@ -601,6 +616,22 @@ export const useChatStore = defineStore('chatStore', {
                     // В большинстве случаев пользователь увидит обновления при открытии чата
                 }
             }
+        },
+
+        // Debounced перезагрузка сообщений для избежания слишком частых запросов
+        debouncedReloadMessages(chatId: number): void {
+            // Очищаем предыдущий таймер
+            if (this.reactionReloadTimeout) {
+                clearTimeout(this.reactionReloadTimeout)
+            }
+            
+            // Устанавливаем новый таймер на 300ms
+            this.reactionReloadTimeout = window.setTimeout(() => {
+                this.fetchMessages(chatId).catch((error) => {
+                    console.error('Ошибка при обновлении сообщений после реакции:', error)
+                })
+                this.reactionReloadTimeout = null
+            }, 300)
         },
 
         // Локальное обновление реакции в сообщении
