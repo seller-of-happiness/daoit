@@ -41,7 +41,7 @@ const withBase = (path: string | null | undefined) => {
 
 function getInitials(name: string): string {
     const trimmed = String(name || '').trim()
-    if (!trimmed) return '??'
+    if (!trimmed || trimmed === 'Unknown User') return '??'
     
     const parts = trimmed.split(/\s+/)
     
@@ -62,22 +62,28 @@ function getInitials(name: string): string {
     
     if (parts.length === 1) {
         const word = parts[0]
-        return word.length === 1 ? word.toUpperCase() + '·' : word.slice(0, 2).toUpperCase()
+        // Если это короткое имя или инициал
+        if (word.length <= 2) {
+            return word.toUpperCase().padEnd(2, '·')
+        }
+        // Для длинных слов берем первые 2 символа
+        return word.slice(0, 2).toUpperCase()
     }
     
     // Для имен пользователей берем инициалы в правильном порядке: Имя + Фамилия
     const firstName = parts[0]
     const lastName = parts[1]
     
-    // Проверяем, является ли это именем пользователя
-    const isLikelyNameSurname = firstName.length <= 15 && lastName.length <= 20
+    // Проверяем, является ли это именем пользователя (не техническими данными)
+    const isLikelyNameSurname = firstName.length <= 15 && lastName.length <= 20 && 
+                               !/^\d+$/.test(firstName) && !/^\d+$/.test(lastName)
     
     if (isLikelyNameSurname) {
         return (firstName[0] + lastName[0]).toUpperCase()
     }
     
-    // Для остальных случаев - как было
-    return (parts[0][0] + parts[1][0]).toUpperCase()
+    // Для остальных случаев берем первые символы первых двух частей
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '·')).toUpperCase()
 }
 </script>
 

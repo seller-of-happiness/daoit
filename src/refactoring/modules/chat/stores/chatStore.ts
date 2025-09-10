@@ -608,15 +608,29 @@ export const useChatStore = defineStore('chatStore', {
         handleReactionUpdate(data: any): void {
             console.log('🎭 Обработка реакции:', data)
             
-            // Извлекаем данные реакции из разных форматов
+            // Извлекаем данные реакции из нового формата бэкенда
             const reactionData = data?.data || data
             const chatId = reactionData?.chat_id || data?.chat_id
             const messageId = reactionData?.message_id || data?.message_id
-            const reactionTypeId = reactionData?.reaction_type_id || reactionData?.reaction_type || data?.reaction_type_id || data?.reaction_type
             const eventType = data?.event_type || data?.event || data?.type
-            const userId = reactionData?.user_id || reactionData?.user || data?.user_id || data?.user
             
-            console.log('🎭 Данные реакции:', { chatId, messageId, reactionTypeId, eventType, userId })
+            // Новый формат: данные реакции находятся в поле reaction
+            const reactionInfo = reactionData?.reaction || reactionData
+            const reactionTypeId = reactionInfo?.reaction_type_id || reactionData?.reaction_type_id || reactionData?.reaction_type || data?.reaction_type_id || data?.reaction_type
+            const userId = reactionInfo?.user_id || reactionData?.user_id || reactionData?.user || data?.user_id || data?.user
+            const userName = reactionInfo?.user_name || reactionData?.user_name || data?.user_name
+            const userAvatar = reactionInfo?.avatar || reactionData?.avatar || data?.avatar
+            
+            console.log('🎭 Данные реакции:', { 
+                chatId, 
+                messageId, 
+                reactionTypeId, 
+                eventType, 
+                userId, 
+                userName, 
+                userAvatar,
+                reactionInfo 
+            })
             
             if (!chatId || !messageId) {
                 console.warn('⚠️ Некорректные данные реакции:', data)
@@ -625,7 +639,14 @@ export const useChatStore = defineStore('chatStore', {
             
             // Если это текущий чат, обновляем локально
             if (this.currentChat && chatId === this.currentChat.id) {
-                const success = this.updateMessageReactionLocally(messageId, reactionTypeId, userId, eventType)
+                const success = this.updateMessageReactionLocally(
+                    messageId, 
+                    reactionTypeId, 
+                    userId, 
+                    eventType, 
+                    userName, 
+                    userAvatar
+                )
                 
                 if (success) {
                     // Принудительно обновляем реактивность, создавая новый массив сообщений
@@ -650,7 +671,7 @@ export const useChatStore = defineStore('chatStore', {
         },
 
         // Локальное обновление реакции в сообщении
-        updateMessageReactionLocally(messageId: number, reactionTypeId: number, userId: string, eventType: string): boolean {
+        updateMessageReactionLocally(messageId: number, reactionTypeId: number, userId: string, eventType: string, userName?: string, userAvatar?: string | null): boolean {
             try {
                 const messageIndex = this.messages.findIndex(m => m.id === messageId)
                 if (messageIndex === -1) {
@@ -671,13 +692,15 @@ export const useChatStore = defineStore('chatStore', {
                         return reactionUserId !== String(userId)
                     })
                     
-                    // Добавляем новую реакцию
+                    // Добавляем новую реакцию с полными данными пользователя
                     const newReaction = {
                         id: Date.now(), // Временный ID
                         reaction_type: reactionTypeId,
                         reaction_type_id: reactionTypeId,
                         user: userId,
                         user_id: userId,
+                        user_name: userName || `User ${userId}`,
+                        avatar: userAvatar,
                         created_at: new Date().toISOString()
                     }
                     filteredReactions.push(newReaction)
