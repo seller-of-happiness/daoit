@@ -51,6 +51,18 @@ function compareMessagesAscending(a: IMessage, b: IMessage): number {
 // Глобальный экземпляр для управления непрочитанными сообщениями в заголовке
 const globalUnreadMessages = useUnreadMessages()
 
+// Обеспечиваем инициализацию событий в клиентском коде
+if (typeof window !== 'undefined') {
+    // Инициализируем события после загрузки DOM
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            globalUnreadMessages.initializeEventListeners()
+        })
+    } else {
+        globalUnreadMessages.initializeEventListeners()
+    }
+}
+
 export const useChatStore = defineStore('chatStore', {
     state: (): IChatStoreState => ({
         chats: [],
