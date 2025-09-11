@@ -213,8 +213,8 @@ export function useReactions(
 
     // Автоматическая очистка оптимистичных реакций при изменении серверных данных
     watch(
-        () => message?.reactions || message?.message_reactions,
-        (newReactions, oldReactions) => {
+        () => [message?.reactions || message?.message_reactions, message?.reaction_updated_at],
+        ([newReactions], [oldReactions]) => {
             // Если серверные реакции изменились и у нас есть оптимистичные реакции
             if (newReactions !== oldReactions && optimisticReactions.value.length > 0) {
                 // Небольшая задержка для избежания конфликтов с WebSocket обновлениями

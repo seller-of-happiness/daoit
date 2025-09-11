@@ -652,7 +652,8 @@ export const useChatStore = defineStore('chatStore', {
                 if (success) {
                     // Принудительно обновляем реактивность, создавая новый массив сообщений
                     console.log('✅ Принудительное обновление реактивности сообщений')
-                    this.messages = [...this.messages]
+                    // Создаем новый массив с новыми объектами сообщений для правильной реактивности Vue
+                    this.messages = this.messages.map(msg => ({ ...msg }))
                     
                     // Небольшая задержка перед очисткой оптимистичных реакций, чтобы дать время UI обновиться
                     setTimeout(() => {
@@ -713,11 +714,13 @@ export const useChatStore = defineStore('chatStore', {
                     
                     console.log('➕ Добавлена эксклюзивная реакция локально:', newReaction)
                     
-                    // Создаем новое сообщение с обновленными реакциями
+                    // Создаем новое сообщение с обновленными реакциями и временной меткой обновления
                     const updatedMessage = {
                         ...message,
                         reactions: filteredReactions,
-                        message_reactions: filteredReactions
+                        message_reactions: filteredReactions,
+                        // Добавляем временную метку последнего обновления для принудительного перерендера
+                        reaction_updated_at: new Date().toISOString()
                     }
 
                     // Заменяем сообщение в массиве
@@ -732,11 +735,13 @@ export const useChatStore = defineStore('chatStore', {
                     
                     console.log('➖ Удалены все реакции пользователя локально:', userId)
                     
-                    // Создаем новое сообщение с обновленными реакциями
+                    // Создаем новое сообщение с обновленными реакциями и временной меткой обновления
                     const updatedMessage = {
                         ...message,
                         reactions: filteredReactions,
-                        message_reactions: filteredReactions
+                        message_reactions: filteredReactions,
+                        // Добавляем временную метку последнего обновления для принудительного перерендера
+                        reaction_updated_at: new Date().toISOString()
                     }
 
                     // Заменяем сообщение в массиве
