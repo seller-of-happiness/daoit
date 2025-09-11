@@ -79,19 +79,10 @@ export function useReactions(
         // Добавляем оптимистичные реакции
         for (const o of optimisticReactions.value) {
             addUserToGroup(String(o.id), o.name, o.icon, o.user)
-            console.log('➕ Добавлена оптимистичная реакция в группировку:', { id: o.id, name: o.name, user: o.user })
         }
 
         const result = Array.from(groups.values())
         
-        if (result.length > 0) {
-            console.log('🔢 Итоговые группы реакций:', result.map(g => ({ 
-                key: g.key, 
-                emoji: g.emoji, 
-                usersCount: g.users.length,
-                users: g.users.map(u => ({ id: u.id, name: u.name }))
-            })))
-        }
 
         // Обеспечиваем эксклюзивность реакций для текущего пользователя
         if (currentUserId) {
@@ -169,7 +160,6 @@ export function useReactions(
         // Сбрасываем флаг очистки при добавлении новой реакции
         isOptimisticallyCleared.value = false
         
-        console.log('🚀 Добавлена оптимистичная реакция:', { id: key, name, userId })
     }
 
     const clearOptimisticForMe = () => {
@@ -181,11 +171,9 @@ export function useReactions(
         const afterCount = optimisticReactions.value.length
         isOptimisticallyCleared.value = true
         
-        console.log('🧹 Очищены оптимистичные реакции пользователя:', currentUserId, `(${beforeCount} -> ${afterCount})`)
         
         // Проверяем, есть ли серверные данные для этого пользователя
         const hasServerReaction = extractMyReactionFromServer(message, currentUserId) !== null
-        console.log('🔍 Проверка серверных данных после очистки оптимистичных:', { hasServerReaction, messageId: message.id })
     }
 
     const findThumbsUpReaction = (): IReactionType | null => {
@@ -206,7 +194,6 @@ export function useReactions(
     const syncWithServerData = () => {
         // Очищаем оптимистичные реакции, так как получили актуальные данные с сервера
         if (optimisticReactions.value.length > 0) {
-            console.log('🔄 Синхронизация с серверными данными, очищаем оптимистичные реакции')
             optimisticReactions.value = []
             isOptimisticallyCleared.value = false
         }
@@ -225,11 +212,9 @@ export function useReactions(
                         const hasMyReactionInServer = currentUserId && extractMyReactionFromServer(message, currentUserId) !== null
                         
                         if (hasMyReactionInServer) {
-                            console.log('🔄 Автоматическая очистка оптимистичных реакций - найдена серверная реакция')
                             optimisticReactions.value = []
                             isOptimisticallyCleared.value = false
                         } else {
-                            console.log('🔄 Серверные данные еще не содержат реакцию пользователя, оставляем оптимистичные')
                         }
                     }
                 }, 500)
@@ -241,7 +226,6 @@ export function useReactions(
     // Принудительное обновление реактивности
     const forceUpdate = () => {
         // Принудительно обновляем computed свойства, изменяя ключ
-        console.log('🔄 Принудительное обновление реакций для сообщения:', message.id)
     }
 
     return {

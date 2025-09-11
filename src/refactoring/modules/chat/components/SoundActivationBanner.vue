@@ -93,9 +93,9 @@ const activateSound = async () => {
                 document.body.removeChild(toast)
             }, 3000)
         }
-    } catch (error) {
-        console.warn('Ошибка активации звука:', error)
-    } finally {
+        } catch (error) {
+            // Ошибка активации звука
+        } finally {
         isActivating.value = false
     }
 }
@@ -104,11 +104,11 @@ const activateSound = async () => {
 const dismissBanner = () => {
     isDismissed.value = true
 
-    // Сохраняем в localStorage что пользователь отклонил
+    // Сохраняем в локальном хранилище что пользователь отклонил
     try {
         localStorage.setItem('sound-banner-dismissed', 'true')
     } catch (e) {
-        // Игнорируем ошибки localStorage
+        // Игнорируем ошибки локального хранилища
     }
 }
 
@@ -120,7 +120,7 @@ onMounted(() => {
             isDismissed.value = true
         }
     } catch (e) {
-        // Игнорируем ошибки localStorage
+        // Игнорируем ошибки локального хранилища
     }
 })
 </script>
@@ -187,7 +187,7 @@ onMounted(() => {
     flex-shrink: 0;
 }
 
-// Responsive adjustments
+// Адаптивные настройки
 @media (max-width: 768px) {
     .banner-content {
         padding: 0.75rem 1rem;

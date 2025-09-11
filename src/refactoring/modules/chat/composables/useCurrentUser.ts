@@ -61,7 +61,7 @@ export function useCurrentUser(currentChat?: IChat | null): CurrentUserInfo {
 /**
  * Нормализация имени для сравнения
  */
-export function normalizeName(value: unknown): string {
+function normalizeName(value: unknown): string {
     const normalized = String(value ?? '')
         .toLowerCase()
         .replace(/\s+/g, ' ')

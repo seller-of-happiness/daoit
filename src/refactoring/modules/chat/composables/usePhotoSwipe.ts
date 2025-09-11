@@ -30,7 +30,7 @@ export function usePhotoSwipe(options: PhotoSwipeOptions) {
             // Сохраняем ссылку для очистки
             window.__chatPswp = lightboxInstance
         } catch (error) {
-            console.warn('PhotoSwipe initialization failed:', error)
+            // Игнорируем ошибки инициализации PhotoSwipe
         }
     }
 
@@ -43,7 +43,7 @@ export function usePhotoSwipe(options: PhotoSwipeOptions) {
             window.__chatPswp = null
             lightboxInstance = null
         } catch (error) {
-            console.warn('PhotoSwipe cleanup failed:', error)
+            // Игнорируем ошибки очистки PhotoSwipe
         }
     }
 

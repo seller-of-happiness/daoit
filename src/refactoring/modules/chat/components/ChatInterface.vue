@@ -111,7 +111,7 @@ const chatLogic = useChatLogic({
     messagesContainerSelector: '#chat-messages',
 })
 
-// Инициализация PhotoSwipe для галереи
+// Инициализация галереи изображений
 usePhotoSwipe({
     gallery: '#chat-messages',
     children: 'a.attachment-image-link, .attachments-only .img-wrap',
@@ -192,9 +192,9 @@ const acceptInvitation = async (invitation: any) => {
         if (invitation.id) {
             await chatStore.acceptInvitation(invitation.id)
         }
-    } catch (error) {
-        console.error('Ошибка при принятии приглашения:', error)
-    }
+        } catch (error) {
+            // Ошибка при принятии приглашения
+        }
 }
 
 const declineInvitation = async (invitation: any) => {
@@ -202,12 +202,12 @@ const declineInvitation = async (invitation: any) => {
         if (invitation.id) {
             await chatStore.declineInvitation(invitation.id)
         }
-    } catch (error) {
-        console.error('Ошибка при отклонении приглашения:', error)
-    }
+        } catch (error) {
+            // Ошибка при отклонении приглашения
+        }
 }
 
-// Lifecycle hooks
+// Хуки жизненного цикла
 onMounted(async () => {
     await initialize()
 })
