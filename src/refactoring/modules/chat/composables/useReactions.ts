@@ -48,9 +48,10 @@ export function useReactions(
             const key = String(id || name || icon || 'unknown')
             const emoji = getReactionEmoji({ id: 0, name, icon } as IReactionType)
 
+            const userName = String(user?.user_name ?? user?.full_name ?? user?.name ?? '').trim()
             const userEntry: ReactionUser = {
                 id: String(user?.user ?? user?.id ?? user?.user_id ?? Math.random()),
-                name: String(user?.user_name ?? user?.full_name ?? user?.name ?? 'Unknown User'),
+                name: userName || `User ${String(user?.user ?? user?.id ?? user?.user_id ?? 'Unknown')}`,
                 avatar: user?.avatar || user?.icon || user?.photo || null,
             }
 
@@ -297,52 +298,64 @@ function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?
             .filter(Array.isArray)
             .flat()
 
-        if (item?.user) usersSources.push(item.user)
-
         // Обработка формата {user_id: "...", reaction_type_id: 2, user_name: "...", avatar: null}
-        if (item?.user_id && !usersSources.length) {
+        if (item?.user_id) {
             const userId = item.user_id
             const userName = item.user_name
             const userAvatar = item.avatar
             
-            // Ищем пользователя в участниках чата для дополнительной информации
-            const chatMember = chatMembers?.find(m => 
-                m.user === userId || m.user_uuid === userId
+            // Проверяем, что пользователь еще не добавлен
+            const alreadyExists = usersSources.some(u => 
+                String(u?.user || u?.id || u?.user_id || '') === String(userId)
             )
             
-            // Создаем объект пользователя из данных реакции
-            const userObj = {
-                id: userId,
-                user: userId,
-                user_id: userId,
-                name: userName || chatMember?.user_name || 'Unknown User',
-                user_name: userName || chatMember?.user_name || 'Unknown User',
-                full_name: userName || chatMember?.user_name || 'Unknown User',
-                avatar: userAvatar
+            if (!alreadyExists) {
+                // Ищем пользователя в участниках чата для дополнительной информации
+                const chatMember = chatMembers?.find(m => 
+                    m.user === userId || m.user_uuid === userId
+                )
+                
+                // Создаем объект пользователя из данных реакции
+                const userObj = {
+                    id: userId,
+                    user: userId,
+                    user_id: userId,
+                    name: userName || chatMember?.user_name,
+                    user_name: userName || chatMember?.user_name,
+                    full_name: userName || chatMember?.user_name,
+                    avatar: userAvatar
+                }
+                usersSources.push(userObj)
             }
-            usersSources.push(userObj)
         }
 
         // Обработка формата с прямым указанием user в корне объекта
-        if (item?.user && !usersSources.some(u => (u?.user || u?.id || u?.user_id) === item.user)) {
+        if (item?.user) {
             const userId = item.user
             const userName = item.user_name
             const userAvatar = item.avatar
             
-            const chatMember = chatMembers?.find(m => 
-                m.user === userId || m.user_uuid === userId
+            // Проверяем, что пользователь еще не добавлен
+            const alreadyExists = usersSources.some(u => 
+                String(u?.user || u?.id || u?.user_id || '') === String(userId)
             )
             
-            const userObj = {
-                id: userId,
-                user: userId,
-                user_id: userId,
-                name: userName || chatMember?.user_name || 'Unknown User',
-                user_name: userName || chatMember?.user_name || 'Unknown User',
-                full_name: userName || chatMember?.user_name || 'Unknown User',
-                avatar: userAvatar
+            if (!alreadyExists) {
+                const chatMember = chatMembers?.find(m => 
+                    m.user === userId || m.user_uuid === userId
+                )
+                
+                const userObj = {
+                    id: userId,
+                    user: userId,
+                    user_id: userId,
+                    name: userName || chatMember?.user_name,
+                    user_name: userName || chatMember?.user_name,
+                    full_name: userName || chatMember?.user_name,
+                    avatar: userAvatar
+                }
+                usersSources.push(userObj)
             }
-            usersSources.push(userObj)
         }
 
         for (const user of usersSources.filter(Boolean)) {

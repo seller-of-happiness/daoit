@@ -41,6 +41,8 @@ const withBase = (path: string | null | undefined) => {
 
 function getInitials(name: string): string {
     const trimmed = String(name || '').trim()
+    
+    // Если имя пустое или является fallback значением, возвращаем знак вопроса
     if (!trimmed || trimmed === 'Unknown User') return '??'
     
     const parts = trimmed.split(/\s+/)
