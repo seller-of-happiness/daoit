@@ -78,9 +78,19 @@ export function useReactions(
         // Добавляем оптимистичные реакции
         for (const o of optimisticReactions.value) {
             addUserToGroup(String(o.id), o.name, o.icon, o.user)
+            console.log('➕ Добавлена оптимистичная реакция в группировку:', { id: o.id, name: o.name, user: o.user })
         }
 
         const result = Array.from(groups.values())
+        
+        if (result.length > 0) {
+            console.log('🔢 Итоговые группы реакций:', result.map(g => ({ 
+                key: g.key, 
+                emoji: g.emoji, 
+                usersCount: g.users.length,
+                users: g.users.map(u => ({ id: u.id, name: u.name }))
+            })))
+        }
 
         // Обеспечиваем эксклюзивность реакций для текущего пользователя
         if (currentUserId) {
@@ -171,6 +181,10 @@ export function useReactions(
         isOptimisticallyCleared.value = true
         
         console.log('🧹 Очищены оптимистичные реакции пользователя:', currentUserId, `(${beforeCount} -> ${afterCount})`)
+        
+        // Проверяем, есть ли серверные данные для этого пользователя
+        const hasServerReaction = extractMyReactionFromServer(message, currentUserId) !== null
+        console.log('🔍 Проверка серверных данных после очистки оптимистичных:', { hasServerReaction, messageId: message.id })
     }
 
     const findThumbsUpReaction = (): IReactionType | null => {
@@ -206,9 +220,16 @@ export function useReactions(
                 // Небольшая задержка для избежания конфликтов с WebSocket обновлениями
                 setTimeout(() => {
                     if (optimisticReactions.value.length > 0) {
-                        console.log('🔄 Автоматическая очистка оптимистичных реакций при изменении серверных данных')
-                        optimisticReactions.value = []
-                        isOptimisticallyCleared.value = false
+                        // Проверяем, что серверные данные действительно содержат реакции текущего пользователя
+                        const hasMyReactionInServer = currentUserId && extractMyReactionFromServer(message, currentUserId) !== null
+                        
+                        if (hasMyReactionInServer) {
+                            console.log('🔄 Автоматическая очистка оптимистичных реакций - найдена серверная реакция')
+                            optimisticReactions.value = []
+                            isOptimisticallyCleared.value = false
+                        } else {
+                            console.log('🔄 Серверные данные еще не содержат реакцию пользователя, оставляем оптимистичные')
+                        }
                     }
                 }, 500)
             }

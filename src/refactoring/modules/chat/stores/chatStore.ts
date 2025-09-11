@@ -629,7 +629,8 @@ export const useChatStore = defineStore('chatStore', {
                 userId, 
                 userName, 
                 userAvatar,
-                reactionInfo 
+                reactionInfo,
+                originalData: data
             })
             
             if (!chatId || !messageId) {
@@ -652,6 +653,11 @@ export const useChatStore = defineStore('chatStore', {
                     // Принудительно обновляем реактивность, создавая новый массив сообщений
                     console.log('✅ Принудительное обновление реактивности сообщений')
                     this.messages = [...this.messages]
+                    
+                    // Небольшая задержка перед очисткой оптимистичных реакций, чтобы дать время UI обновиться
+                    setTimeout(() => {
+                        console.log('🔄 Даем сигнал для очистки оптимистичных реакций')
+                    }, 100)
                 } else {
                     // Если локальное обновление не удалось, перезагружаем сообщения
                     console.warn('⚠️ Локальное обновление реакции не удалось, перезагружаем сообщения')
