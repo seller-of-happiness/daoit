@@ -706,7 +706,7 @@ export const useChatStore = defineStore('chatStore', {
                         reaction_type_id: reactionTypeId,
                         user: userId,
                         user_id: userId,
-                        user_name: userName || `User ${userId}`,
+                        user_name: userName,
                         avatar: userAvatar,
                         created_at: new Date().toISOString()
                     }
