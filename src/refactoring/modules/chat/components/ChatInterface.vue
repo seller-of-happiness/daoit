@@ -41,7 +41,7 @@
                         </div>
                         <MessageItem
                             v-for="message in group.items"
-                            :key="message.id"
+                            :key="`${message.id}-${message.reaction_updated_at || message.updated_at || message.created_at}`"
                             :message="message"
                             :reaction-types="chatStore.reactionTypes"
                             :current-user-id="currentUser.id.value"
