@@ -42,12 +42,12 @@ const withBase = (path: string | null | undefined) => {
 function getInitials(name: string): string {
     const trimmed = String(name || '').trim()
     
-    // Если имя пустое или является fallback значением, возвращаем знак вопроса
+    // Если имя пустое или является резервным значением, возвращаем знак вопроса
     if (!trimmed || trimmed === 'Unknown User') return '??'
     
     const parts = trimmed.split(/\s+/)
     
-    // Если это fallback формат "User 123" или "User Unknown"
+    // Если это резервный формат "User 123" или "User Unknown"
     if (parts.length === 2 && parts[0] === 'User') {
         const userId = parts[1]
         // Если второй части - это число (ID), используем первые 2 цифры

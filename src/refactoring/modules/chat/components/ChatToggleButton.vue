@@ -63,7 +63,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-// Stores
+// Хранилища
 const chatStore = useChatStore()
 
 // Состояние
@@ -74,7 +74,7 @@ const unreadCount = computed(() => {
     if (!props.showUnreadCount) return 0
 
     // Здесь можно добавить реальную логику подсчета непрочитанных сообщений
-    // Например, из store или API
+    // Например, из хранилища или API
     return 0 // Заглушка
 })
 
@@ -164,7 +164,7 @@ const toggleChat = () => {
     z-index: 40;
 }
 
-// Дополнительные стили для позиционирования с учетом offset
+// Дополнительные стили для позиционирования с учетом смещения
 .chat-toggle-button.fixed {
     &.bottom-6 {
         bottom: v-bind('props.offset.y + "px"');

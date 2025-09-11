@@ -47,7 +47,7 @@ export function useChatTitle(chat: ComputedRef<IChat | null>) {
         if (!chat.value) return null
 
         if (chat.value.type === 'direct' || chat.value.type === 'dialog') {
-            return null // IChatMember не содержит avatar
+            return null // IChatMember не содержит аватар
         }
 
         return chat.value.icon

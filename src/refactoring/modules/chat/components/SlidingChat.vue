@@ -259,9 +259,9 @@ const acceptInvitation = async (invitation: any) => {
         if (invitation.id) {
             await chatStore.acceptInvitation(invitation.id)
         }
-    } catch (error) {
-        console.error('Ошибка при принятии приглашения:', error)
-    }
+        } catch (error) {
+            // Ошибка при принятии приглашения
+        }
 }
 
 const declineInvitation = async (invitation: any) => {
@@ -269,9 +269,9 @@ const declineInvitation = async (invitation: any) => {
         if (invitation.id) {
             await chatStore.declineInvitation(invitation.id)
         }
-    } catch (error) {
-        console.error('Ошибка при отклонении приглашения:', error)
-    }
+        } catch (error) {
+            // Ошибка при отклонении приглашения
+        }
 }
 
 const closeChat = () => {
@@ -284,13 +284,13 @@ const openFullChat = () => {
     closeChat()
 }
 
-// Инициализация PhotoSwipe для галереи
+// Инициализация галереи изображений
 usePhotoSwipe({
     gallery: '#sliding-chat-messages',
     children: 'a.attachment-image-link, .attachments-only .img-wrap',
 })
 
-// Lifecycle hooks
+// Хуки жизненного цикла
 onMounted(async () => {
     await initialize()
 })
@@ -333,7 +333,7 @@ watch(
                     if (isMobile.value) mobileView.value = 'chat'
                 }
             } catch (error) {
-                console.error('Ошибка при принудительном открытии чата:', error)
+                // Ошибка при принудительном открытии чата
             }
         }
     },
@@ -344,7 +344,7 @@ watch(
 <style lang="scss">
 @use '../styles' as *;
 
-// Component-specific styles that aren't covered by the global styles
+// Специфичные стили компонента, которые не покрыты глобальными стилями
 .slide-btn {
     .p-button {
         margin-left: 0.5rem;

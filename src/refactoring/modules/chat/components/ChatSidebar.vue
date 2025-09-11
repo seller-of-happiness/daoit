@@ -306,9 +306,9 @@ const getChatInitials = (chat: IChat) => {
     return generateChatInitials(chat.title)
 }
 
-// joinPublicChat removed - use invitations instead
+// Удалена функция joinPublicChat - используйте приглашения
 
-// Реактивный поиск с debounce
+// Реактивный поиск с задержкой
 let searchDebounceId: number | null = null
 watch(
     () => searchQuery.value,

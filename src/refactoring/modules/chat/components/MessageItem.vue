@@ -438,7 +438,7 @@ function onMessageLeave() {
 
 function onTriggerClick() {
     if (reactions.hasMyReaction.value) {
-        // Сохраняем ID реакции ДО очистки оптимистичного состояния
+        // Сохраняем ID реакции до очистки оптимистичного состояния
         const prevReactionId = reactions.myReactionId.value
         reactions.clearOptimisticForMe()
         emit('remove-my-reaction', props.message.id, prevReactionId)

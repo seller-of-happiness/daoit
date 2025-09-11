@@ -182,22 +182,6 @@ declare global {
     }
 }
 
-// Типы для эмодзи пикера
-export interface EmojiGroupNames {
-    readonly smileys_people: string
-    readonly animals_nature: string
-    readonly food_drink: string
-    readonly activities: string
-    readonly travel_places: string
-    readonly objects: string
-    readonly symbols: string
-    readonly flags: string
-}
-
-export interface EmojiStaticTexts {
-    readonly placeholder: string
-    readonly skinTone: string
-}
 
 // Фильтры чатов
 export type ChatFilterType = 'all' | 'direct' | 'dialog' | 'group' | 'channel'

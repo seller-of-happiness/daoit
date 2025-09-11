@@ -90,7 +90,7 @@ defineEmits<Emits>()
 const { id: currentUserId } = useCurrentUser()
 const centrifugeStore = useCentrifugeStore()
 
-// Используем composable для звука
+// Используем композабл для звука
 const {
     isEnabled: soundEnabled,
     isUnlocked: soundUnlocked,
@@ -104,13 +104,13 @@ const {
 const directChatCompanion = computed(() => {
     if (props.currentChat?.type !== 'direct' && props.currentChat?.type !== 'dialog') return null
 
-    // Добавляем проверку на существование members
+    // Добавляем проверку на существование участников
     const members = props.currentChat.members
     if (!members || !Array.isArray(members)) return null
 
     return (
         members.find((member) => {
-            if (!member) return false // Проверка на существование member
+            if (!member) return false // Проверка на существование участника
 
             // Проверяем и по user, и по user_uuid, приводя к строке для сравнения
             const memberUserId = String(member.user || member.user_uuid || '')
@@ -148,7 +148,7 @@ const canInviteUsers = computed(() => {
     return props.currentChat.type === 'group' || props.currentChat.type === 'channel'
 })
 
-// Статус соединения WebSocket
+// Статус соединения веб-сокета
 const connectionStatusClass = computed(() => {
     const status = centrifugeStore.connectionStatus
     return {

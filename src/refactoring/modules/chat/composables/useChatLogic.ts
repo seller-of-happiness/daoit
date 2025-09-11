@@ -114,11 +114,11 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
             if (isMobile.value) mobileView.value = 'chat'
             options.onChatOpen?.(newChat)
         } catch (error) {
-            console.error('Ошибка создания диалога:', error)
+            // Ошибка создания диалога
         }
     }
 
-    // joinPublicChat removed - use invitations instead
+    // Удалена функция joinPublicChat - используйте приглашения
 
     const sendMessage = async (content: string) => {
         await chatStore.sendMessage(content)
@@ -129,7 +129,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
             const message = await chatStore.sendMessage('')
             await chatStore.uploadAttachment(message.id, file)
         } catch (error) {
-            console.error('Ошибка загрузки файла:', error)
+            // Ошибка загрузки файла
         }
     }
 
@@ -151,7 +151,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         try {
             await chatStore.inviteUsersToChat(chatStore.currentChat.id, userIds)
         } catch (error) {
-            console.error('Ошибка приглашения пользователей:', error)
+            // Ошибка приглашения пользователей
         }
     }
 
@@ -211,14 +211,14 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                     // Ищем чат по ID в загруженном списке
                     chatToOpen = chatStore.chats.find((c) => c.id === options.initialChatId) || null
                 } else {
-                    // Попытка восстановить последний выбранный чат из localStorage
+                    // Попытка восстановить последний выбранный чат из локального хранилища
                     try {
                         const savedId = Number(localStorage.getItem('selectedChatId') || '')
                         if (savedId && !Number.isNaN(savedId)) {
                             chatToOpen = chatStore.chats.find((c) => c.id === savedId) || null
                         }
                     } catch (e) {
-                        // Игнорируем ошибки localStorage
+                        // Игнорируем ошибки локального хранилища
                     }
                 }
 
@@ -229,7 +229,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         if (isMobile.value) mobileView.value = 'chat'
                         options.onChatOpen?.(chatToOpen)
                     } catch (error) {
-                        console.warn('Не удалось открыть чат:', chatToOpen.id, error)
+                        // Не удалось открыть чат
 
                         // Если не удалось открыть выбранный чат, сбрасываем его
                         chatStore.currentChat = null
@@ -242,7 +242,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                                 if (isMobile.value) mobileView.value = 'chat'
                                 options.onChatOpen?.(firstChat)
                             } catch (fallbackError) {
-                                console.warn('Не удалось открыть fallback чат:', fallbackError)
+                                // Не удалось открыть резервный чат
                             }
                         }
                     }
@@ -254,11 +254,11 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         if (isMobile.value) mobileView.value = 'chat'
                         options.onChatOpen?.(firstChat)
                     } catch (error) {
-                        console.warn('Не удалось открыть первый чат:', error)
+                        // Не удалось открыть первый чат
                     }
                 }
             } catch (error) {
-                console.error('Ошибка при инициализации чата:', error)
+                // Ошибка при инициализации чата
                 // Не прерываем инициализацию из-за ошибок чата
             }
 
@@ -273,14 +273,14 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         container.addEventListener('scroll', handleScroll, { passive: true })
                     }
                 } catch (error) {
-                    console.warn('Не удалось инициализировать контейнер сообщений:', error)
+                    // Не удалось инициализировать контейнер сообщений
                 }
             }
 
             // Скролл вниз с задержкой для корректной отрисовки
             setTimeout(scrollToBottom, 100)
         } catch (error) {
-            console.error('Критическая ошибка при инициализации чата:', error)
+            // Критическая ошибка при инициализации чата
             // Даже при критической ошибке не прерываем работу приложения
         }
     }
@@ -301,7 +301,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         }
     }
 
-    // Watchers с оптимизацией
+    // Наблюдатели с оптимизацией
     watch(
         () => chatStore.currentChat?.id,
         () => {
@@ -322,7 +322,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     )
 
     return {
-        // Store и пользователь
+        // Хранилище и пользователь
         chatStore,
         currentUser,
 
@@ -351,7 +351,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         changeReaction,
         removeMyReaction,
 
-        // Lifecycle
+        // Жизненный цикл
         initialize,
         cleanup,
 

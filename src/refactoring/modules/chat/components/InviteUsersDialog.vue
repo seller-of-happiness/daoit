@@ -197,7 +197,7 @@ const searchLocalEmployees = (query: string): IEmployee[] => {
     
     const searchTerm = query.toLowerCase().trim()
     
-    // Преобразуем сотрудников из apiStore в формат IEmployee для чата
+    // Преобразуем сотрудников из хранилища API в формат IEmployee для чата
     return apiStore.employees
         .filter(employee => {
             // Формируем полное имя для поиска
@@ -206,7 +206,7 @@ const searchLocalEmployees = (query: string): IEmployee[] => {
             const position = employee.position?.name?.toLowerCase() || ''
             const department = employee.department?.name?.toLowerCase() || ''
             
-            // Поиск по имени, email, должности или отделению
+            // Поиск по имени, электронной почте, должности или отделению
             return fullName.includes(searchTerm) ||
                    email.includes(searchTerm) ||
                    position.includes(searchTerm) ||
@@ -226,7 +226,7 @@ const searchLocalEmployees = (query: string): IEmployee[] => {
         .slice(0, 50) // Ограничиваем количество результатов для производительности
 }
 
-// Поиск пользователей (debounced) - теперь использует локальные данные
+// Поиск пользователей с задержкой - теперь использует локальные данные
 const debouncedSearch = debounce(async (query: string) => {
     if (!query.trim()) {
         availableUsers.value = []
@@ -240,23 +240,23 @@ const debouncedSearch = debounce(async (query: string) => {
             await apiStore.fetchAllEmployees()
         }
         
-        // Используем локальный поиск вместо API
+        // Используем локальный поиск вместо запроса к серверу
         availableUsers.value = searchLocalEmployees(query)
     } catch (error) {
-        console.error('Error searching users:', error)
+        // Ошибка поиска пользователей
         availableUsers.value = []
         
-        // Если локальный поиск не удался, можно fallback на серверный поиск
+        // Если локальный поиск не удался, можно использовать резервный серверный поиск
         try {
             const results = await chatStore.searchChats(query)
             availableUsers.value = results.new_dialogs || []
         } catch (fallbackError) {
-            console.error('Fallback search also failed:', fallbackError)
+            // Ошибка резервного поиска
         }
     } finally {
         isSearching.value = false
     }
-}, 100) // Уменьшили debounce время, так как поиск теперь локальный
+}, 100) // Уменьшили время задержки, так как поиск теперь локальный
 
 const onSearchInput = () => {
     debouncedSearch(searchQuery.value)
@@ -271,7 +271,7 @@ const inviteUsers = async () => {
         emit('invite-users', userIds)
         closeDialog()
     } catch (error) {
-        console.error('Error inviting users:', error)
+        // Ошибка приглашения пользователей
     } finally {
         isInviting.value = false
     }
@@ -302,7 +302,7 @@ watch(
                 try {
                     await apiStore.fetchAllEmployees()
                 } catch (error) {
-                    console.warn('Не удалось предварительно загрузить данные сотрудников:', error)
+                    // Не удалось предварительно загрузить данные сотрудников
                 }
             }
         }

@@ -92,7 +92,6 @@ export const useChatStore = defineStore('chatStore', {
             const userUuid = this.getCurrentUserUuid()
 
             if (!userUuid) {
-                console.warn('Не удалось получить UUID пользователя для подписки на центрифуго')
                 return
             }
 
@@ -117,8 +116,6 @@ export const useChatStore = defineStore('chatStore', {
                     
                     if (messageData && chatId) {
                         this.handleNewMessage(messageData, chatId)
-                    } else {
-                        console.warn('⚠️ Некорректная структура данных для нового сообщения:', data)
                     }
                     break
 
@@ -150,8 +147,6 @@ export const useChatStore = defineStore('chatStore', {
                     if (data?.id && data?.content !== undefined) {
                         this.handleNewMessage(data, data.chat_id)
                     } else if (data?.message_id && (data?.reaction_type_id || data?.reaction_type)) {
-                        // Fallback для реакций без явного типа события
-                        console.log('🔄 Обрабатываем реакцию без явного типа события:', data)
                         this.handleReactionUpdate(data)
                     }
                     break
@@ -175,7 +170,6 @@ export const useChatStore = defineStore('chatStore', {
                 
                 this.isInitialized = true
             } catch (error) {
-                console.error('Ошибка при инициализации чатов:', error)
                 // Не устанавливаем isInitialized в true при ошибке,
                 // чтобы можно было повторить инициализацию
             } finally {
@@ -209,7 +203,6 @@ export const useChatStore = defineStore('chatStore', {
                 if (Array.isArray(chatsData)) {
                     this.chats = chatsData
                 } else {
-                    console.warn('Получены некорректные данные чатов:', chatsData)
                     this.chats = []
                 }
 
@@ -518,10 +511,6 @@ export const useChatStore = defineStore('chatStore', {
                 })
             } catch (error) {
                 // API может возвращать 404 если не реализован - инициализируем счетчики нулями
-                console.warn(
-                    'Не удалось загрузить счетчики непрочитанных сообщений (API недоступен):',
-                    error,
-                )
 
                 // Инициализируем все чаты с нулевыми счетчиками
                 const updatedChats = this.chats.map((chat) => ({
@@ -606,8 +595,6 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обрабатывает обновление реакций
         handleReactionUpdate(data: any): void {
-            console.log('🎭 Обработка реакции:', data)
-            
             // Извлекаем данные реакции из нового формата бэкенда
             const reactionData = data?.data || data
             const chatId = reactionData?.chat_id || data?.chat_id
@@ -621,20 +608,7 @@ export const useChatStore = defineStore('chatStore', {
             const userName = reactionInfo?.user_name || reactionData?.user_name || data?.user_name
             const userAvatar = reactionInfo?.avatar || reactionData?.avatar || data?.avatar
             
-            console.log('🎭 Данные реакции:', { 
-                chatId, 
-                messageId, 
-                reactionTypeId, 
-                eventType, 
-                userId, 
-                userName, 
-                userAvatar,
-                reactionInfo,
-                originalData: data
-            })
-            
             if (!chatId || !messageId) {
-                console.warn('⚠️ Некорректные данные реакции:', data)
                 return
             }
             
@@ -651,28 +625,10 @@ export const useChatStore = defineStore('chatStore', {
                 
                 if (success) {
                     // Принудительно обновляем реактивность, создавая новый массив сообщений
-                    console.log('✅ Принудительное обновление реактивности сообщений')
-                    // Создаем новый массив с новыми объектами сообщений для правильной реактивности Vue
                     this.messages = this.messages.map(msg => ({ ...msg }))
-                    
-                    // Небольшая задержка перед очисткой оптимистичных реакций, чтобы дать время UI обновиться
-                    setTimeout(() => {
-                        console.log('🔄 Даем сигнал для очистки оптимистичных реакций')
-                    }, 100)
                 } else {
                     // Если локальное обновление не удалось, перезагружаем сообщения
-                    console.warn('⚠️ Локальное обновление реакции не удалось, перезагружаем сообщения')
-                    this.fetchMessages(this.currentChat.id).catch((error) => {
-                        console.error('Ошибка при обновлении сообщений после реакции:', error)
-                    })
-                }
-            } else {
-                // Если это не текущий чат, обновляем информацию о последнем сообщении в списке чатов
-                const chatIndex = this.chats.findIndex(c => c.id === chatId)
-                if (chatIndex !== -1 && this.chats[chatIndex].last_message_id === messageId) {
-                    console.log('🔄 Обновляем реакции для последнего сообщения в чате:', chatId)
-                    // Можем обновить last_message, но это не критично
-                    // В большинстве случаев пользователь увидит обновления при открытии чата
+                    this.fetchMessages(this.currentChat.id).catch(() => {})
                 }
             }
         },
@@ -682,7 +638,6 @@ export const useChatStore = defineStore('chatStore', {
             try {
                 const messageIndex = this.messages.findIndex(m => m.id === messageId)
                 if (messageIndex === -1) {
-                    console.warn('Сообщение не найдено для обновления реакции:', messageId)
                     return false
                 }
 
@@ -712,8 +667,6 @@ export const useChatStore = defineStore('chatStore', {
                     }
                     filteredReactions.push(newReaction)
                     
-                    console.log('➕ Добавлена эксклюзивная реакция локально:', newReaction)
-                    
                     // Создаем новое сообщение с обновленными реакциями и временной меткой обновления
                     const updatedMessage = {
                         ...message,
@@ -733,8 +686,6 @@ export const useChatStore = defineStore('chatStore', {
                         return reactionUserId !== String(userId)
                     })
                     
-                    console.log('➖ Удалены все реакции пользователя локально:', userId)
-                    
                     // Создаем новое сообщение с обновленными реакциями и временной меткой обновления
                     const updatedMessage = {
                         ...message,
@@ -748,10 +699,8 @@ export const useChatStore = defineStore('chatStore', {
                     this.messages.splice(messageIndex, 1, updatedMessage)
                 }
                 
-                console.log('✅ Реакция обновлена локально для сообщения:', messageId)
                 return true
             } catch (error) {
-                console.error('❌ Ошибка при локальном обновлении реакции:', error)
                 return false
             }
         },
@@ -764,14 +713,11 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обрабатывает новое приглашение в чат
         handleNewInvitation(data: any): void {
-            console.log('🎯 Получено новое приглашение:', data)
-
             try {
                 // Извлекаем данные приглашения из WebSocket сообщения
                 const invitationData = data?.data || data
                 
                 if (!invitationData?.chat || !invitationData?.created_by) {
-                    console.warn('⚠️ Некорректная структура данных приглашения:', data)
                     return
                 }
 
@@ -798,7 +744,6 @@ export const useChatStore = defineStore('chatStore', {
 
                 // Проверяем, что приглашение для текущего пользователя
                 if (invitation.invited_user && invitation.invited_user.id !== currentUserUuid) {
-                    console.log('⚠️ Приглашение не для текущего пользователя, игнорируем')
                     return
                 }
 
@@ -824,10 +769,8 @@ export const useChatStore = defineStore('chatStore', {
                     message: `${invitation.created_by.first_name} ${invitation.created_by.last_name} пригласил вас в "${invitation.chat.title}"`,
                     time: 5000,
                 })
-
-                console.log('✅ Приглашение обработано и добавлено в список')
             } catch (error) {
-                console.error('❌ Ошибка при обработке приглашения:', error)
+                // Игнорируем ошибки обработки приглашений
             }
         },
 
@@ -879,7 +822,6 @@ export const useChatStore = defineStore('chatStore', {
                     await this.fetchReactionTypes()
                 }
             } catch (error) {
-                console.warn('Не удалось загрузить типы реакций:', error)
                 // Продолжаем работу с fallback типами
             }
 
@@ -892,7 +834,7 @@ export const useChatStore = defineStore('chatStore', {
                     const lastMessage = this.messages[this.messages.length - 1]
                     await this.markChatAsRead(chat.id, lastMessage.id)
                 } catch (error) {
-                    console.warn('Не удалось отметить чат как прочитанный:', error)
+                    // Игнорируем ошибки отметки прочтения
                 }
             } else {
                 // Если нет сообщений, все равно отмечаем чат как прочитанный
@@ -921,7 +863,6 @@ export const useChatStore = defineStore('chatStore', {
                 this.messages.length = 0
 
                 // Не выбрасываем ошибку дальше, чтобы не ломать UI
-                console.warn(`Не удалось загрузить сообщения для чата ${chatId}:`, error)
             }
         },
 
@@ -1088,7 +1029,7 @@ export const useChatStore = defineStore('chatStore', {
                         reaction_type_id: reactionId,
                     },
                 )
-                // ✅ Убираем перезагрузку сообщений - реакции обновятся через WebSocket
+                // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
                 logger.error('chat_addReaction_error', {
                     file: 'chatStore',
@@ -1109,7 +1050,7 @@ export const useChatStore = defineStore('chatStore', {
                 await axios.delete(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
                 )
-                // ✅ Убираем перезагрузку сообщений - реакции обновятся через WebSocket
+                // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
                 logger.error('chat_removeReaction_error', {
                     file: 'chatStore',
@@ -1143,10 +1084,9 @@ export const useChatStore = defineStore('chatStore', {
                 await axios.delete(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
                 )
-                // ✅ Убираем перезагрузку сообщений - реакции обновятся через WebSocket
+                // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
                 // Игнорируем ошибки при очистке (возможно реакции уже нет)
-                console.warn('Не удалось очистить реакции:', error)
                 // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
             }
@@ -1166,13 +1106,10 @@ export const useChatStore = defineStore('chatStore', {
                     const userStore = useUserStore()
                     const currentUser = userStore.user
                     
-                    console.log('🔄 Обрабатываем приглашения из API:', invitationsData.length)
-                    
                     // Дополняем каждое приглашение полем invited_user если его нет
                     this.invitations = invitationsData.map(invitation => {
                         // Если invited_user отсутствует, добавляем данные текущего пользователя
                         if (!invitation.invited_user && currentUser) {
-                            console.log('✅ Добавляем invited_user для приглашения:', invitation.id)
                             return {
                                 ...invitation,
                                 invited_user: {
@@ -1187,10 +1124,7 @@ export const useChatStore = defineStore('chatStore', {
                         }
                         return invitation
                     })
-                    
-                    console.log('✅ Обработано приглашений:', this.invitations.length)
                 } else {
-                    console.warn('Получены некорректные данные приглашений:', invitationsData)
                     this.invitations = []
                 }
             } catch (error) {

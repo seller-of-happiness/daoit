@@ -12,7 +12,7 @@ import { ref, watchEffect, readonly, computed, onMounted, onUnmounted } from 'vu
  */
 export function useUnreadMessages() {
   const unreadCount = ref(0)
-  // Безопасная инициализация для SSR
+  // Безопасная инициализация для серверного рендеринга
   const originalTitle = typeof document !== 'undefined' ? document.title : 'DAO-MED'
   const isTabActive = ref(typeof document !== 'undefined' ? !document.hidden : true)
 
@@ -41,14 +41,14 @@ export function useUnreadMessages() {
     isTabActive.value = !document.hidden
   }
   
-  // Инициализируем события сразу, если document доступен
+  // Инициализируем события сразу, если документ доступен
   if (typeof document !== 'undefined') {
     initializeEventListeners()
   }
 
-  // watchEffect автоматически отслеживает unreadCount
+  // watchEffect автоматически отслеживает количество непрочитанных
   watchEffect(() => {
-    // Обновляем заголовок только если document доступен
+    // Обновляем заголовок только если документ доступен
     if (typeof document === 'undefined') return
     
     // Обновляем заголовок всегда, когда есть непрочитанные сообщения
@@ -58,10 +58,6 @@ export function useUnreadMessages() {
       
     document.title = newTitle
     
-    // Debug: логируем изменения заголовка
-    if (typeof window !== 'undefined' && window.console) {
-      console.log(`[UnreadMessages] Заголовок обновлен: "${newTitle}", счетчик: ${unreadCount.value}`)
-    }
   })
 
   const incrementUnread = () => {
@@ -78,10 +74,6 @@ export function useUnreadMessages() {
   const setUnreadCount = (count: number) => {
     unreadCount.value = count
     
-    // Debug: логируем изменения счетчика в продакшене
-    if (typeof window !== 'undefined' && window.console) {
-      console.log(`[UnreadMessages] Счетчик установлен: ${count}, заголовок: "${document.title}"`)
-    }
   }
 
   const cleanup = () => {
