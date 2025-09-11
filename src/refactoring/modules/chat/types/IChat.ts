@@ -84,6 +84,8 @@ export interface IMessage {
     }
     attachments: IMessageAttachment[]
     created_at: string
+    updated_at?: string
+    reaction_updated_at?: string
     reactions?: IMessageReaction[]
     message_reactions?: IMessageReaction[]
     is_read?: boolean
