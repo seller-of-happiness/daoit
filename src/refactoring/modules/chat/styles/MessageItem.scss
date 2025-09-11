@@ -239,13 +239,12 @@
   border-radius: 9999px;
   padding: 2px 2px 2px 6px;
 }
-:deep(.reaction-pill .emoji) { font-size: 16px; }
+:deep(.reaction-pill .emoji) { font-size: 20px; }
 :deep(.reaction-pill .emoji-icon) { font-size: 14px; color: #3b82f6; }
 :deep(.reaction-pill .users) { display: inline-flex; }
 :deep(.reaction-pill .user) { position: relative; margin-left: -6px; }
 :deep(.reaction-pill .user:first-child) { margin-left: 0; }
 :deep(.reaction-pill .user img) { width: 18px; height: 18px; border-radius: 9999px; display: block; border: 1px solid rgba(0,0,0,0.06); }
-:deep(.reaction-pill .user .initials) { width: 24px; height: 24px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; background: #93c5fd; color: #0f172a; font-size: 10px; font-weight: 700; border: 1px solid rgba(0,0,0,0.06); }
 
 
 :deep(.attachment-file-card) {
