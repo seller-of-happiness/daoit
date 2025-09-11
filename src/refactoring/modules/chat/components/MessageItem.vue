@@ -14,6 +14,8 @@
                         <MessageReactionsBar
                             v-if="reactions.groupedReactions.value.length"
                             :groups="reactions.groupedReactions.value"
+                            :current-user-id="props.currentUserId"
+                            @reaction-click="onReactionBarClick"
                         />
                     </div>
                     <span class="time inline-block ml-4 text-sm text-gray-500 italic time-fixed">
@@ -382,6 +384,41 @@ function selectReaction(r: IReactionType) {
 
     if (String(r.id) !== String(-1)) {
         emit('change-reaction', props.message.id, r.id, prevReactionId)
+    }
+}
+
+// Handle click on reaction pills in the reactions bar
+function onReactionBarClick(reactionKey: string, isMyReaction: boolean) {
+    const reactionId = Number(reactionKey)
+    
+    if (isMyReaction) {
+        // User clicked on their own reaction - remove it
+        const prevReactionId = reactions.myReactionId.value
+        
+        // Clear optimistic state first
+        reactions.clearOptimisticForMe()
+        
+        // Emit event to remove the reaction
+        emit('change-reaction', props.message.id, reactionId, prevReactionId)
+    } else {
+        // User clicked on someone else's reaction - add the same reaction
+        const user = {
+            id: props.currentUserId || currentUser.id.value || 'me',
+            user_name: props.currentUserName || currentUser.name.value || 'Я',
+            avatar: null,
+        }
+
+        // Find the reaction type by ID to get full reaction info
+        const reactionType = reactions.menuReactions.value.find(r => String(r.id) === String(reactionId))
+        
+        if (reactionType) {
+            const prevReactionId = reactions.myReactionId.value
+            
+            reactions.clearOptimisticForMe()
+            reactions.addOptimisticReaction(reactionType.id, reactionType.name, reactionType.icon, user)
+            
+            emit('change-reaction', props.message.id, reactionType.id, prevReactionId)
+        }
     }
 }
 

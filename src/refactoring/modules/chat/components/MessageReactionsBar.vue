@@ -4,8 +4,13 @@
             v-for="g in groups"
             :key="g.key"
             class="reaction-pill"
-            :class="{ like: g.isThumb }"
-            :title="g.tooltip"
+            :class="{ 
+                like: g.isThumb,
+                'my-reaction': isMyReaction(g),
+                clickable: true
+            }"
+            :title="getReactionTooltip(g)"
+            @click="onReactionClick(g)"
         >
             <span v-if="!g.isThumb" class="emoji">{{ g.emoji }}</span>
             <i v-else class="pi pi-thumbs-up emoji-icon" />
@@ -22,14 +27,21 @@
 <script setup lang="ts">
 import { BASE_URL } from '@/refactoring/environment/environment'
 
-defineProps<{
-    groups: Array<{
-        key: string
-        emoji: string
-        users: Array<{ id: string | number; name: string; avatar?: string | null }>
-        tooltip: string
-        isThumb?: boolean
-    }>
+interface ReactionGroup {
+    key: string
+    emoji: string
+    users: Array<{ id: string | number; name: string; avatar?: string | null }>
+    tooltip: string
+    isThumb?: boolean
+}
+
+const props = defineProps<{
+    groups: Array<ReactionGroup>
+    currentUserId?: string | null
+}>()
+
+const emit = defineEmits<{
+    (e: 'reaction-click', reactionId: string, isMyReaction: boolean): void
 }>()
 
 const withBase = (path: string | null | undefined) => {
@@ -37,6 +49,27 @@ const withBase = (path: string | null | undefined) => {
     if (!p) return ''
     if (p.startsWith('http')) return p
     return `${BASE_URL}${p}`
+}
+
+// Check if current user has reacted with this reaction
+function isMyReaction(group: ReactionGroup): boolean {
+    if (!props.currentUserId) return false
+    return group.users.some(user => String(user.id) === String(props.currentUserId))
+}
+
+// Get tooltip text with action hint
+function getReactionTooltip(group: ReactionGroup): string {
+    const baseTooltip = group.tooltip
+    if (isMyReaction(group)) {
+        return `${baseTooltip} • Нажмите, чтобы убрать реакцию`
+    }
+    return `${baseTooltip} • Нажмите, чтобы добавить такую же реакцию`
+}
+
+// Handle reaction click
+function onReactionClick(group: ReactionGroup) {
+    const myReaction = isMyReaction(group)
+    emit('reaction-click', group.key, myReaction)
 }
 
 function getInitials(name: string): string {
@@ -96,4 +129,25 @@ function getInitials(name: string): string {
 <style lang="scss" scoped>
 @use '../styles/mixins' as *;
 @use '../styles/variables' as *;
+
+.reaction-pill {
+    &.clickable {
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+
+        &.my-reaction {
+            border: 2px solid var(--primary-color, #007bff);
+            background: rgba(0, 123, 255, 0.1);
+
+            &:hover {
+                background: rgba(0, 123, 255, 0.2);
+            }
+        }
+    }
+}
 </style>
