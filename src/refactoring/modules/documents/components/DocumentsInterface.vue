@@ -381,20 +381,23 @@ const confirmDeleteFolder = (folder: IDocumentFolder) => {
     acceptLabel: 'Удалить',
     rejectLabel: 'Отмена',
     acceptClass: 'p-button-danger',
-    accept: async () => {
+    accept: () => {
       console.log(`✅ CONFIRM DELETE FOLDER: User confirmed deletion of folder ${folder.id}`)
       console.log(`🚀 CONFIRM DELETE FOLDER: Calling documentsStore.deleteFolder(${folder.id})`)
       
-      try {
-        await documentsStore.deleteFolder(folder.id!)
-        console.log(`✅ CONFIRM DELETE FOLDER: Successfully deleted folder ${folder.id}`)
-      } catch (error) {
-        console.error(`❌ CONFIRM DELETE FOLDER: Error deleting folder ${folder.id}:`, error)
-      } finally {
-        console.log(`🏁 CONFIRM DELETE FOLDER: Finished processing deletion for folder ${folder.id}`)
-      }
-      
-      console.log(`🔄 CONFIRM DELETE FOLDER: Accept function completed, modal should close now`)
+      return documentsStore.deleteFolder(folder.id!)
+        .then(() => {
+          console.log(`✅ CONFIRM DELETE FOLDER: Successfully deleted folder ${folder.id}`)
+          console.log(`🔄 CONFIRM DELETE FOLDER: Accept function completed, modal should close now`)
+        })
+        .catch((error) => {
+          console.error(`❌ CONFIRM DELETE FOLDER: Error deleting folder ${folder.id}:`, error)
+          // Повторно выбрасываем ошибку, чтобы модальное окно не закрылось при ошибке
+          throw error
+        })
+        .finally(() => {
+          console.log(`🏁 CONFIRM DELETE FOLDER: Finished processing deletion for folder ${folder.id}`)
+        })
     },
     reject: () => {
       console.log(`❌ CONFIRM DELETE FOLDER: User cancelled deletion of folder ${folder.id}`)
@@ -413,20 +416,23 @@ const confirmDeleteDocument = (document: IDocument) => {
     acceptLabel: 'Удалить',
     rejectLabel: 'Отмена',
     acceptClass: 'p-button-danger',
-    accept: async () => {
+    accept: () => {
       console.log(`✅ CONFIRM DELETE DOCUMENT: User confirmed deletion of document ${document.id}`)
       console.log(`🚀 CONFIRM DELETE DOCUMENT: Calling documentsStore.deleteDocument(${document.id})`)
       
-      try {
-        await documentsStore.deleteDocument(document.id)
-        console.log(`✅ CONFIRM DELETE DOCUMENT: Successfully deleted document ${document.id}`)
-      } catch (error) {
-        console.error(`❌ CONFIRM DELETE DOCUMENT: Error deleting document ${document.id}:`, error)
-      } finally {
-        console.log(`🏁 CONFIRM DELETE DOCUMENT: Finished processing deletion for document ${document.id}`)
-      }
-      
-      console.log(`🔄 CONFIRM DELETE DOCUMENT: Accept function completed, modal should close now`)
+      return documentsStore.deleteDocument(document.id)
+        .then(() => {
+          console.log(`✅ CONFIRM DELETE DOCUMENT: Successfully deleted document ${document.id}`)
+          console.log(`🔄 CONFIRM DELETE DOCUMENT: Accept function completed, modal should close now`)
+        })
+        .catch((error) => {
+          console.error(`❌ CONFIRM DELETE DOCUMENT: Error deleting document ${document.id}:`, error)
+          // Повторно выбрасываем ошибку, чтобы модальное окно не закрылось при ошибке
+          throw error
+        })
+        .finally(() => {
+          console.log(`🏁 CONFIRM DELETE DOCUMENT: Finished processing deletion for document ${document.id}`)
+        })
     },
     reject: () => {
       console.log(`❌ CONFIRM DELETE DOCUMENT: User cancelled deletion of document ${document.id}`)
