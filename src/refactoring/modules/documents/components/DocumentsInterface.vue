@@ -25,7 +25,7 @@
                     <template #item="{ item }">
                         <span
                             v-if="item.command"
-                            @click="item.command"
+                            @click="() => item.command()"
                             class="breadcrumb-item clickable"
                         >
                             {{ item.label }}
@@ -348,15 +348,15 @@ const downloadDocument = (document: IDocument) => {
         const downloadUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
 
         // Создаем временную ссылку для скачивания
-        const link = document.createElement('a')
+        const link = window.document.createElement('a')
         link.href = downloadUrl
         link.download = document.name || 'download'
         link.target = '_blank'
 
         // Добавляем в DOM, кликаем и удаляем
-        document.body.appendChild(link)
+        window.document.body.appendChild(link)
         link.click()
-        document.body.removeChild(link)
+        window.document.body.removeChild(link)
 
         // Показываем уведомление об успехе
         useFeedbackStore().showToast({
@@ -397,7 +397,7 @@ const viewDocument = (document: IDocument) => {
         // Проверяем, удалось ли открыть окно (может быть заблокировано блокировщиком попапов)
         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
             useFeedbackStore().showToast({
-                type: 'warning',
+                type: 'warn',
                 title: 'Внимание',
                 message:
                     'Возможно, браузер заблокировал открытие новой вкладки. Попробуйте скачать документ.',
@@ -499,12 +499,12 @@ const copyFolderLink = (folder: IDocumentFolder) => {
                 })
             })
             .catch(() => {
-                const textArea = document.createElement('textarea')
+                const textArea = window.document.createElement('textarea')
                 textArea.value = fullUrl
-                document.body.appendChild(textArea)
+                window.document.body.appendChild(textArea)
                 textArea.select()
-                document.execCommand('copy')
-                document.body.removeChild(textArea)
+                window.document.execCommand('copy')
+                window.document.body.removeChild(textArea)
 
                 useFeedbackStore().showToast({
                     type: 'success',
