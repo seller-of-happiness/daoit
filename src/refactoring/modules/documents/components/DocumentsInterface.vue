@@ -376,15 +376,13 @@ const confirmDeleteFolder = (folder: IDocumentFolder) => {
     acceptLabel: 'Удалить',
     rejectLabel: 'Отмена',
     acceptClass: 'p-button-danger',
-    accept: async () => {
-      try {
-        await documentsStore.deleteFolder(folder.id!)
-        // Успешное удаление - модальное окно автоматически закроется
-      } catch (error) {
-        // В случае ошибки модальное окно также должно закрыться
+    accept: () => {
+      // Возвращаем Promise, чтобы ConfirmDialog дождался завершения операции
+      return documentsStore.deleteFolder(folder.id!).catch(error => {
         // Ошибка уже обработана в documentsStore.deleteFolder
         console.error('Error deleting folder:', error)
-      }
+        // Не пробрасываем ошибку дальше, чтобы модальное окно закрылось
+      })
     }
   })
 }
@@ -397,15 +395,13 @@ const confirmDeleteDocument = (document: IDocument) => {
     acceptLabel: 'Удалить',
     rejectLabel: 'Отмена',
     acceptClass: 'p-button-danger',
-    accept: async () => {
-      try {
-        await documentsStore.deleteDocument(document.id)
-        // Успешное удаление - модальное окно автоматически закроется
-      } catch (error) {
-        // В случае ошибки модальное окно также должно закрыться
+    accept: () => {
+      // Возвращаем Promise, чтобы ConfirmDialog дождался завершения операции
+      return documentsStore.deleteDocument(document.id).catch(error => {
         // Ошибка уже обработана в documentsStore.deleteDocument
         console.error('Error deleting document:', error)
-      }
+        // Не пробрасываем ошибку дальше, чтобы модальное окно закрылось
+      })
     }
   })
 }
