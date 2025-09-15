@@ -36,29 +36,6 @@
             </div>
 
             <!-- Панель выбора -->
-            <!-- ВРЕМЕННО ЗАКОММЕНТИРОВАНО: Множественный выбор
-      <div v-if="documentsStore.selectedCount > 0" class="selection-panel">
-        <div class="selection-info">
-          Выбрано элементов: {{ documentsStore.selectedCount }}
-        </div>
-        <div class="selection-actions">
-          <Button
-            icon="pi pi-trash"
-            label="Удалить"
-            severity="danger"
-            size="small"
-            @click="confirmDeleteSelected"
-          />
-          <Button
-            icon="pi pi-times"
-            label="Отменить"
-            severity="secondary"
-            size="small"
-            @click="documentsStore.deselectAll"
-          />
-        </div>
-      </div>
-      -->
         </div>
 
         <!-- Основная таблица документов -->
@@ -66,15 +43,6 @@
             <div class="table-card">
                 <!-- Заголовок таблицы -->
                 <div class="table-header">
-                    <!-- ВРЕМЕННО ЗАКОММЕНТИРОВАНО: Множественный выбор
-          <div class="table-header-cell select-cell">
-            <Checkbox
-              :model-value="isAllSelected"
-              :indeterminate="isSomeSelected && !isAllSelected"
-              @change="toggleSelectAll"
-            />
-          </div>
-          -->
                     <div class="table-header-cell name-cell">
                         <i class="pi pi-sort-alt"></i>
                         Название
@@ -94,9 +62,6 @@
                         @click="navigateUp"
                         title="Перейти на одну папку вверх"
                     >
-                        <!-- ВРЕМЕННО ЗАКОММЕНТИРОВАНО: Множественный выбор
-            <div class="table-cell select-cell"></div>
-            -->
                         <div class="table-cell name-cell">
                             <i class="pi pi-arrow-left text-primary"></i>
                             <span class="item-name">.. (назад)</span>
@@ -114,15 +79,6 @@
                         class="table-row folder-row"
                         @click="navigateToFolder(folder)"
                     >
-                        <!-- ВРЕМЕННО ЗАКОММЕНТИРОВАНО: Множественный выбор
-            <div class="table-cell select-cell" @click.stop>
-              <Checkbox
-                v-if="folder.id"
-                :model-value="documentsStore.selectedItems.has(folder.id)"
-                @change="documentsStore.toggleSelectItem(folder.id)"
-              />
-            </div>
-            -->
                         <div class="table-cell name-cell">
                             <i
                                 :class="documentsStore.getDocumentIcon(folder)"
@@ -172,14 +128,6 @@
                         :key="`doc-${document.id}`"
                         class="table-row document-row"
                     >
-                        <!-- ВРЕМЕННО ЗАКОММЕНТИРОВАНО: Множественный выбор
-            <div class="table-cell select-cell" @click.stop>
-              <Checkbox
-                :model-value="documentsStore.selectedItems.has(document.id)"
-                @change="documentsStore.toggleSelectItem(document.id)"
-              />
-            </div>
-            -->
                         <div class="table-cell name-cell">
                             <i
                                 :class="documentsStore.getDocumentIcon(document)"
@@ -290,19 +238,6 @@ const props = withDefaults(defineProps<Props>(), {
     path: () => [],
 })
 
-// Добавляем реактивное отслеживание пропсов для отладки
-watchEffect(() => {
-    console.log(
-        'PROPS CHANGED: path=',
-        props.path,
-        'type=',
-        typeof props.path,
-        'isArray=',
-        Array.isArray(props.path),
-    )
-})
-
-console.log('DocumentsInterface.vue: Component loaded, initial props.path=', props.path)
 
 const documentsStore = useDocumentsStore()
 const confirm = useConfirm()
@@ -322,20 +257,9 @@ const breadcrumbItems = computed(() => {
         command:
             index < documentsStore.breadcrumbs.length - 1
                 ? () => {
-                      console.log(
-                          'Navigating via breadcrumb to:',
-                          crumb.path,
-                          'id:',
-                          crumb.id,
-                          'index:',
-                          index,
-                      )
-
                       if (crumb.id) {
-                          // ID-based навигация
                           navigateToFolderId(crumb.id)
                       } else {
-                          // Path-based навигация (корень)
                           navigateToPath(crumb.path)
                       }
                   }
@@ -343,29 +267,7 @@ const breadcrumbItems = computed(() => {
     }))
 })
 
-// ВРЕМЕННО ЗАКОММЕНТИРОВАНО: Множественный выбор
-/*
-// Выбор элементов
-const isAllSelected = computed(() => {
-  const selectableItems = documentsStore.currentItems.filter(item => item.id !== null)
-  return selectableItems.length > 0 && 
-         selectableItems.every(item => item.id && documentsStore.selectedItems.has(item.id))
-})
 
-const isSomeSelected = computed(() => {
-  return documentsStore.selectedCount > 0
-})
-
-const toggleSelectAll = () => {
-  if (isAllSelected.value) {
-    documentsStore.deselectAll()
-  } else {
-    documentsStore.selectAll()
-  }
-}
-*/
-
-// Обработчики событий
 const onFolderCreated = () => {
     showCreateFolderDialog.value = false
 }
@@ -385,15 +287,10 @@ const openAddVersionDialog = (document: IDocument) => {
 }
 
 const confirmDeleteFolder = (folder: IDocumentFolder) => {
-    console.log(
-        `🗂️ CONFIRM DELETE FOLDER: Starting confirmation for folder "${folder.name}" (id: ${folder.id})`,
-    )
     if (!folder.id) {
-        console.warn(`⚠️ CONFIRM DELETE FOLDER: No folder ID, aborting deletion`)
         return
     }
 
-    console.log(`📋 CONFIRM DELETE FOLDER: Showing confirmation dialog for folder ${folder.id}`)
     confirm.require({
         message: `Вы уверены, что хотите удалить папку "${folder.name}"?`,
         header: 'Подтверждение удаления',
@@ -402,46 +299,16 @@ const confirmDeleteFolder = (folder: IDocumentFolder) => {
         rejectLabel: 'Отмена',
         acceptClass: 'p-button-danger',
         accept: () => {
-            console.log(`✅ CONFIRM DELETE FOLDER: User confirmed deletion of folder ${folder.id}`)
-            console.log(
-                `🚀 CONFIRM DELETE FOLDER: Calling documentsStore.deleteFolder(${folder.id})`,
-            )
-
             return documentsStore
                 .deleteFolder(folder.id!)
-                .then(() => {
-                    console.log(
-                        `✅ CONFIRM DELETE FOLDER: Successfully deleted folder ${folder.id}`,
-                    )
-                    console.log(
-                        `🔄 CONFIRM DELETE FOLDER: Accept function completed, modal should close now`,
-                    )
-                })
                 .catch((error) => {
-                    console.error(
-                        `❌ CONFIRM DELETE FOLDER: Error deleting folder ${folder.id}:`,
-                        error,
-                    )
-                    // Повторно выбрасываем ошибку, чтобы модальное окно не закрылось при ошибке
                     throw error
                 })
-                .finally(() => {
-                    console.log(
-                        `🏁 CONFIRM DELETE FOLDER: Finished processing deletion for folder ${folder.id}`,
-                    )
-                })
-        },
-        reject: () => {
-            console.log(`❌ CONFIRM DELETE FOLDER: User cancelled deletion of folder ${folder.id}`)
-        },
+        }
     })
 }
 
 const confirmDeleteDocument = (document: IDocument) => {
-    console.log(
-        `🗑️ CONFIRM DELETE DOCUMENT: Starting confirmation for document "${document.name}" (id: ${document.id})`,
-    )
-
     confirm.require({
         message: `Вы уверены, что хотите удалить документ "${document.name}"?`,
         header: 'Подтверждение удаления',
@@ -450,77 +317,19 @@ const confirmDeleteDocument = (document: IDocument) => {
         rejectLabel: 'Отмена',
         acceptClass: 'p-button-danger',
         accept: async () => {
-            console.log(
-                `✅ CONFIRM DELETE DOCUMENT: User confirmed deletion of document ${document.id}`,
-            )
-
             try {
-                console.log(
-                    `🚀 CONFIRM DELETE DOCUMENT: Calling documentsStore.deleteDocument(${document.id})`,
-                )
-
                 await documentsStore.deleteDocument(document.id)
-
-                console.log(
-                    `✅ CONFIRM DELETE DOCUMENT: Successfully deleted document ${document.id}`,
-                )
-
-                // Принудительно закрываем модалку
                 confirm.close()
             } catch (error) {
-                console.error(
-                    `❌ CONFIRM DELETE DOCUMENT: Error deleting document ${document.id}:`,
-                    error,
-                )
-                // При ошибке модалка останется открытой
+                // Error is already handled in the store
             }
         },
         reject: () => {
-            console.log(
-                `❌ CONFIRM DELETE DOCUMENT: User cancelled deletion of document ${document.id}`,
-            )
-
-            // Также закрываем модалку при отмене
             confirm.close()
         },
     })
 }
 
-// ВРЕМЕННО ЗАКОММЕНТИРОВАНО: Множественный выбор
-/*
-const confirmDeleteSelected = () => {
-  const selectedCount = documentsStore.selectedCount
-  confirm.require({
-    message: `Вы уверены, что хотите удалить выбранные элементы (${selectedCount})?`,
-    header: 'Подтверждение удаления',
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'Удалить',
-    rejectLabel: 'Отмена',
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      // Реализация массового удаления
-      const promises: Promise<void>[] = []
-      
-      for (const item of documentsStore.currentItems) {
-        if (item.id && documentsStore.selectedItems.has(item.id)) {
-          if (item.is_dir) {
-            promises.push(documentsStore.deleteFolder(item.id))
-          } else {
-            promises.push(documentsStore.deleteDocument(item.id))
-          }
-        }
-      }
-      
-      try {
-        await Promise.all(promises)
-        documentsStore.deselectAll()
-      } catch (error) {
-        console.error('Error deleting selected items:', error)
-      }
-    }
-  })
-}
-*/
 
 const downloadDocument = (document: IDocument) => {
     const url = document.download_url || document.file_url
@@ -557,7 +366,6 @@ const downloadDocument = (document: IDocument) => {
             time: 3000,
         })
     } catch (error) {
-        console.error('Error downloading document:', error)
         useFeedbackStore().showToast({
             type: 'error',
             title: 'Ошибка',
@@ -597,7 +405,6 @@ const viewDocument = (document: IDocument) => {
             })
         }
     } catch (error) {
-        console.error('Error viewing document:', error)
         useFeedbackStore().showToast({
             type: 'error',
             title: 'Ошибка',
@@ -628,14 +435,12 @@ const getFileTypeByExtension = (extension: string): string => {
     return typeMap[ext] || 'Файл'
 }
 
-// Функции навигации с обновлением URL
 const navigateToFolder = async (folder: IDocumentFolder) => {
     try {
         await documentsStore.navigateToFolder(folder)
         // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
-        console.error('Error navigating to folder:', error)
     }
 }
 
@@ -645,7 +450,6 @@ const navigateToPath = async (path: string) => {
         // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
-        console.error('Error navigating to path:', error)
     }
 }
 
@@ -655,7 +459,6 @@ const navigateToFolderId = async (folderId: string) => {
         // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
-        console.error('Error navigating to folder ID:', error)
     }
 }
 
@@ -665,7 +468,6 @@ const navigateUp = async () => {
         // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
-        console.error('Error navigating up:', error)
     }
 }
 
@@ -676,7 +478,6 @@ const copyFolderLink = (folder: IDocumentFolder) => {
         if (folder.path && folder.path !== '/') {
             // Создаем URL для папки на основе пути
             const pathArray = documentsStore.pathToArray(folder.path)
-            console.log('Copying folder link for path:', folder.path, '-> path array:', pathArray)
 
             const routeParams = {
                 name: ERouteNames.DOCUMENTS_FOLDER,
@@ -684,14 +485,9 @@ const copyFolderLink = (folder: IDocumentFolder) => {
             }
             fullUrl = `${window.location.origin}${router.resolve(routeParams).href}`
         } else {
-            // Корневая папка
-            console.log('Copying folder link for root')
             fullUrl = `${window.location.origin}${router.resolve({ name: ERouteNames.DOCUMENTS }).href}`
         }
 
-        console.log('Generated folder URL:', fullUrl)
-
-        // Копируем в буфер обмена
         navigator.clipboard
             .writeText(fullUrl)
             .then(() => {
@@ -703,7 +499,6 @@ const copyFolderLink = (folder: IDocumentFolder) => {
                 })
             })
             .catch(() => {
-                // Fallback для старых браузеров
                 const textArea = document.createElement('textarea')
                 textArea.value = fullUrl
                 document.body.appendChild(textArea)
@@ -719,7 +514,6 @@ const copyFolderLink = (folder: IDocumentFolder) => {
                 })
             })
     } catch (error) {
-        console.error('Error copying folder link:', error)
         useFeedbackStore().showToast({
             type: 'error',
             title: 'Ошибка',
@@ -729,81 +523,41 @@ const copyFolderLink = (folder: IDocumentFolder) => {
     }
 }
 
-// Инициализация пути из URL
 const initializeFromUrl = async () => {
     try {
-        console.log(
-            'initializeFromUrl: props.path=',
-            props.path,
-            'type=',
-            typeof props.path,
-            'isArray=',
-            Array.isArray(props.path),
-        )
-
         if (props.path && Array.isArray(props.path) && props.path.length > 0) {
-            // Есть путь в URL - конвертируем массив в строку пути
             const targetPath = documentsStore.arrayToPath(props.path)
-            console.log(
-                'Initializing from URL with path array:',
-                props.path,
-                '-> target path:',
-                targetPath,
-            )
             await documentsStore.fetchDocuments({ path: targetPath })
         } else {
-            console.log('Initializing from URL without path - loading root')
             await documentsStore.fetchDocuments()
         }
     } catch (error) {
-        console.error('Error initializing from URL:', error)
-        // В случае ошибки загружаем корневую папку
         await documentsStore.fetchDocuments()
     }
 }
 
-// Наблюдение за изменениями URL параметров
 watch(
     () => props.path,
     async (newPath, oldPath) => {
         try {
-            console.log('watch: URL path changed:', oldPath, '->', newPath)
-
-            // Конвертируем новый путь из массива в строку
             const targetPath =
                 newPath && newPath.length > 0 ? documentsStore.arrayToPath(newPath) : '/'
 
-            console.log(
-                'watch: URL path array changed:',
-                oldPath,
-                '->',
-                newPath,
-                '-> target path:',
-                targetPath,
-            )
-
             if (targetPath !== documentsStore.currentPath) {
-                console.log('watch: Handling path-based navigation to:', targetPath)
                 await documentsStore.fetchDocuments({ path: targetPath })
-            } else {
-                console.log('watch: Target path equals current path, no action needed')
             }
         } catch (error) {
-            console.error('Error handling path change:', error)
+            // Error is handled in the store
         }
     },
     { immediate: false, deep: true },
 )
 
-// Инициализация
 onMounted(async () => {
-    console.log('onMounted: props.path=', props.path, 'type=', typeof props.path)
-    console.log('onMounted: current route=', JSON.stringify(useRoute().params))
     await documentsStore.fetchDocumentTypes()
     await initializeFromUrl()
 })
 
-// Очистка при размонтировании
 onUnmounted(() => {
     documentsStore.cleanup()
 })

@@ -8,7 +8,7 @@ export interface IDocumentType {
 
 export interface IDocumentFolder {
   id: number | null
-  folder_id?: string // Уникальный строковый идентификатор папки (например, "0001")
+  folder_id?: string
   name: string
   description: string
   path: string
@@ -59,7 +59,7 @@ export interface IDocumentsStoreState {
   breadcrumbs: Array<{ name: string; path: string; id: string | null }>
   isLoading: boolean
   selectedItems: Set<number>
-  _urlUpdateTimeout: NodeJS.Timeout | null // Таймаут для дебаунса обновления URL
+  _urlUpdateTimeout: NodeJS.Timeout | null
 }
 
 export interface ICreateDocumentPayload {

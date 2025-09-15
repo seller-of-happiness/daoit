@@ -25,7 +25,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
     breadcrumbs: [{ name: 'Документы', path: '/', id: null }],
     isLoading: false,
     selectedItems: new Set(),
-    _urlUpdateTimeout: null as NodeJS.Timeout | null // Таймаут для дебаунса обновления URL
+    _urlUpdateTimeout: null as NodeJS.Timeout | null
   }),
 
   getters: {
@@ -62,30 +62,20 @@ export const useDocumentsStore = defineStore('documentsStore', {
     },
 
     async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
-      console.log(`📥 FETCH DOCUMENTS START: payload=`, payload)
       const feedback = useFeedbackStore()
       this.isLoading = true
       feedback.isGlobalLoading = true
       
-      // Определяем путь для запроса
       let requestPath = '/'
       
       if (payload.folder_id) {
-        // Используем folder_id как путь
         requestPath = payload.folder_id
-        console.log('Fetching documents for folder_id as path:', requestPath)
       } else if (payload.path) {
-        // Используем переданный путь
         requestPath = payload.path === '/' ? '/' : payload.path
-        console.log('Fetching documents for path:', requestPath)
       } else if (this.currentFolderId) {
-        // Используем текущий folder_id как путь
         requestPath = this.currentFolderId
-        console.log('Fetching documents for current folder_id as path:', requestPath)
       } else {
-        // Используем текущий путь
         requestPath = this.currentPath
-        console.log('Fetching documents for current path:', requestPath)
       }
       
       try {
@@ -94,35 +84,21 @@ export const useDocumentsStore = defineStore('documentsStore', {
           parent_folder: payload.parent_folder
         }
         
-        console.log('API request payload:', requestPayload)
-        
         const response = await axios.post(`${BASE_URL}/api/documents/list/`, requestPayload)
-        
         const data = response.data
-        console.log('Fetched documents response:', data)
         
         if (data && typeof data === 'object') {
-          // Обновляем состояние на основе ответа сервера
           this.currentPath = data.path || requestPath
           this.currentFolderId = data.current_folder?.folder_id || (payload.folder_id || this.currentFolderId)
-          console.log('Updated current path to:', this.currentPath, 'folder_id:', this.currentFolderId)
-          
-          // Обновляем элементы
           this.currentItems = data.items || []
-          console.log('Updated items count:', this.currentItems.length)
           
-          // Если в ответе есть информация о текущей папке и родительских папках, 
-          // обновляем breadcrumbs
           if (data.current_folder && data.parent_folders) {
-            console.log('Updating breadcrumbs with current folder:', data.current_folder)
             this.updateFolderChainFromApi(data.current_folder, data.parent_folders || [])
           } else {
-            // Обновляем breadcrumbs стандартным способом
             this.updateBreadcrumbs(data.virtual_path || data.name || 'Документы')
           }
         }
       } catch (error) {
-        console.error('Error fetching documents for path:', requestPath, error)
         logger.error('documents_fetch_error', { 
           file: 'documentsStore', 
           function: 'fetchDocuments', 
@@ -130,14 +106,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
           condition: String(error) 
         })
         
-        // Если ошибка связана с путем, попробуем загрузить корневую папку
         if (requestPath !== '/') {
-          console.log('Failed to load path, trying root folder')
           try {
             await this.fetchDocuments({ path: '/' })
             return
           } catch (rootError) {
-            console.error('Failed to load root folder as fallback:', rootError)
+            // Fallback failed, continue with error handling
           }
         }
         
@@ -149,41 +123,30 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        console.log(`🏁 FETCH DOCUMENTS FINALLY: Setting loading to false`)
         this.isLoading = false
         feedback.isGlobalLoading = false
-        console.log(`✅ FETCH DOCUMENTS COMPLETE: items count=${this.currentItems.length}`)
       }
     },
 
     async navigateToFolder(folder: IDocumentFolder): Promise<void> {
-      console.log('Navigating to folder:', folder.name, 'id:', folder.id, 'folder_id:', folder.folder_id, 'path:', folder.path)
-      
       if (folder.folder_id) {
-        // Используем folder_id как путь для запроса
         await this.fetchDocuments({ folder_id: folder.folder_id })
       } else if (folder.path) {
-        // Fallback к path-based навигации
         await this.fetchDocuments({ path: folder.path })
       } else {
-        console.error('Folder has no folder_id or path:', folder)
+        throw new Error('Folder has no folder_id or path')
       }
     },
 
     async navigateToFolderId(folderId: string): Promise<void> {
-      console.log('Navigating to folder by ID:', folderId)
       await this.fetchDocuments({ folder_id: folderId })
     },
 
     async navigateToPath(path: string): Promise<void> {
-      console.log('NavigateToPath called with:', path)
       try {
         await this.fetchDocuments({ path })
       } catch (error) {
-        console.error('Error navigating to path:', path, error)
-        // При ошибке навигации переходим к корню
         if (path !== '/') {
-          console.log('Navigation failed, falling back to root')
           await this.fetchDocuments({ path: '/' })
         }
         throw error
@@ -191,30 +154,19 @@ export const useDocumentsStore = defineStore('documentsStore', {
     },
 
     async navigateUp(): Promise<void> {
-      console.log('Navigating up from current path:', this.currentPath)
-      
       if (this.currentPath === '/' || !this.currentPath) {
-        // Уже в корне, никуда не навигируем
-        console.log('Already at root, cannot navigate up')
         return
       }
       
-      // Получаем массив папок текущего пути
       const currentPathArray = this.pathToArray(this.currentPath)
       
       if (currentPathArray.length === 0) {
-        // Уже в корне
-        console.log('Already at root, cannot navigate up')
         return
       }
       
-      // Убираем последнюю папку из пути
       const parentPathArray = currentPathArray.slice(0, -1)
       const parentPath = this.arrayToPath(parentPathArray)
       
-      console.log('Navigating up from path array:', currentPathArray, 'to parent:', parentPathArray, 'path:', parentPath)
-      
-      // Переходим к родительскому пути
       await this.fetchDocuments({ path: parentPath })
     },
 
@@ -235,22 +187,15 @@ export const useDocumentsStore = defineStore('documentsStore', {
           })
         ]
       }
-      
-      console.log('Updated breadcrumbs:', this.breadcrumbs)
     },
 
-    // Новый метод для обновления breadcrumbs из API данных
     updateFolderChainFromApi(currentFolder: IDocumentFolder, parentFolders: IDocumentFolder[] = []): void {
       const fullChain = [...parentFolders, currentFolder].filter(folder => folder.name)
       
-      console.log('Updating breadcrumbs from API data:', fullChain.map(f => ({ name: f.name, path: f.path, id: f.folder_id })))
-      
-      // Обновляем breadcrumbs с учетом folder_id
       this.breadcrumbs = [
         { name: 'Документы', path: '/', id: null },
         ...fullChain.map(folder => ({
           name: folder.name,
-          // Используем folder_id как путь для навигации
           path: folder.folder_id || folder.path,
           id: folder.folder_id || null
         }))
@@ -265,12 +210,8 @@ export const useDocumentsStore = defineStore('documentsStore', {
         const formData = new FormData()
         formData.append('name', payload.name)
         if (payload.description) formData.append('description', payload.description)
-        // Исправляем поля в соответствии с требованиями API
-        // Обязательное поле type - если не указан type_id, используем значение по умолчанию
         formData.append('type', payload.type_id ? payload.type_id.toString() : '1')
-        // Добавляем обязательное поле number (можно использовать timestamp или другую логику)
         formData.append('number', Date.now().toString())
-        // Исправляем название поля для папки - обязательное поле
         formData.append('folder_path', payload.parent_folder || this.currentFolderId || '/')
         formData.append('file', payload.file)
         formData.append('visibility', payload.visibility)
@@ -286,7 +227,6 @@ export const useDocumentsStore = defineStore('documentsStore', {
           time: 5000 
         })
 
-        // Обновляем список
         await this.fetchDocuments()
       } catch (error) {
         logger.error('documents_create_error', { 
@@ -324,7 +264,6 @@ export const useDocumentsStore = defineStore('documentsStore', {
           time: 5000 
         })
 
-        // Обновляем список
         await this.fetchDocuments()
       } catch (error) {
         logger.error('documents_createFolder_error', { 
@@ -345,20 +284,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
     },
 
     async deleteDocument(id: number): Promise<void> {
-      console.log(`🗑️ DELETE DOCUMENT START: id=${id}`)
       const feedback = useFeedbackStore()
-      console.log(`⏳ DELETE DOCUMENT: Setting global loading to true`)
       feedback.isGlobalLoading = true
       
       try {
-        console.log(`🌐 DELETE DOCUMENT API CALL: sending DELETE to ${BASE_URL}/api/documents/document/${id}/`)
         const response = await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
-        console.log(`✅ DELETE DOCUMENT API RESPONSE: status=${response.status}, data=`, response.data)
         
-        // Проверяем успешность удаления по статусу ответа
-        // 204 No Content - стандартный успешный ответ для DELETE операций
         if (response.status === 204 || response.status === 200) {
-          console.log(`✅ DELETE DOCUMENT SUCCESS: Document ${id} deleted successfully`)
           useFeedbackStore().showToast({ 
             type: 'success', 
             title: 'Удалено', 
@@ -366,16 +298,11 @@ export const useDocumentsStore = defineStore('documentsStore', {
             time: 4000 
           })
 
-          console.log(`🔄 DELETE DOCUMENT: Refreshing documents list...`)
-          // Обновляем список
           await this.fetchDocuments()
-          console.log(`✅ DELETE DOCUMENT: Documents list refreshed, new items count: ${this.currentItems.length}`)
         } else {
-          console.log(`❌ DELETE DOCUMENT UNEXPECTED STATUS: ${response.status}`)
           throw new Error(`Unexpected response status: ${response.status}`)
         }
       } catch (error) {
-        console.error(`❌ DELETE DOCUMENT ERROR: Failed to delete document ${id}:`, error)
         logger.error('documents_delete_error', { 
           file: 'documentsStore', 
           function: 'deleteDocument', 
@@ -389,27 +316,18 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        console.log(`🏁 DELETE DOCUMENT FINALLY: Setting global loading to false for document ${id}`)
         feedback.isGlobalLoading = false
-        console.log(`✅ DELETE DOCUMENT FINALLY: Global loading set to false`)
       }
     },
 
     async deleteFolder(id: number): Promise<void> {
-      console.log(`🗂️ DELETE FOLDER START: id=${id}`)
       const feedback = useFeedbackStore()
-      console.log(`⏳ DELETE FOLDER: Setting global loading to true`)
       feedback.isGlobalLoading = true
       
       try {
-        console.log(`🌐 DELETE FOLDER API CALL: sending DELETE to ${BASE_URL}/api/documents/document-folder/${id}/`)
         const response = await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
-        console.log(`✅ DELETE FOLDER API RESPONSE: status=${response.status}, data=`, response.data)
         
-        // Проверяем успешность удаления по статусу ответа
-        // 204 No Content - стандартный успешный ответ для DELETE операций
         if (response.status === 204 || response.status === 200) {
-          console.log(`✅ DELETE FOLDER SUCCESS: Folder ${id} deleted successfully`)
           useFeedbackStore().showToast({ 
             type: 'success', 
             title: 'Удалено', 
@@ -417,16 +335,11 @@ export const useDocumentsStore = defineStore('documentsStore', {
             time: 4000 
           })
 
-          console.log(`🔄 DELETE FOLDER: Refreshing documents list...`)
-          // Обновляем список
           await this.fetchDocuments()
-          console.log(`✅ DELETE FOLDER: Documents list refreshed, new items count: ${this.currentItems.length}`)
         } else {
-          console.log(`❌ DELETE FOLDER UNEXPECTED STATUS: ${response.status}`)
           throw new Error(`Unexpected response status: ${response.status}`)
         }
       } catch (error) {
-        console.error(`❌ DELETE FOLDER ERROR: Failed to delete folder ${id}:`, error)
         logger.error('documents_deleteFolder_error', { 
           file: 'documentsStore', 
           function: 'deleteFolder', 
@@ -440,9 +353,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        console.log(`🏁 DELETE FOLDER FINALLY: Setting global loading to false for folder ${id}`)
         feedback.isGlobalLoading = false
-        console.log(`✅ DELETE FOLDER FINALLY: Global loading set to false`)
       }
     },
 
@@ -466,7 +377,6 @@ export const useDocumentsStore = defineStore('documentsStore', {
           time: 5000 
         })
 
-        // Обновляем список
         await this.fetchDocuments()
       } catch (error) {
         logger.error('documents_addVersion_error', { 
@@ -486,7 +396,6 @@ export const useDocumentsStore = defineStore('documentsStore', {
       }
     },
 
-    // Методы для работы с выбранными элементами
     selectItem(id: number): void {
       this.selectedItems.add(id)
     },
@@ -515,7 +424,6 @@ export const useDocumentsStore = defineStore('documentsStore', {
       this.selectedItems.clear()
     },
 
-    // Утилитарные методы
     getDocumentIcon(item: IDocumentItem): string {
       if (item.is_dir) {
         return 'pi pi-folder'
@@ -588,57 +496,41 @@ export const useDocumentsStore = defineStore('documentsStore', {
       }
     },
 
-    // Методы для работы с URL
     folderIdToUrl(folderId: string | null): string {
-      // Конвертируем folder_id в URL параметр
       return folderId || ''
     },
 
     urlToFolderId(urlParam: string): string | null {
-      // Конвертируем URL параметр в folder_id
       if (!urlParam || urlParam === '') return null
       return urlParam
     },
 
     pathToUrl(path: string): string {
-      // Конвертируем путь в URL параметр - используем только path-based навигацию
-      console.log('pathToUrl: converting path=', path)
       if (path === '/') {
-        console.log('pathToUrl: root path, returning empty string')
         return ''
       }
-      const result = path.startsWith('/') ? path.slice(1) : path
-      console.log('pathToUrl: result=', result)
-      return result
+      return path.startsWith('/') ? path.slice(1) : path
     },
 
     urlToPath(urlParam: string | string[]): string {
-      // Конвертируем URL параметр в путь
       if (!urlParam || urlParam === '' || (Array.isArray(urlParam) && urlParam.length === 0)) return '/'
       
       if (Array.isArray(urlParam)) {
-        // Если массив, объединяем в путь, фильтруем пустые элементы
         const filteredParam = urlParam.filter(Boolean)
-        // Для API не добавляем начальный слеш для не-корневых путей
         return filteredParam.length > 0 ? filteredParam.join('/') : '/'
       }
       
-      // Если строка, возвращаем как есть (без добавления слеша)
       return urlParam === '/' ? '/' : urlParam
     },
 
     pathToArray(path: string): string[] {
-      // Конвертируем путь в массив папок
       if (path === '/' || !path) return []
-      // Убираем начальный слеш если есть, затем разбиваем и фильтруем
       const cleanPath = path.startsWith('/') ? path.slice(1) : path
       return cleanPath.split('/').filter(Boolean)
     },
 
     arrayToPath(pathArray: string[]): string {
-      // Конвертируем массив папок в путь
       if (!pathArray || pathArray.length === 0) return '/'
-      // Для API не добавляем начальный слеш для не-корневых путей
       return pathArray.join('/')
     },
 
@@ -647,42 +539,30 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
 
     getUrlFromCurrentState(): string {
-      // Если есть folder_id, используем его; иначе используем path
       return this.currentFolderId ? this.folderIdToUrl(this.currentFolderId) : this.pathToUrl(this.currentPath)
     },
 
-    // Метод для обновления URL (будет вызываться из компонента)
     updateUrl(router: any): void {
       try {
-        console.log('updateUrl: called with currentPath=', this.currentPath, 'currentFolderId=', this.currentFolderId)
-        
-        // Предотвращаем множественные вызовы во время обработки ошибок
         if (this.isLoading) {
-          console.log('updateUrl: skipping update while loading')
           return
         }
         
         const currentRoute = router.currentRoute.value
-        console.log('updateUrl: currentRoute=', currentRoute.name, currentRoute.params)
         
-        // Добавляем дебаунс для предотвращения множественных обновлений URL
         if (this._urlUpdateTimeout) {
           clearTimeout(this._urlUpdateTimeout)
         }
         
         this._urlUpdateTimeout = setTimeout(() => {
-          // Определяем текущий путь как массив
           const currentPathArray = this.pathToArray(this.currentPath)
           const currentPathMatch = currentRoute.params.pathMatch
           
-          // Сравниваем текущий путь с URL параметром
           let needsUpdate = false
           
           if (currentPathArray.length === 0) {
-            // Мы в корне - должны быть на /documents без pathMatch
             needsUpdate = currentRoute.name !== ERouteNames.DOCUMENTS || !!currentPathMatch
           } else {
-            // Мы в папке - должны быть на /documents/path с правильным pathMatch
             const expectedPathMatch = currentPathArray.join('/')
             const actualPathMatch = Array.isArray(currentPathMatch) 
               ? currentPathMatch.join('/') 
@@ -694,14 +574,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
           
           if (needsUpdate) {
             if (currentPathArray.length === 0) {
-              console.log('updateUrl: navigating to root documents')
               router.replace({ name: ERouteNames.DOCUMENTS }).catch((error: any) => {
                 if (error.name !== 'NavigationDuplicated') {
                   console.error('Navigation error:', error)
                 }
               })
             } else {
-              console.log('updateUrl: navigating to path array:', currentPathArray)
               router.replace({ 
                 name: ERouteNames.DOCUMENTS_FOLDER, 
                 params: { pathMatch: currentPathArray } 
@@ -712,14 +590,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
               })
             }
           }
-        }, 100) // Дебаунс 100мс
+        }, 100)
       } catch (error) {
         console.error('Error updating URL:', error)
       }
     },
 
 
-    // Метод для очистки таймаутов (вызывается при уничтожении компонента)
     cleanup(): void {
       if (this._urlUpdateTimeout) {
         clearTimeout(this._urlUpdateTimeout)
