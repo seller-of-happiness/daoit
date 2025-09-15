@@ -346,17 +346,23 @@ export const useDocumentsStore = defineStore('documentsStore', {
       feedback.isGlobalLoading = true
       
       try {
-        await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
+        const response = await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
         
-        useFeedbackStore().showToast({ 
-          type: 'success', 
-          title: 'Удалено', 
-          message: 'Документ удален', 
-          time: 4000 
-        })
+        // Проверяем успешность удаления по статусу ответа
+        // 204 No Content - стандартный успешный ответ для DELETE операций
+        if (response.status === 204 || response.status === 200) {
+          useFeedbackStore().showToast({ 
+            type: 'success', 
+            title: 'Удалено', 
+            message: 'Документ удален', 
+            time: 4000 
+          })
 
-        // Обновляем список
-        await this.fetchDocuments()
+          // Обновляем список
+          await this.fetchDocuments()
+        } else {
+          throw new Error(`Unexpected response status: ${response.status}`)
+        }
       } catch (error) {
         logger.error('documents_delete_error', { 
           file: 'documentsStore', 
@@ -380,17 +386,23 @@ export const useDocumentsStore = defineStore('documentsStore', {
       feedback.isGlobalLoading = true
       
       try {
-        await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
+        const response = await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
         
-        useFeedbackStore().showToast({ 
-          type: 'success', 
-          title: 'Удалено', 
-          message: 'Папка удалена', 
-          time: 4000 
-        })
+        // Проверяем успешность удаления по статусу ответа
+        // 204 No Content - стандартный успешный ответ для DELETE операций
+        if (response.status === 204 || response.status === 200) {
+          useFeedbackStore().showToast({ 
+            type: 'success', 
+            title: 'Удалено', 
+            message: 'Папка удалена', 
+            time: 4000 
+          })
 
-        // Обновляем список
-        await this.fetchDocuments()
+          // Обновляем список
+          await this.fetchDocuments()
+        } else {
+          throw new Error(`Unexpected response status: ${response.status}`)
+        }
       } catch (error) {
         logger.error('documents_deleteFolder_error', { 
           file: 'documentsStore', 
