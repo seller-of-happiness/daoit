@@ -20,9 +20,19 @@ export const useFeedbackStore = defineStore('feedbackStore', {
         createOrUpdatePopup: false,
         loadingOnGetItem: false,
         loadingOnConfirmModal: false,
-        serverErrors: {}
+        serverErrors: {},
+        _loadingTimeout: null as ReturnType<typeof setTimeout> | null,
+        _showLoader: false
     }),
-    getters: {},
+    getters: {
+        /**
+         * Геттер для показа лоадера с учетом задержки
+         * Возвращает true только если прошло достаточно времени с момента начала загрузки
+         */
+        shouldShowLoader: (state: IFeedbackStoreState): boolean => {
+            return state.isGlobalLoading && state._showLoader
+        }
+    },
     actions: {
         /**
          * Отображает всплывающее уведомление (toast) в интерфейсе
@@ -96,5 +106,38 @@ export const useFeedbackStore = defineStore('feedbackStore', {
                 return router.push({ name: parentName })
             }
         },
+
+        /**
+         * Устанавливает глобальный лоадер с задержкой
+         * Лоадер появляется только если загрузка длится дольше 300мс
+         * 
+         * @param value - true для включения, false для выключения
+         */
+        setGlobalLoading(value: boolean) {
+            if (value) {
+                // Включаем загрузку
+                this.isGlobalLoading = true
+                
+                // Очищаем предыдущий таймер если есть
+                if (this._loadingTimeout) {
+                    clearTimeout(this._loadingTimeout)
+                }
+                
+                // Устанавливаем таймер на показ лоадера с задержкой 300мс
+                this._loadingTimeout = setTimeout(() => {
+                    this._showLoader = true
+                }, 300)
+            } else {
+                // Выключаем загрузку
+                this.isGlobalLoading = false
+                this._showLoader = false
+                
+                // Очищаем таймер
+                if (this._loadingTimeout) {
+                    clearTimeout(this._loadingTimeout)
+                    this._loadingTimeout = null
+                }
+            }
+        }
     }
 })

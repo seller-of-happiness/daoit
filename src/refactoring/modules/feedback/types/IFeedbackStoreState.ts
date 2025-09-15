@@ -27,4 +27,8 @@ export interface IFeedbackStoreState {
     loadingOnConfirmModal: boolean
     // ошибки валидации от API, ключ — имя поля, значение — массив сообщений
     serverErrors: Record<string, string[]>
+    // внутренний таймер для задержки показа лоадера
+    _loadingTimeout: ReturnType<typeof setTimeout> | null
+    // внутренний флаг для показа лоадера с задержкой
+    _showLoader: boolean
 }
