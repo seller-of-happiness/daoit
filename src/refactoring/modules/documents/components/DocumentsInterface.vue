@@ -25,7 +25,7 @@
                     <template #item="{ item }">
                         <span
                             v-if="item.command"
-                            @click="() => item.command()"
+                            @click="(event) => item.command?.({ originalEvent: event, item: item })"
                             class="breadcrumb-item clickable"
                         >
                             {{ item.label }}
