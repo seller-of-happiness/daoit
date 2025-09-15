@@ -376,8 +376,15 @@ const confirmDeleteFolder = (folder: IDocumentFolder) => {
     acceptLabel: 'Удалить',
     rejectLabel: 'Отмена',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      documentsStore.deleteFolder(folder.id!)
+    accept: async () => {
+      try {
+        await documentsStore.deleteFolder(folder.id!)
+        // Успешное удаление - модальное окно автоматически закроется
+      } catch (error) {
+        // В случае ошибки модальное окно также должно закрыться
+        // Ошибка уже обработана в documentsStore.deleteFolder
+        console.error('Error deleting folder:', error)
+      }
     }
   })
 }
@@ -390,8 +397,15 @@ const confirmDeleteDocument = (document: IDocument) => {
     acceptLabel: 'Удалить',
     rejectLabel: 'Отмена',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      documentsStore.deleteDocument(document.id)
+    accept: async () => {
+      try {
+        await documentsStore.deleteDocument(document.id)
+        // Успешное удаление - модальное окно автоматически закроется
+      } catch (error) {
+        // В случае ошибки модальное окно также должно закрыться
+        // Ошибка уже обработана в documentsStore.deleteDocument
+        console.error('Error deleting document:', error)
+      }
     }
   })
 }
