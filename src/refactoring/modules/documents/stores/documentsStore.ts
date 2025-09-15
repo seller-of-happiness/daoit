@@ -346,12 +346,20 @@ export const useDocumentsStore = defineStore('documentsStore', {
       feedback.isGlobalLoading = true
       
       try {
-        await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
+        const response = await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
+        
+        // Обрабатываем ответ от сервера
+        let successMessage = 'Документ удален'
+        if (response.data && response.data.message) {
+          successMessage = response.data.message
+        } else if (response.data && response.data.name) {
+          successMessage = `Документ "${response.data.name}" удален`
+        }
         
         useFeedbackStore().showToast({ 
           type: 'success', 
           title: 'Удалено', 
-          message: 'Документ удален', 
+          message: successMessage, 
           time: 4000 
         })
 
@@ -380,12 +388,20 @@ export const useDocumentsStore = defineStore('documentsStore', {
       feedback.isGlobalLoading = true
       
       try {
-        await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
+        const response = await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
+        
+        // Обрабатываем ответ от сервера
+        let successMessage = 'Папка удалена'
+        if (response.data && response.data.message) {
+          successMessage = response.data.message
+        } else if (response.data && response.data.name) {
+          successMessage = `Папка "${response.data.name}" удалена`
+        }
         
         useFeedbackStore().showToast({ 
           type: 'success', 
           title: 'Удалено', 
-          message: 'Папка удалена', 
+          message: successMessage, 
           time: 4000 
         })
 
