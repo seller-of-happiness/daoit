@@ -1,0 +1,199 @@
+@forward 'variables';
+
+@use 'variables' as *;
+@use 'mixins' as *;
+@use 'animations';
+@use 'components';
+@use 'chat';
+
+
+:global {
+    .chat-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .chat-scrollable {
+        @include custom-scrollbar;
+    }
+    
+    .chat-overlay {
+        z-index: $z-chat-overlay;
+    }
+    
+    .chat-container-sliding {
+        z-index: $z-chat-container;
+    }
+    
+    .chat-modal-mask {
+        z-index: $z-chat-modal-mask;
+    }
+    
+    .chat-modal {
+        z-index: $z-chat-modal;
+    }
+    
+    .p-dialog.sliding-chat-modal {
+        z-index: $z-chat-modal !important;
+    }
+    
+    .p-dialog-mask:has(.sliding-chat-modal) {
+        z-index: $z-chat-modal-mask !important;
+    }
+    
+    .p-dialog-mask[data-sliding-chat="true"] {
+        z-index: $z-chat-modal-mask !important;
+    }
+    
+    @media (max-width: 767px) {
+        .chat-container-sliding {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
+        .chat-item {
+            min-height: 56px;
+            padding: 8px 12px;
+            
+            .chat-item__title {
+                font-size: 0.9rem;
+            }
+            
+            .chat-item__subtitle {
+                font-size: 0.8rem;
+            }
+        }
+        
+        .chat-icon,
+        .chat-icon-initials,
+        .employee-avatar,
+        .employee-initials {
+            width: 32px;
+            height: 32px;
+            font-size: 0.75rem;
+        }
+        
+        .chat-button {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .message-content {
+            max-width: 85%;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.875rem;
+        }
+        
+        .attachment-card {
+            width: 100%;
+            max-width: 280px;
+        }
+    }
+    
+    @media (min-width: 768px) and (max-width: 1023px) {
+        .chat-container-sliding {
+            max-width: 90vw;
+        }
+        
+        .attachment-card {
+            width: 250px;
+        }
+    }
+    
+    @media (min-width: 1024px) {
+        .chat-item:hover .employee-actions {
+            opacity: 1;
+        }
+        
+        .message-content {
+            max-width: 60%;
+        }
+    }
+    
+    :global(.dark) {
+        .chat-icon-initials,
+        .employee-initials {
+            background-color: var(--p-surface-700);
+            color: var(--p-surface-300);
+        }
+        
+        .attachment-card {
+            background: var(--p-surface-800);
+            border-color: var(--p-surface-600);
+        }
+        
+        .chat-input-field {
+            background: var(--p-surface-800);
+            color: var(--p-surface-0);
+            border-color: var(--p-surface-600);
+        }
+        
+        .reaction-pill {
+            background: var(--p-surface-800);
+            border-color: var(--p-surface-600);
+            color: var(--p-surface-200);
+        }
+        
+        .loading-skeleton {
+            background: linear-gradient(90deg, 
+                var(--p-surface-700) 25%, 
+                var(--p-surface-600) 50%, 
+                var(--p-surface-700) 75%
+            );
+        }
+    }
+    
+    @media (prefers-contrast: high) {
+        .chat-item {
+            border: 1px solid currentColor;
+            
+            &--active {
+                background-color: var(--p-primary-600) !important;
+                color: white !important;
+            }
+        }
+        
+        .chat-button {
+            border-width: 2px;
+        }
+        
+        .reaction-pill {
+            border-width: 2px;
+        }
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+        .chat-transition,
+        .chat-animation,
+        *[class*="animate-"],
+        .slide-down-enter-active,
+        .slide-down-leave-active,
+        .slide-right-enter-active,
+        .slide-right-leave-active,
+        .overlay-enter-active,
+        .overlay-leave-active,
+        .fade-enter-active,
+        .fade-leave-active {
+            animation-duration: 0.01s !important;
+            transition-duration: 0.01s !important;
+        }
+    }
+    
+    @media print {
+        .chat-container-sliding,
+        .chat-overlay,
+        .chat-button,
+        .employee-actions {
+            display: none !important;
+        }
+        
+        .message-content {
+            background: white !important;
+            color: black !important;
+            border: 1px solid #ccc;
+        }
+    }
+}
+

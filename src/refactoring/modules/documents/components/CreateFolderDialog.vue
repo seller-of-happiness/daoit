@@ -1,0 +1,206 @@
+<template>
+  <Dialog
+    v-model:visible="dialogVisible"
+    modal
+    header="Создать папку"
+    :style="{ width: '450px' }"
+    @hide="resetForm"
+  >
+    <form @submit.prevent="handleSubmit" class="create-folder-form">
+      <div class="form-field">
+        <label for="folderName" class="field-label required">Название папки</label>
+        <InputText
+          id="folderName"
+          v-model="form.name"
+          :class="{ 'p-invalid': errors.name }"
+          placeholder="Введите название папки"
+          class="w-full"
+          autofocus
+        />
+        <small v-if="errors.name" class="p-error">{{ errors.name }}</small>
+      </div>
+
+
+      <div class="form-field">
+        <label for="folderVisibility" class="field-label required">Видимость</label>
+        <Dropdown
+          id="folderVisibility"
+          v-model="form.visibility"
+          :options="visibilityOptions"
+          option-label="label"
+          option-value="value"
+          placeholder="Выберите уровень видимости"
+          class="w-full"
+        />
+        <small v-if="errors.visibility" class="p-error">{{ errors.visibility }}</small>
+      </div>
+
+      <div class="form-actions">
+        <Button
+          type="button"
+          label="Отмена"
+          severity="secondary"
+          @click="dialogVisible = false"
+        />
+        <Button
+          type="submit"
+          label="Создать"
+          :loading="isLoading"
+          :disabled="!isFormValid"
+        />
+      </div>
+    </form>
+  </Dialog>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
+
+interface Props {
+  visible: boolean
+}
+
+interface Emits {
+  (e: 'update:visible', value: boolean): void
+  (e: 'created'): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+const documentsStore = useDocumentsStore()
+
+// Реактивность диалога
+const dialogVisible = computed({
+  get: () => props.visible,
+  set: (value) => emit('update:visible', value)
+})
+
+// Форма
+const form = ref({
+  name: '',
+  visibility: 'creator' as 'creator' | 'public' | 'private' | 'department'
+})
+
+const errors = ref({
+  name: '',
+  visibility: ''
+})
+
+const isLoading = ref(false)
+
+// Опции видимости
+const visibilityOptions = [
+  { label: 'Создатель (только мне)', value: 'creator' },
+  { label: 'Публичная (доступна всем)', value: 'public' },
+  { label: 'Отдел (доступна отделу)', value: 'department' },
+  { label: 'Приватная (только мне)', value: 'private' }
+]
+
+// Валидация
+const validateForm = () => {
+  errors.value = {
+    name: '',
+    visibility: ''
+  }
+
+  let isValid = true
+
+  if (!form.value.name.trim()) {
+    errors.value.name = 'Название папки обязательно'
+    isValid = false
+  } else if (form.value.name.trim().length < 2) {
+    errors.value.name = 'Название должно содержать минимум 2 символа'
+    isValid = false
+  } else if (form.value.name.trim().length > 100) {
+    errors.value.name = 'Название не должно превышать 100 символов'
+    isValid = false
+  }
+
+  if (!form.value.visibility) {
+    errors.value.visibility = 'Выберите уровень видимости'
+    isValid = false
+  }
+
+  return isValid
+}
+
+const isFormValid = computed(() => {
+  return form.value.name.trim().length >= 2 && 
+         form.value.name.trim().length <= 100 && 
+         form.value.visibility
+})
+
+// Обработчики
+const handleSubmit = async () => {
+  if (!validateForm()) return
+
+  isLoading.value = true
+
+  try {
+    // Определяем path: если в корне - '/', иначе текущий путь
+    const path = documentsStore.currentPath === '/' ? '/' : documentsStore.currentPath
+    
+    await documentsStore.createFolder({
+      name: form.value.name.trim(),
+      path: path,
+      visibility: form.value.visibility
+    })
+
+    emit('created')
+    resetForm()
+  } catch (error) {
+    console.error('Error creating folder:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const resetForm = () => {
+  form.value = {
+    name: '',
+    visibility: 'creator'
+  }
+  
+  errors.value = {
+    name: '',
+    visibility: ''
+  }
+}
+
+// Сброс формы при закрытии диалога
+watch(() => props.visible, (visible) => {
+  if (!visible) {
+    resetForm()
+  }
+})
+</script>
+
+<style scoped>
+.create-folder-form {
+  @apply space-y-4;
+}
+
+.form-field {
+  @apply space-y-2;
+}
+
+.field-label {
+  @apply block text-sm font-medium text-surface-700 dark:text-surface-200;
+}
+
+.field-label.required::after {
+  content: ' *';
+  color: var(--p-red-500);
+}
+
+.form-actions {
+  @apply flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-surface-700;
+}
+
+.p-error {
+  @apply text-xs;
+  color: var(--p-red-500);
+}
+</style>
