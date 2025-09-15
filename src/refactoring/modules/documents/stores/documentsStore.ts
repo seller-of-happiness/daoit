@@ -262,8 +262,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         const formData = new FormData()
         formData.append('name', payload.name)
         if (payload.description) formData.append('description', payload.description)
-        if (payload.type_id) formData.append('type_id', payload.type_id.toString())
-        if (payload.parent_folder) formData.append('parent_folder', payload.parent_folder)
+        // Исправляем поля в соответствии с требованиями API
+        // Обязательное поле type - если не указан type_id, используем значение по умолчанию
+        formData.append('type', payload.type_id ? payload.type_id.toString() : '1')
+        // Добавляем обязательное поле number (можно использовать timestamp или другую логику)
+        formData.append('number', Date.now().toString())
+        // Исправляем название поля для папки - обязательное поле
+        formData.append('folder_path', payload.parent_folder || this.currentFolderId || '/')
         formData.append('file', payload.file)
         formData.append('visibility', payload.visibility)
 
