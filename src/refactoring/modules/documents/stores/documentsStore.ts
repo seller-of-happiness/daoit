@@ -25,7 +25,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
     breadcrumbs: [{ name: 'Документы', path: '/', id: null }],
     isLoading: false,
     selectedItems: new Set(),
-    _urlUpdateTimeout: null as NodeJS.Timeout | null
+    _urlUpdateTimeout: null as ReturnType<typeof setTimeout> | null
   }),
 
   getters: {

@@ -59,7 +59,7 @@ export interface IDocumentsStoreState {
   breadcrumbs: Array<{ name: string; path: string; id: string | null }>
   isLoading: boolean
   selectedItems: Set<number>
-  _urlUpdateTimeout: NodeJS.Timeout | null
+  _urlUpdateTimeout: ReturnType<typeof setTimeout> | null
 }
 
 export interface ICreateDocumentPayload {
