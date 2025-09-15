@@ -75,7 +75,7 @@ axios.interceptors.response.use(
         // Обработка блокировки по PIN-коду (423 статус)
         const isLocked = error.response?.status === 423
         if (isLocked) {
-            useFeedbackStore().isGlobalLoading = false
+            useFeedbackStore().setGlobalLoading(false)
             // Создаем новый Promise, который будет разрешен после ввода PIN-кода
             return new Promise((resolve, reject) => {
                 // Сохраняем оригинальный запрос для повторной отправки

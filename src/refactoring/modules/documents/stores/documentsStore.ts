@@ -64,7 +64,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
     async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
       const feedback = useFeedbackStore()
       this.isLoading = true
-      feedback.isGlobalLoading = true
+      feedback.setGlobalLoading(true)
       
       let requestPath = '/'
       
@@ -124,7 +124,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         throw error
       } finally {
         this.isLoading = false
-        feedback.isGlobalLoading = false
+        feedback.setGlobalLoading(false)
       }
     },
 
@@ -204,7 +204,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
     async createDocument(payload: ICreateDocumentPayload): Promise<void> {
       const feedback = useFeedbackStore()
-      feedback.isGlobalLoading = true
+      feedback.setGlobalLoading(true)
       
       try {
         const formData = new FormData()
@@ -242,13 +242,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        feedback.isGlobalLoading = false
+        feedback.setGlobalLoading(false)
       }
     },
 
     async createFolder(payload: ICreateFolderPayload): Promise<void> {
       const feedback = useFeedbackStore()
-      feedback.isGlobalLoading = true
+      feedback.setGlobalLoading(true)
       
       try {
         await axios.post(`${BASE_URL}/api/documents/document-folder/`, {
@@ -279,13 +279,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        feedback.isGlobalLoading = false
+        feedback.setGlobalLoading(false)
       }
     },
 
     async deleteDocument(id: number): Promise<void> {
       const feedback = useFeedbackStore()
-      feedback.isGlobalLoading = true
+      feedback.setGlobalLoading(true)
       
       try {
         const response = await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
@@ -316,13 +316,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        feedback.isGlobalLoading = false
+        feedback.setGlobalLoading(false)
       }
     },
 
     async deleteFolder(id: number): Promise<void> {
       const feedback = useFeedbackStore()
-      feedback.isGlobalLoading = true
+      feedback.setGlobalLoading(true)
       
       try {
         const response = await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
@@ -353,13 +353,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        feedback.isGlobalLoading = false
+        feedback.setGlobalLoading(false)
       }
     },
 
     async addDocumentVersion(documentId: number, file: File, description?: string): Promise<void> {
       const feedback = useFeedbackStore()
-      feedback.isGlobalLoading = true
+      feedback.setGlobalLoading(true)
       
       try {
         const formData = new FormData()
@@ -392,7 +392,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
-        feedback.isGlobalLoading = false
+        feedback.setGlobalLoading(false)
       }
     },
 

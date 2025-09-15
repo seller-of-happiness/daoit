@@ -44,7 +44,7 @@
                 <!-- Заголовок таблицы -->
                 <div class="table-header">
                     <div class="table-header-cell name-cell">
-                        <i class="pi pi-sort-alt"></i>
+                        <!-- <i class="pi pi-sort-alt"></i> -->
                         Название
                     </div>
                     <div class="table-header-cell type-cell">Тип</div>
