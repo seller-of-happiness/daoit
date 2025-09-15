@@ -163,7 +163,6 @@ const onFileSelect = (event: any) => {
     const file = event.files[0]
     if (file) {
         selectedFile.value = file
-        // Автоматически заполняем название если оно пустое
         if (!form.value.name.trim()) {
             const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
             form.value.name = nameWithoutExt
@@ -283,7 +282,7 @@ const handleSubmit = async () => {
         emit('created')
         resetForm()
     } catch (error) {
-        console.error('Error creating document:', error)
+        // Error is handled in the store
     } finally {
         isLoading.value = false
     }
@@ -305,13 +304,11 @@ const resetForm = () => {
 
     selectedFile.value = null
 
-    // Сброс компонента загрузки файлов
     if (fileUpload.value) {
         fileUpload.value.clear()
     }
 }
 
-// Сброс формы при закрытии диалога
 watch(
     () => props.visible,
     (visible) => {

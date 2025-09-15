@@ -139,7 +139,6 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    // Определяем path: если в корне - '/', иначе текущий путь
     const path = documentsStore.currentPath === '/' ? '/' : documentsStore.currentPath
     
     await documentsStore.createFolder({
@@ -151,7 +150,7 @@ const handleSubmit = async () => {
     emit('created')
     resetForm()
   } catch (error) {
-    console.error('Error creating folder:', error)
+    // Error is handled in the store
   } finally {
     isLoading.value = false
   }
@@ -169,7 +168,6 @@ const resetForm = () => {
   }
 }
 
-// Сброс формы при закрытии диалога
 watch(() => props.visible, (visible) => {
   if (!visible) {
     resetForm()

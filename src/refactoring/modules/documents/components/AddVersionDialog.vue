@@ -230,7 +230,7 @@ const handleSubmit = async () => {
     emit('added')
     resetForm()
   } catch (error) {
-    console.error('Error adding document version:', error)
+    // Error is handled in the store
   } finally {
     isLoading.value = false
   }
@@ -247,13 +247,11 @@ const resetForm = () => {
   
   selectedFile.value = null
   
-  // Сброс компонента загрузки файлов
   if (fileUpload.value) {
     fileUpload.value.clear()
   }
 }
 
-// Сброс формы при закрытии диалога
 watch(() => props.visible, (visible) => {
   if (!visible) {
     resetForm()
