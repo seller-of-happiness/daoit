@@ -62,6 +62,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
     },
 
     async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
+      console.log(`📥 FETCH DOCUMENTS START: payload=`, payload)
       const feedback = useFeedbackStore()
       this.isLoading = true
       feedback.isGlobalLoading = true
@@ -148,8 +149,10 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
+        console.log(`🏁 FETCH DOCUMENTS FINALLY: Setting loading to false`)
         this.isLoading = false
         feedback.isGlobalLoading = false
+        console.log(`✅ FETCH DOCUMENTS COMPLETE: items count=${this.currentItems.length}`)
       }
     },
 
@@ -342,15 +345,20 @@ export const useDocumentsStore = defineStore('documentsStore', {
     },
 
     async deleteDocument(id: number): Promise<void> {
+      console.log(`🗑️ DELETE DOCUMENT START: id=${id}`)
       const feedback = useFeedbackStore()
+      console.log(`⏳ DELETE DOCUMENT: Setting global loading to true`)
       feedback.isGlobalLoading = true
       
       try {
+        console.log(`🌐 DELETE DOCUMENT API CALL: sending DELETE to ${BASE_URL}/api/documents/document/${id}/`)
         const response = await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
+        console.log(`✅ DELETE DOCUMENT API RESPONSE: status=${response.status}, data=`, response.data)
         
         // Проверяем успешность удаления по статусу ответа
         // 204 No Content - стандартный успешный ответ для DELETE операций
         if (response.status === 204 || response.status === 200) {
+          console.log(`✅ DELETE DOCUMENT SUCCESS: Document ${id} deleted successfully`)
           useFeedbackStore().showToast({ 
             type: 'success', 
             title: 'Удалено', 
@@ -358,12 +366,16 @@ export const useDocumentsStore = defineStore('documentsStore', {
             time: 4000 
           })
 
+          console.log(`🔄 DELETE DOCUMENT: Refreshing documents list...`)
           // Обновляем список
           await this.fetchDocuments()
+          console.log(`✅ DELETE DOCUMENT: Documents list refreshed, new items count: ${this.currentItems.length}`)
         } else {
+          console.log(`❌ DELETE DOCUMENT UNEXPECTED STATUS: ${response.status}`)
           throw new Error(`Unexpected response status: ${response.status}`)
         }
       } catch (error) {
+        console.error(`❌ DELETE DOCUMENT ERROR: Failed to delete document ${id}:`, error)
         logger.error('documents_delete_error', { 
           file: 'documentsStore', 
           function: 'deleteDocument', 
@@ -377,20 +389,27 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
+        console.log(`🏁 DELETE DOCUMENT FINALLY: Setting global loading to false for document ${id}`)
         feedback.isGlobalLoading = false
+        console.log(`✅ DELETE DOCUMENT FINALLY: Global loading set to false`)
       }
     },
 
     async deleteFolder(id: number): Promise<void> {
+      console.log(`🗂️ DELETE FOLDER START: id=${id}`)
       const feedback = useFeedbackStore()
+      console.log(`⏳ DELETE FOLDER: Setting global loading to true`)
       feedback.isGlobalLoading = true
       
       try {
+        console.log(`🌐 DELETE FOLDER API CALL: sending DELETE to ${BASE_URL}/api/documents/document-folder/${id}/`)
         const response = await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
+        console.log(`✅ DELETE FOLDER API RESPONSE: status=${response.status}, data=`, response.data)
         
         // Проверяем успешность удаления по статусу ответа
         // 204 No Content - стандартный успешный ответ для DELETE операций
         if (response.status === 204 || response.status === 200) {
+          console.log(`✅ DELETE FOLDER SUCCESS: Folder ${id} deleted successfully`)
           useFeedbackStore().showToast({ 
             type: 'success', 
             title: 'Удалено', 
@@ -398,12 +417,16 @@ export const useDocumentsStore = defineStore('documentsStore', {
             time: 4000 
           })
 
+          console.log(`🔄 DELETE FOLDER: Refreshing documents list...`)
           // Обновляем список
           await this.fetchDocuments()
+          console.log(`✅ DELETE FOLDER: Documents list refreshed, new items count: ${this.currentItems.length}`)
         } else {
+          console.log(`❌ DELETE FOLDER UNEXPECTED STATUS: ${response.status}`)
           throw new Error(`Unexpected response status: ${response.status}`)
         }
       } catch (error) {
+        console.error(`❌ DELETE FOLDER ERROR: Failed to delete folder ${id}:`, error)
         logger.error('documents_deleteFolder_error', { 
           file: 'documentsStore', 
           function: 'deleteFolder', 
@@ -417,7 +440,9 @@ export const useDocumentsStore = defineStore('documentsStore', {
         })
         throw error
       } finally {
+        console.log(`🏁 DELETE FOLDER FINALLY: Setting global loading to false for folder ${id}`)
         feedback.isGlobalLoading = false
+        console.log(`✅ DELETE FOLDER FINALLY: Global loading set to false`)
       }
     },
 
