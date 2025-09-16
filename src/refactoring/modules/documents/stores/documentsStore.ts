@@ -466,6 +466,61 @@ export const useDocumentsStore = defineStore('documentsStore', {
             }
         },
 
+        async fetchDocumentVersions(documentId: number): Promise<any[]> {
+            try {
+                const response = await axios.get(`${BASE_URL}/api/documents/document/${documentId}/versions/`)
+                return response.data?.results || response.data || []
+            } catch (error) {
+                logger.error('documents_fetchVersions_error', {
+                    file: 'documentsStore',
+                    function: 'fetchDocumentVersions',
+                    documentId: documentId,
+                    condition: String(error),
+                })
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось загрузить версии документа',
+                    time: 5000,
+                })
+                throw error
+            }
+        },
+
+        async deleteDocumentVersion(documentId: number, versionId: number): Promise<void> {
+            try {
+                const response = await axios.delete(
+                    `${BASE_URL}/api/documents/document/${documentId}/versions/${versionId}/`
+                )
+
+                if (response.status === 204 || response.status === 200) {
+                    useFeedbackStore().showToast({
+                        type: 'success',
+                        title: 'Удалено',
+                        message: 'Версия документа удалена',
+                        time: 4000,
+                    })
+                } else {
+                    throw new Error(`Unexpected response status: ${response.status}`)
+                }
+            } catch (error) {
+                logger.error('documents_deleteVersion_error', {
+                    file: 'documentsStore',
+                    function: 'deleteDocumentVersion',
+                    documentId: documentId,
+                    versionId: versionId,
+                    condition: String(error),
+                })
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось удалить версию документа',
+                    time: 7000,
+                })
+                throw error
+            }
+        },
+
         selectItem(id: number): void {
             this.selectedItems.add(id)
         },
