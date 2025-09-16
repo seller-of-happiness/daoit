@@ -211,7 +211,10 @@
                             <span class="item-name">{{ document.name }}</span>
                         </div>
                         <div class="table-cell type-cell">
-                            {{ document.type?.name || getFileTypeByExtension(document.extension) }}
+                            {{
+                                document.type_name ||
+                                getFileTypeByExtension(document.extension || '')
+                            }}
                         </div>
                         <div class="table-cell size-cell">
                             {{ documentsStore.formatFileSize(document.size) }}
@@ -317,6 +320,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const documentsStore = useDocumentsStore()
+const feedbackStore = useFeedbackStore()
 const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
@@ -511,7 +515,7 @@ const confirmDeleteDocument = (document: IDocument) => {
 const downloadDocument = (document: IDocument) => {
     const url = document.download_url || document.file_url
     if (!url) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось найти ссылку для скачивания документа',
@@ -531,14 +535,14 @@ const downloadDocument = (document: IDocument) => {
         link.click()
         window.document.body.removeChild(link)
 
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'success',
             title: 'Успех',
             message: 'Скачивание файла началось',
             time: 3000,
         })
     } catch (error) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось скачать документ',
@@ -546,31 +550,6 @@ const downloadDocument = (document: IDocument) => {
         })
     }
 }
-
-// const viewDocument = (document: IDocument) => {
-//     const url = document.file_url || document.download_url
-//     if (!url) {
-//         useFeedbackStore().showToast({
-//             type: 'error',
-//             title: 'Ошибка',
-//             message: 'Не удалось найти ссылку для просмотра документа',
-//             time: 5000,
-//         })
-//         return
-//     }
-
-//     try {
-//         const viewUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-//         console.log(viewUrl)
-//     } catch (error) {
-//         useFeedbackStore().showToast({
-//             type: 'error',
-//             title: 'Ошибка',
-//             message: 'Не удалось открыть документ для просмотра',
-//             time: 5000,
-//         })
-//     }
-// }
 
 const getFileTypeByExtension = (extension: string): string => {
     const ext = extension.toLowerCase()
@@ -655,7 +634,7 @@ const copyFolderLink = (folder: IDocumentFolder) => {
         navigator.clipboard
             .writeText(fullUrl)
             .then(() => {
-                useFeedbackStore().showToast({
+                feedbackStore.showToast({
                     type: 'success',
                     title: 'Успех',
                     message: 'Ссылка на папку скопирована в буфер обмена',
@@ -670,7 +649,7 @@ const copyFolderLink = (folder: IDocumentFolder) => {
                 window.document.execCommand('copy')
                 window.document.body.removeChild(textArea)
 
-                useFeedbackStore().showToast({
+                feedbackStore.showToast({
                     type: 'success',
                     title: 'Успех',
                     message: 'Ссылка на папку скопирована в буфер обмена',
@@ -678,7 +657,7 @@ const copyFolderLink = (folder: IDocumentFolder) => {
                 })
             })
     } catch (error) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось скопировать ссылку на папку',

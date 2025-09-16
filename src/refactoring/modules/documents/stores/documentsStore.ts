@@ -44,6 +44,10 @@ export const useDocumentsStore = defineStore('documentsStore', {
         _urlUpdateTimeout: null as ReturnType<typeof setTimeout> | null,
         // Добавляем кеш для хранения путей папок
         _folderPathCache: new Map() as Map<string, string>,
+        // Поля для поиска
+        searchQuery: '',
+        isSearchMode: false,
+        searchTimeout: null as ReturnType<typeof setTimeout> | null,
     }),
 
     getters: {
@@ -119,21 +123,24 @@ export const useDocumentsStore = defineStore('documentsStore', {
                         data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
                     this.currentItems = data.items || []
 
-                    // Кешируем путь текущей папки по её virtual_path
-                    if (data.virtual_path && data.path) {
-                        this._folderPathCache.set(data.virtual_path, data.path)
-                    }
+                    // Обновляем breadcrumbs только если не в режиме поиска
+                    if (!payload.search) {
+                        // Кешируем путь текущей папки по её virtual_path
+                        if (data.virtual_path && data.path) {
+                            this._folderPathCache.set(data.virtual_path, data.path)
+                        }
 
-                    if (data.current_folder && data.parent_folders) {
-                        this.updateFolderChainFromApi(
-                            data.current_folder,
-                            data.parent_folders || [],
-                        )
-                    } else {
-                        // Обрабатываем virtual_path или name с учетом path_parent (массив или строка)
-                        const virtualPath = data.virtual_path || data.name || 'Документы'
-                        const parentPaths = data.path_parent || null
-                        this.updateBreadcrumbsFromVirtualPath(virtualPath, parentPaths)
+                        if (data.current_folder && data.parent_folders) {
+                            this.updateFolderChainFromApi(
+                                data.current_folder,
+                                data.parent_folders || [],
+                            )
+                        } else {
+                            // Обрабатываем virtual_path или name с учетом path_parent (массив или строка)
+                            const virtualPath = data.virtual_path || data.name || 'Документы'
+                            const parentPaths = data.path_parent || null
+                            this.updateBreadcrumbsFromVirtualPath(virtualPath, parentPaths)
+                        }
                     }
                 }
             } catch (error) {
@@ -163,7 +170,83 @@ export const useDocumentsStore = defineStore('documentsStore', {
             }
         },
 
+        /**
+         * Выполнение поиска документов
+         */
+        async searchDocuments(query: string): Promise<void> {
+            if (query.length < 3) {
+                // Если поисковый запрос меньше 3 символов, возвращаемся к обычному просмотру
+                this.isSearchMode = false
+                this.searchQuery = ''
+                await this.fetchDocuments({ path: this.currentPath })
+                return
+            }
+
+            this.isSearchMode = true
+            this.searchQuery = query
+
+            try {
+                await this.fetchDocuments({
+                    path: this.currentPath,
+                    search: query,
+                    page: 1,
+                    page_size: 100,
+                    sort_by: 'name',
+                    sort_order: 'ascending',
+                })
+            } catch (error) {
+                logger.error('documents_search_error', {
+                    file: 'documentsStore',
+                    function: 'searchDocuments',
+                    query: query,
+                    condition: String(error),
+                })
+
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка поиска',
+                    message: 'Не удалось выполнить поиск документов',
+                    time: 5000,
+                })
+                throw error
+            }
+        },
+
+        /**
+         * Обработчик изменения поискового запроса с дебаунсом
+         */
+        handleSearchInput(query: string): void {
+            // Очищаем предыдущий таймер
+            if (this.searchTimeout) {
+                clearTimeout(this.searchTimeout)
+            }
+
+            // Устанавливаем новый таймер
+            this.searchTimeout = setTimeout(async () => {
+                await this.searchDocuments(query)
+            }, 300) // Дебаунс 300мс
+        },
+
+        /**
+         * Очистка поиска и возврат к обычному просмотру
+         */
+        async clearSearch(): Promise<void> {
+            if (this.searchTimeout) {
+                clearTimeout(this.searchTimeout)
+                this.searchTimeout = null
+            }
+
+            this.searchQuery = ''
+            this.isSearchMode = false
+
+            // Возвращаемся к обычному просмотру текущей папки
+            await this.fetchDocuments({ path: this.currentPath })
+        },
+
         async navigateToFolder(folder: IDocumentFolder): Promise<void> {
+            // При навигации к папке выходим из режима поиска
+            await this.clearSearch()
+
             if (folder.folder_id) {
                 await this.fetchDocuments({ folder_id: folder.folder_id })
             } else if (folder.path) {
@@ -174,10 +257,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         async navigateToFolderId(folderId: string): Promise<void> {
+            await this.clearSearch()
             await this.fetchDocuments({ folder_id: folderId })
         },
 
         async navigateToPath(path: string): Promise<void> {
+            await this.clearSearch()
             try {
                 await this.fetchDocuments({ path })
             } catch (error) {
@@ -192,6 +277,8 @@ export const useDocumentsStore = defineStore('documentsStore', {
             if (this.currentPath === '/' || !this.currentPath) {
                 return
             }
+
+            await this.clearSearch()
 
             const currentPathArray = this.pathToArray(this.currentPath)
 
@@ -310,7 +397,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     time: 5000,
                 })
 
-                await this.fetchDocuments()
+                // Обновляем список с учетом режима поиска
+                if (this.isSearchMode && this.searchQuery) {
+                    await this.searchDocuments(this.searchQuery)
+                } else {
+                    await this.fetchDocuments()
+                }
             } catch (error) {
                 logger.error('documents_create_error', {
                     file: 'documentsStore',
@@ -342,7 +434,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     time: 5000,
                 })
 
-                await this.fetchDocuments()
+                // Обновляем список с учетом режима поиска
+                if (this.isSearchMode && this.searchQuery) {
+                    await this.searchDocuments(this.searchQuery)
+                } else {
+                    await this.fetchDocuments()
+                }
             } catch (error) {
                 logger.error('documents_createFolder_error', {
                     file: 'documentsStore',
@@ -371,7 +468,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
                         time: 4000,
                     })
 
-                    await this.fetchDocuments()
+                    // Обновляем список с учетом режима поиска
+                    if (this.isSearchMode && this.searchQuery) {
+                        await this.searchDocuments(this.searchQuery)
+                    } else {
+                        await this.fetchDocuments()
+                    }
                 } else {
                     throw new Error(`Unexpected response status: ${response.status}`)
                 }
@@ -405,7 +507,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
                         time: 4000,
                     })
 
-                    await this.fetchDocuments()
+                    // Обновляем список с учетом режима поиска
+                    if (this.isSearchMode && this.searchQuery) {
+                        await this.searchDocuments(this.searchQuery)
+                    } else {
+                        await this.fetchDocuments()
+                    }
                 } else {
                     throw new Error(`Unexpected response status: ${response.status}`)
                 }
@@ -450,7 +557,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     time: 5000,
                 })
 
-                await this.fetchDocuments()
+                // Обновляем список с учетом режима поиска
+                if (this.isSearchMode && this.searchQuery) {
+                    await this.searchDocuments(this.searchQuery)
+                } else {
+                    await this.fetchDocuments()
+                }
             } catch (error) {
                 logger.error('documents_addVersion_error', {
                     file: 'documentsStore',
@@ -469,7 +581,9 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async fetchDocumentDetails(documentId: number): Promise<IDocumentDetailsResponse> {
             try {
-                const response = await axios.get(`${BASE_URL}/api/documents/document/${documentId}/`)
+                const response = await axios.get(
+                    `${BASE_URL}/api/documents/document/${documentId}/`,
+                )
                 return response.data
             } catch (error) {
                 logger.error('documents_fetchDetails_error', {
@@ -490,7 +604,9 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async fetchDocumentVersions(documentId: number): Promise<any[]> {
             try {
-                const response = await axios.get(`${BASE_URL}/api/documents/document/${documentId}/versions/`)
+                const response = await axios.get(
+                    `${BASE_URL}/api/documents/document/${documentId}/versions/`,
+                )
                 return response.data?.results || response.data || []
             } catch (error) {
                 logger.error('documents_fetchVersions_error', {
@@ -512,7 +628,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         async deleteDocumentVersion(documentId: number, versionId: number): Promise<void> {
             try {
                 const response = await axios.delete(
-                    `${BASE_URL}/api/documents/document/${documentId}/versions/${versionId}/`
+                    `${BASE_URL}/api/documents/document/${documentId}/versions/${versionId}/`,
                 )
 
                 if (response.status === 204 || response.status === 200) {
@@ -576,7 +692,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 return 'pi pi-folder'
             }
 
-            const ext = item.extension.toLowerCase()
+            const ext = item.extension?.toLowerCase() || ''
             switch (ext) {
                 case 'pdf':
                     return 'pi pi-file-pdf'
@@ -743,15 +859,18 @@ export const useDocumentsStore = defineStore('documentsStore', {
                         }
                     }
                 }, 10)
-            } catch (error) {
-                console.error('Error updating URL:', error)
-            }
+            } catch (error) {}
         },
 
         cleanup(): void {
             if (this._urlUpdateTimeout) {
                 clearTimeout(this._urlUpdateTimeout)
                 this._urlUpdateTimeout = null
+            }
+
+            if (this.searchTimeout) {
+                clearTimeout(this.searchTimeout)
+                this.searchTimeout = null
             }
         },
     },

@@ -187,6 +187,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const documentsStore = useDocumentsStore()
+const feedbackStore = useFeedbackStore()
 const confirm = useConfirm()
 
 // Реактивность диалога
@@ -201,7 +202,7 @@ const showAddVersionDialog = ref(false)
 const downloadVersion = (version: IDocumentVersion) => {
     const url = version.download_url || version.file_url || version.file
     if (!url) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось найти ссылку для скачивания версии',
@@ -221,14 +222,14 @@ const downloadVersion = (version: IDocumentVersion) => {
         link.click()
         window.document.body.removeChild(link)
 
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'success',
             title: 'Успех',
             message: 'Скачивание версии началось',
             time: 3000,
         })
     } catch (error) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось скачать версию документа',
@@ -265,7 +266,7 @@ const downloadDocument = () => {
 
     const url = props.document.download_url || props.document.file_url
     if (!url) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось найти ссылку для скачивания документа',
@@ -285,14 +286,14 @@ const downloadDocument = () => {
         link.click()
         window.document.body.removeChild(link)
 
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'success',
             title: 'Успех',
             message: 'Скачивание файла началось',
             time: 3000,
         })
     } catch (error) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось скачать документ',
@@ -306,7 +307,7 @@ const viewDocument = () => {
 
     const url = props.document.file_url || props.document.download_url
     if (!url) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось найти ссылку для просмотра документа',
@@ -319,7 +320,7 @@ const viewDocument = () => {
         const viewUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
         window.open(viewUrl, '_blank')
     } catch (error) {
-        useFeedbackStore().showToast({
+        feedbackStore.showToast({
             type: 'error',
             title: 'Ошибка',
             message: 'Не удалось открыть документ для просмотра',

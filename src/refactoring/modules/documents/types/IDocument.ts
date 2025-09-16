@@ -73,6 +73,10 @@ export interface IDocumentsStoreState {
     isLoading: boolean
     selectedItems: Set<number>
     _urlUpdateTimeout: ReturnType<typeof setTimeout> | null
+    // Поля для поиска
+    searchQuery: string
+    isSearchMode: boolean
+    searchTimeout: ReturnType<typeof setTimeout> | null
 }
 
 export interface ICreateDocumentPayload {
@@ -101,7 +105,6 @@ export interface IListDocumentsPayload {
     sort_order?: 'ascending' | 'descending'
 }
 
-// Detailed document response interface (from /api/documents/document/{id}/)
 export interface IDocumentDetailsResponse {
     id: number
     type: number
@@ -116,4 +119,6 @@ export interface IDocumentDetailsResponse {
     status: string
     approved_at: string | null
     versions: IDocumentVersion[]
+    file_url?: string
+    download_url?: string
 }
