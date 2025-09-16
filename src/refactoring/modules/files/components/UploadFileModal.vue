@@ -11,11 +11,11 @@
         <div class="flex flex-col gap-3">
             <div class="flex flex-col gap-2">
                 <label class="text-sm">Название</label>
-                <app-inputtext v-model="name" placeholder="Название файла" />
+                <InputText v-model="name" placeholder="Название файла" />
             </div>
             <div class="flex flex-col gap-2">
                 <label class="text-sm">Описание</label>
-                <app-inputtext
+                <InputText
                     v-model="description"
                     placeholder="Краткое описание (необязательно)"
                 />

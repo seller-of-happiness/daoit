@@ -20,6 +20,7 @@
                             :key="`last-${f.id}`"
                             :file="f"
                             @remove="remove"
+                            @edit="openEditModal"
                         />
                     </div>
                 </section>
@@ -61,7 +62,7 @@
                             >
                         </div>
                     </div>
-                    <files-list-table :files="filteredAll" @remove="remove" />
+                    <files-list-table :files="filteredAll" @remove="remove" @edit="openEditModal" />
                 </section>
 
                 <!-- Файлы других подразделений -->
@@ -85,6 +86,7 @@
                                     :file="f"
                                     hide-remove
                                     @remove="remove"
+                                    @edit="openEditModal"
                                 />
                             </div>
                         </div>
@@ -94,6 +96,12 @@
         </div>
 
         <upload-file-modal v-model:visible="uploadVisible" />
+        <edit-file-modal 
+            v-model:visible="editVisible" 
+            :file="selectedFile"
+            @deleted="onFileDeleted"
+            @updated="onFileUpdated"
+        />
     </div>
 </template>
 
@@ -102,12 +110,16 @@ import { ref, onMounted, computed } from 'vue'
 import { useFilesStore } from '@/refactoring/modules/files/stores/filesStore'
 import FileCard from '@/refactoring/modules/files/components/FileCard.vue'
 import UploadFileModal from '@/refactoring/modules/files/components/UploadFileModal.vue'
+import EditFileModal from '@/refactoring/modules/files/components/EditFileModal.vue'
 import FilesListTable from '@/refactoring/modules/files/components/FilesListTable.vue'
 import RecentFileCard from '@/refactoring/modules/files/components/RecentFileCard.vue'
+import type { IEmployeeFile } from '@/refactoring/modules/files/types/IEmployeeFile'
 
 const filesStore = useFilesStore()
 
 const uploadVisible = ref(false)
+const editVisible = ref(false)
+const selectedFile = ref<IEmployeeFile | null>(null)
 const filter = ref<'my' | 'department' | 'company' | 'all'>('all')
 
 onMounted(() => {
@@ -149,6 +161,19 @@ const filteredAll = computed(() => {
 
 const remove = async (id: number) => {
     await filesStore.deleteFile(id)
+}
+
+const openEditModal = (file: IEmployeeFile) => {
+    selectedFile.value = file
+    editVisible.value = true
+}
+
+const onFileDeleted = () => {
+    void filesStore.fetchAllLists()
+}
+
+const onFileUpdated = () => {
+    void filesStore.fetchAllLists()
 }
 </script>
 

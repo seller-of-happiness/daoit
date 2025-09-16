@@ -19,9 +19,8 @@
                 <i :class="iconByFile(f)" class="text-base sm:text-lg text-primary w-6 sm:w-8"></i>
                 <a
                     :href="fileUrl(f)"
-                    target="_blank"
-                    rel="noopener"
-                    class="flex-1 truncate hover:text-linkHover text-sm sm:text-base"
+                    :download="f.name"
+                    class="flex-1 truncate hover:text-linkHover text-sm sm:text-base cursor-pointer"
                     >{{ f.name }}</a
                 >
                 <div
@@ -37,11 +36,11 @@
                 </div>
                 <div class="w-10 flex justify-end">
                     <Button
-                        icon="pi pi-trash"
-                        severity="danger"
+                        icon="pi pi-cog"
+                        severity="secondary"
                         text
                         rounded
-                        @click="$emit('remove', f.id)"
+                        @click="$emit('edit', f)"
                     />
                 </div>
             </li>
@@ -54,7 +53,10 @@ import type { IEmployeeFile } from '@/refactoring/modules/files/types/IEmployeeF
 import { BASE_URL } from '@/refactoring/environment/environment'
 
 defineProps<{ files: IEmployeeFile[] }>()
-defineEmits<{ (e: 'remove', id: number): void }>()
+defineEmits<{ 
+  (e: 'remove', id: number): void
+  (e: 'edit', file: IEmployeeFile): void
+}>()
 
 const fileUrl = (f: IEmployeeFile): string => {
     const path = f.file

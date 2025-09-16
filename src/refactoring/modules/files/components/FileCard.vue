@@ -5,20 +5,19 @@
             <div class="flex items-start justify-between gap-3">
                 <a
                     :href="fileUrl"
-                    target="_blank"
-                    rel="noopener"
-                    class="font-semibold hover:text-linkHover truncate"
+                    :download="file.name"
+                    class="font-semibold hover:text-linkHover truncate cursor-pointer"
                     >{{ file.name }}</a
                 >
                 <div class="flex items-center gap-2">
                     <span class="badge" :class="badgeClass">{{ visibilityLabel }}</span>
                     <Button
                         v-if="!hideRemove"
-                        icon="pi pi-trash"
-                        severity="danger"
+                        icon="pi pi-cog"
+                        severity="secondary"
                         text
                         rounded
-                        @click="$emit('remove', file.id)"
+                        @click="$emit('edit', file)"
                     />
                 </div>
             </div>
@@ -38,6 +37,10 @@ import type { IEmployeeFile } from '@/refactoring/modules/files/types/IEmployeeF
 import { BASE_URL } from '@/refactoring/environment/environment'
 
 const props = defineProps<{ file: IEmployeeFile; hideRemove?: boolean }>()
+defineEmits<{ 
+  (e: 'remove', id: number): void
+  (e: 'edit', file: IEmployeeFile): void
+}>()
 
 const fileUrl = computed(() => {
     const path = props.file.file
