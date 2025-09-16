@@ -373,9 +373,17 @@ const openAddVersionDialog = (document: IDocument) => {
     showAddVersionDialog.value = true
 }
 
-const openEditDocumentDialog = (document: IDocument) => {
-    selectedDocument.value = document
-    showEditDocumentDialog.value = true
+const openEditDocumentDialog = async (document: IDocument) => {
+    try {
+        // Fetch detailed document information including versions
+        const detailedDocument = await documentsStore.fetchDocumentDetails(document.id)
+        selectedDocument.value = detailedDocument
+        showEditDocumentDialog.value = true
+    } catch (error) {
+        // Error is already handled in store, but fallback to basic document info
+        selectedDocument.value = document
+        showEditDocumentDialog.value = true
+    }
 }
 
 const confirmDeleteFolder = (folder: IDocumentFolder) => {
