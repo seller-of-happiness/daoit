@@ -574,7 +574,7 @@ watch(
 }
 
 .danger-zone {
-    @apply p-4 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20;
+    @apply p-4 border border-red-500 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20;
 }
 
 .danger-zone h5 {
