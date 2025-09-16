@@ -19,7 +19,10 @@
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Тип:</span>
-                        <span class="detail-value">{{ document?.type?.name || getFileTypeByExtension(document?.extension || '') }}</span>
+                        <span class="detail-value">{{
+                            document?.type?.name ||
+                            getFileTypeByExtension(document?.extension || '')
+                        }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Размер:</span>
@@ -27,11 +30,15 @@
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Создан:</span>
-                        <span class="detail-value">{{ formatDate(document?.created_at || '') }}</span>
+                        <span class="detail-value">{{
+                            formatDate(document?.created_at || '')
+                        }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Последнее изменение:</span>
-                        <span class="detail-value">{{ formatDate(document?.updated_at || '') }}</span>
+                        <span class="detail-value">{{
+                            formatDate(document?.updated_at || '')
+                        }}</span>
                     </div>
                 </div>
             </div>
@@ -56,7 +63,7 @@
                                 <ProgressSpinner size="small" />
                                 <span>Загрузка версий...</span>
                             </div>
-                            
+
                             <div v-else-if="documentVersions.length === 0" class="empty-versions">
                                 <i class="pi pi-file-o"></i>
                                 <p>У документа пока нет дополнительных версий</p>
@@ -75,16 +82,20 @@
                                     <div>Описание</div>
                                     <div>Действия</div>
                                 </div>
-                                
-                                <div 
-                                    v-for="version in documentVersions" 
+
+                                <div
+                                    v-for="version in documentVersions"
                                     :key="version.id"
                                     class="version-row"
                                 >
                                     <div class="version-number">{{ version.version_number }}</div>
-                                    <div class="version-date">{{ formatDate(version.created_at) }}</div>
+                                    <div class="version-date">
+                                        {{ formatDate(version.created_at) }}
+                                    </div>
                                     <div class="version-author">{{ version.created_by }}</div>
-                                    <div class="version-description">{{ version.description || '—' }}</div>
+                                    <div class="version-description">
+                                        {{ version.description || '—' }}
+                                    </div>
                                     <div class="version-actions">
                                         <Button
                                             icon="pi pi-download"
@@ -571,18 +582,6 @@ watch(
 
 .action-buttons {
     @apply flex gap-2 flex-wrap;
-}
-
-.danger-zone {
-    @apply p-4 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20;
-}
-
-.danger-zone h5 {
-    @apply text-red-700 dark:text-red-300;
-}
-
-.danger-text {
-    @apply text-red-600 dark:text-red-400 text-xs mt-2 block;
 }
 
 /* Адаптивность */
