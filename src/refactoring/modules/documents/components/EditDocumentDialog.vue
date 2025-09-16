@@ -72,11 +72,8 @@
                     <div v-else class="versions-table">
                         <div class="version-header">
                             <div>Версия</div>
-                            <div>Статус</div>
                             <div>Размер</div>
                             <div>Дата создания</div>
-                            <div>Создатель</div>
-                            <div>Описание</div>
                             <div>Действия</div>
                         </div>
 
@@ -86,16 +83,9 @@
                             class="version-row"
                         >
                             <div class="version-number">{{ version.version }}</div>
-                            <div class="version-status">
-                                <StatusChip :status="version.status" />
-                            </div>
                             <div class="version-size">{{ formatFileSize(version.size) }}</div>
                             <div class="version-date">
                                 {{ formatDate(version.created_at) }}
-                            </div>
-                            <div class="version-author">{{ version.created_by }}</div>
-                            <div class="version-description">
-                                {{ version.description || '—' }}
                             </div>
                             <div class="version-actions">
                                 <Button
@@ -166,7 +156,6 @@ import { useDocumentsStore } from '@/refactoring/modules/documents/stores/docume
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import type { IDocument, IDocumentVersion, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
 import AddVersionDialog from './AddVersionDialog.vue'
-import StatusChip from '@/components/StatusChip.vue'
 import { BASE_URL } from '@/refactoring/environment/environment'
 
 interface Props {
@@ -486,11 +475,11 @@ const formatDate = (dateString: string): string => {
 }
 
 .version-header {
-    @apply grid grid-cols-[80px_100px_80px_140px_120px_1fr_100px] gap-4 p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200;
+    @apply grid grid-cols-[80px_80px_140px_100px] gap-4 p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200;
 }
 
 .version-row {
-    @apply grid grid-cols-[80px_100px_80px_140px_120px_1fr_100px] gap-4 p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm;
+    @apply grid grid-cols-[80px_80px_140px_100px] gap-4 p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm;
 }
 
 .version-row:last-child {
@@ -501,17 +490,11 @@ const formatDate = (dateString: string): string => {
     @apply font-medium text-primary;
 }
 
-.version-status,
 .version-size,
-.version-date,
-.version-author,
-.version-description {
+.version-date {
     @apply text-surface-700 dark:text-surface-200;
 }
 
-.version-description {
-    @apply truncate;
-}
 
 .version-actions {
     @apply flex items-center gap-1;
@@ -534,12 +517,10 @@ const formatDate = (dateString: string): string => {
 @media (max-width: 768px) {
     .version-header,
     .version-row {
-        @apply grid-cols-[60px_80px_1fr_80px] gap-2;
+        @apply grid-cols-[60px_1fr_80px] gap-2;
     }
 
-    .version-size,
-    .version-date,
-    .version-author {
+    .version-size {
         @apply hidden;
     }
 
