@@ -13,6 +13,7 @@ import type {
     ICreateDocumentPayload,
     ICreateFolderPayload,
     IListDocumentsPayload,
+    IDocumentDetailsResponse,
 } from '@/refactoring/modules/documents/types/IDocument'
 
 // Расширяем интерфейс состояния для кеша
@@ -461,6 +462,27 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     title: 'Ошибка',
                     message: 'Не удалось добавить версию документа',
                     time: 7000,
+                })
+                throw error
+            }
+        },
+
+        async fetchDocumentDetails(documentId: number): Promise<IDocumentDetailsResponse> {
+            try {
+                const response = await axios.get(`${BASE_URL}/api/documents/document/${documentId}/`)
+                return response.data
+            } catch (error) {
+                logger.error('documents_fetchDetails_error', {
+                    file: 'documentsStore',
+                    function: 'fetchDocumentDetails',
+                    documentId: documentId,
+                    condition: String(error),
+                })
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось загрузить детали документа',
+                    time: 5000,
                 })
                 throw error
             }

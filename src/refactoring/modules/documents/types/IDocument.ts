@@ -100,3 +100,20 @@ export interface IListDocumentsPayload {
     sort_by?: 'name' | 'size' | 'extension'
     sort_order?: 'ascending' | 'descending'
 }
+
+// Detailed document response interface (from /api/documents/document/{id}/)
+export interface IDocumentDetailsResponse {
+    id: number
+    type: number
+    name: string
+    number: string
+    visibility: 'creator' | 'public' | 'private' | 'department'
+    created_by: string
+    created_at: string
+    updated_at: string
+    virtual_path: string
+    type_name: string
+    status: string
+    approved_at: string | null
+    versions: IDocumentVersion[]
+}

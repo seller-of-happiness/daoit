@@ -164,14 +164,14 @@ import { ref, computed } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
-import type { IDocument, IDocumentVersion } from '@/refactoring/modules/documents/types/IDocument'
+import type { IDocument, IDocumentVersion, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
 import AddVersionDialog from './AddVersionDialog.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import { BASE_URL } from '@/refactoring/environment/environment'
 
 interface Props {
     visible: boolean
-    document: IDocument | null
+    document: IDocument | IDocumentDetailsResponse | null
 }
 
 interface Emits {
