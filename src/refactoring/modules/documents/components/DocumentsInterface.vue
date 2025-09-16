@@ -19,6 +19,54 @@
                 </div>
             </div>
 
+            <!-- Поиск документов -->
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <InputGroup class="search-input-group">
+                        <InputGroupAddon v-if="searchQuery">
+                            <Button
+                                icon="pi pi-times"
+                                severity="secondary"
+                                size="small"
+                                :disabled="documentsStore.isLoading"
+                                @click="clearSearch"
+                                v-tooltip.top="'Очистить поиск'"
+                            />
+                        </InputGroupAddon>
+
+                        <InputText
+                            v-model="searchQuery"
+                            placeholder="Поиск документов..."
+                            class="search-input"
+                            :disabled="documentsStore.isLoading"
+                            @keyup.enter="performSearch"
+                            @input="onSearchInput"
+                        />
+
+                        <InputGroupAddon>
+                            <Button
+                                icon="pi pi-search"
+                                severity="secondary"
+                                size="small"
+                                :disabled="documentsStore.isLoading"
+                                @click="performSearch"
+                                v-tooltip.top="'Поиск'"
+                            />
+                        </InputGroupAddon>
+                    </InputGroup>
+
+                    <Button
+                        v-if="searchQuery"
+                        icon="pi pi-times"
+                        label="Сбросить"
+                        severity="secondary"
+                        size="small"
+                        @click="resetSearch"
+                        class="reset-search-button"
+                    />
+                </div>
+            </div>
+
             <!-- Breadcrumbs -->
             <div class="breadcrumbs-container">
                 <div class="custom-breadcrumbs">
@@ -47,6 +95,17 @@
                         ></i>
                     </template>
                 </div>
+            </div>
+        </div>
+
+        <!-- Результаты поиска -->
+        <div v-if="searchQuery.trim()" class="search-results-info">
+            <div class="search-results-header">
+                <i class="pi pi-search text-primary mr-2"></i>
+                <span>Результаты поиска для: <strong>"{{ searchQuery.trim() }}"</strong></span>
+                <span class="search-results-count">
+                    (найдено: {{ documentsStore.currentItems.length }})
+                </span>
             </div>
         </div>
 
@@ -194,12 +253,23 @@
                         </div>
                     </div>
 
-                    <!-- Сообщение о пустой папке -->
+                    <!-- Сообщение о пустом состоянии -->
                     <div v-if="documentsStore.currentItems.length === 0" class="empty-state">
                         <div class="empty-state-content">
-                            <i class="pi pi-folder-open empty-icon"></i>
-                            <h4>Папка пуста</h4>
-                            <p>Создайте новую папку или загрузите документ</p>
+                            <i 
+                                :class="searchQuery.trim() ? 'pi pi-search' : 'pi pi-folder-open'"
+                                class="empty-icon"
+                            ></i>
+                            <h4>
+                                {{ searchQuery.trim() ? 'Ничего не найдено' : 'Папка пуста' }}
+                            </h4>
+                            <p>
+                                {{ 
+                                    searchQuery.trim() 
+                                        ? 'Попробуйте изменить поисковый запрос' 
+                                        : 'Создайте новую папку или загрузите документ' 
+                                }}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -270,6 +340,10 @@ const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | null>(null)
 
+// Поиск
+const searchQuery = ref<string>('')
+const searchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+
 // Сортировка
 const currentSort = ref<{
     field: 'name' | 'size' | 'extension' | null
@@ -327,10 +401,46 @@ const refreshDocuments = async () => {
             payload.sort_order = currentSort.value.order
         }
 
+        // Добавляем поисковый запрос, если он есть
+        if (searchQuery.value.trim()) {
+            payload.search = searchQuery.value.trim()
+        }
+
         await documentsStore.fetchDocuments(payload)
     } catch (error) {
         // Error handled in store
     }
+}
+
+// Методы поиска
+const performSearch = async () => {
+    if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value)
+        searchTimeout.value = null
+    }
+    
+    await refreshDocuments()
+}
+
+const onSearchInput = () => {
+    // Дебаунс поиска - выполняем поиск через 500мс после остановки ввода
+    if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value)
+    }
+    
+    searchTimeout.value = setTimeout(() => {
+        performSearch()
+    }, 500)
+}
+
+const clearSearch = async () => {
+    searchQuery.value = ''
+    await performSearch()
+}
+
+const resetSearch = async () => {
+    searchQuery.value = ''
+    await performSearch()
 }
 
 const navigateToBreadcrumb = (crumb: { name: string; path: string; id: string | null }) => {
@@ -517,8 +627,9 @@ const navigateToFolder = async (folder: IDocumentFolder) => {
     try {
         await documentsStore.navigateToFolder(folder)
         documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе в папку
+        // Сброс сортировки и поиска при переходе в папку
         currentSort.value = { field: null, order: 'ascending' }
+        searchQuery.value = ''
     } catch (error) {
         // Error handled in store
     }
@@ -528,8 +639,9 @@ const navigateToPath = async (path: string) => {
     try {
         await documentsStore.navigateToPath(path)
         documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе по пути
+        // Сброс сортировки и поиска при переходе по пути
         currentSort.value = { field: null, order: 'ascending' }
+        searchQuery.value = ''
     } catch (error) {
         // Error handled in store
     }
@@ -539,8 +651,9 @@ const navigateToFolderId = async (folderId: string) => {
     try {
         await documentsStore.navigateToFolderId(folderId)
         documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе по ID папки
+        // Сброс сортировки и поиска при переходе по ID папки
         currentSort.value = { field: null, order: 'ascending' }
+        searchQuery.value = ''
     } catch (error) {
         // Error handled in store
     }
@@ -550,8 +663,9 @@ const navigateUp = async () => {
     try {
         await documentsStore.navigateUp()
         documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе вверх
+        // Сброс сортировки и поиска при переходе вверх
         currentSort.value = { field: null, order: 'ascending' }
+        searchQuery.value = ''
     } catch (error) {
         // Error handled in store
     }
@@ -629,8 +743,9 @@ watch(
 
             if (targetPath !== documentsStore.currentPath) {
                 await documentsStore.fetchDocuments({ path: targetPath })
-                // Сброс сортировки при изменении пути через URL
+                // Сброс сортировки и поиска при изменении пути через URL
                 currentSort.value = { field: null, order: 'ascending' }
+                searchQuery.value = ''
             }
         } catch (error) {
             // Error is handled in the store
@@ -646,6 +761,11 @@ onMounted(async () => {
 
 onUnmounted(() => {
     documentsStore.cleanup()
+    // Очищаем timeout поиска при размонтировании компонента
+    if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value)
+        searchTimeout.value = null
+    }
 })
 </script>
 
@@ -668,6 +788,38 @@ onUnmounted(() => {
 
 .toolbar-actions {
     @apply flex gap-2;
+}
+
+.search-container {
+    @apply px-4 pb-3 border-b border-surface-200 dark:border-surface-700;
+}
+
+.search-wrapper {
+    @apply flex items-center gap-3;
+}
+
+.search-input-group {
+    @apply flex-1 max-w-md;
+}
+
+.search-input {
+    @apply flex-1;
+}
+
+.reset-search-button {
+    @apply ml-2;
+}
+
+.search-results-info {
+    @apply px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-200 dark:border-primary-800;
+}
+
+.search-results-header {
+    @apply flex items-center text-sm text-primary-700 dark:text-primary-300;
+}
+
+.search-results-count {
+    @apply ml-2 text-surface-600 dark:text-surface-400 font-normal;
 }
 
 .breadcrumbs-container {

@@ -95,6 +95,8 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 requestPath = this.currentPath
             }
 
+            this.isLoading = true
+
             try {
                 const requestPayload: Record<string, any> = {
                     path: requestPath,
@@ -160,6 +162,8 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     time: 5000,
                 })
                 throw error
+            } finally {
+                this.isLoading = false
             }
         },
 
