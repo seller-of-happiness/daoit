@@ -18,15 +18,23 @@
                         <span class="detail-value">{{ document?.name }}</span>
                     </div>
                     <div class="detail-row">
+                        <span class="detail-label">Номер:</span>
+                        <span class="detail-value">{{ document?.number || '—' }}</span>
+                    </div>
+                    <div class="detail-row">
                         <span class="detail-label">Тип:</span>
                         <span class="detail-value">{{
-                            document?.type?.name ||
+                            document?.type_name ||
                             getFileTypeByExtension(document?.extension || '')
                         }}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Размер:</span>
-                        <span class="detail-value">{{ formatFileSize(document?.size || 0) }}</span>
+                        <span class="detail-label">Статус:</span>
+                        <span class="detail-value">{{ document?.status || '—' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Видимость:</span>
+                        <span class="detail-value">{{ getVisibilityLabel(document?.visibility) }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Создан:</span>
@@ -40,131 +48,103 @@
                             formatDate(document?.updated_at || '')
                         }}</span>
                     </div>
+                    <div v-if="document?.approved_at" class="detail-row">
+                        <span class="detail-label">Утвержден:</span>
+                        <span class="detail-value">{{
+                            formatDate(document.approved_at)
+                        }}</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Вкладки -->
-            <TabView class="document-tabs">
-                <!-- История версий -->
-                <TabPanel header="История версий">
-                    <div class="versions-section">
-                        <div class="section-header">
-                            <h5>Версии документа</h5>
-                            <Button
-                                icon="pi pi-plus"
-                                label="Добавить версию"
-                                size="small"
-                                @click="showAddVersionDialog = true"
-                            />
+            <!-- Список версий -->
+            <div class="versions-section">
+                <div class="section-header">
+                    <h4>Версии документа</h4>
+                </div>
+
+                <div class="versions-list">
+                    <div v-if="!document?.versions || document.versions.length === 0" class="empty-versions">
+                        <i class="pi pi-file-o"></i>
+                        <p>У документа пока нет версий</p>
+                    </div>
+
+                    <div v-else class="versions-table">
+                        <div class="version-header">
+                            <div>Версия</div>
+                            <div>Статус</div>
+                            <div>Размер</div>
+                            <div>Дата создания</div>
+                            <div>Создатель</div>
+                            <div>Описание</div>
+                            <div>Действия</div>
                         </div>
 
-                        <div class="versions-list">
-                            <div v-if="isLoadingVersions" class="loading-state">
-                                <ProgressSpinner size="small" />
-                                <span>Загрузка версий...</span>
+                        <div
+                            v-for="version in document.versions"
+                            :key="version.id"
+                            class="version-row"
+                        >
+                            <div class="version-number">{{ version.version }}</div>
+                            <div class="version-status">
+                                <StatusChip :status="version.status" />
                             </div>
-
-                            <div v-else-if="documentVersions.length === 0" class="empty-versions">
-                                <i class="pi pi-file-o"></i>
-                                <p>У документа пока нет дополнительных версий</p>
+                            <div class="version-size">{{ formatFileSize(version.size) }}</div>
+                            <div class="version-date">
+                                {{ formatDate(version.created_at) }}
+                            </div>
+                            <div class="version-author">{{ version.created_by }}</div>
+                            <div class="version-description">
+                                {{ version.description || '—' }}
+                            </div>
+                            <div class="version-actions">
                                 <Button
-                                    label="Добавить первую версию"
+                                    icon="pi pi-download"
+                                    severity="secondary"
+                                    text
                                     size="small"
-                                    @click="showAddVersionDialog = true"
+                                    @click="downloadVersion(version)"
+                                    v-tooltip.top="'Скачать эту версию'"
+                                />
+                                <Button
+                                    icon="pi pi-trash"
+                                    severity="danger"
+                                    text
+                                    size="small"
+                                    @click="confirmDeleteVersion(version)"
+                                    v-tooltip.top="'Удалить версию'"
                                 />
                             </div>
-
-                            <div v-else class="versions-table">
-                                <div class="version-header">
-                                    <div>Версия</div>
-                                    <div>Дата создания</div>
-                                    <div>Создатель</div>
-                                    <div>Описание</div>
-                                    <div>Действия</div>
-                                </div>
-
-                                <div
-                                    v-for="version in documentVersions"
-                                    :key="version.id"
-                                    class="version-row"
-                                >
-                                    <div class="version-number">{{ version.version_number }}</div>
-                                    <div class="version-date">
-                                        {{ formatDate(version.created_at) }}
-                                    </div>
-                                    <div class="version-author">{{ version.created_by }}</div>
-                                    <div class="version-description">
-                                        {{ version.description || '—' }}
-                                    </div>
-                                    <div class="version-actions">
-                                        <Button
-                                            icon="pi pi-download"
-                                            severity="secondary"
-                                            text
-                                            size="small"
-                                            @click="downloadVersion(version)"
-                                            v-tooltip.top="'Скачать эту версию'"
-                                        />
-                                        <Button
-                                            icon="pi pi-trash"
-                                            severity="danger"
-                                            text
-                                            size="small"
-                                            @click="confirmDeleteVersion(version)"
-                                            v-tooltip.top="'Удалить версию'"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
-                </TabPanel>
+                </div>
+            </div>
 
-                <!-- Управление документом -->
-                <TabPanel header="Управление">
-                    <div class="management-section">
-                        <div class="management-actions">
-                            <div class="action-group">
-                                <h5>Действия с документом</h5>
-                                <div class="action-buttons">
-                                    <Button
-                                        icon="pi pi-download"
-                                        label="Скачать документ"
-                                        severity="secondary"
-                                        @click="downloadDocument"
-                                    />
-                                    <Button
-                                        icon="pi pi-eye"
-                                        label="Просмотреть"
-                                        severity="secondary"
-                                        @click="viewDocument"
-                                    />
-                                    <Button
-                                        icon="pi pi-upload"
-                                        label="Добавить версию"
-                                        @click="showAddVersionDialog = true"
-                                    />
-                                </div>
-                            </div>
-
-                            <div class="action-group danger-zone">
-                                <h5>Опасная зона</h5>
-                                <div class="action-buttons">
-                                    <Button
-                                        icon="pi pi-trash"
-                                        label="Удалить документ"
-                                        severity="danger"
-                                        @click="confirmDeleteDocument"
-                                    />
-                                </div>
-                                <small class="danger-text">
-                                    Удаление документа необратимо. Все версии будут удалены.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </TabPanel>
-            </TabView>
+            <!-- Действия с документом -->
+            <div class="document-actions-section">
+                <div class="action-buttons">
+                    <Button
+                        icon="pi pi-upload"
+                        label="Добавить версию"
+                        @click="showAddVersionDialog = true"
+                    />
+                    <Button
+                        icon="pi pi-download"
+                        label="Скачать файл"
+                        severity="secondary"
+                        @click="downloadDocument"
+                    />
+                    <Button
+                        icon="pi pi-trash"
+                        label="Удалить файл"
+                        severity="danger"
+                        @click="confirmDeleteDocument"
+                    />
+                </div>
+                <small class="danger-text">
+                    Удаление документа необратимо. Все версии будут удалены.
+                </small>
+            </div>
         </div>
 
         <!-- Диалог добавления версии (встроенный) -->
@@ -180,12 +160,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import type { IDocument, IDocumentVersion } from '@/refactoring/modules/documents/types/IDocument'
 import AddVersionDialog from './AddVersionDialog.vue'
+import StatusChip from '@/components/StatusChip.vue'
 import { BASE_URL } from '@/refactoring/environment/environment'
 
 interface Props {
@@ -212,25 +193,9 @@ const dialogVisible = computed({
 
 // Состояние
 const showAddVersionDialog = ref(false)
-const documentVersions = ref<IDocumentVersion[]>([])
-const isLoadingVersions = ref(false)
-
-// Методы для работы с версиями
-const loadDocumentVersions = async () => {
-    if (!props.document) return
-
-    isLoadingVersions.value = true
-    try {
-        documentVersions.value = await documentsStore.fetchDocumentVersions(props.document.id)
-    } catch (error) {
-        // Error is already handled in store
-    } finally {
-        isLoadingVersions.value = false
-    }
-}
 
 const downloadVersion = (version: IDocumentVersion) => {
-    const url = version.download_url || version.file_url
+    const url = version.download_url || version.file_url || version.file
     if (!url) {
         useFeedbackStore().showToast({
             type: 'error',
@@ -245,7 +210,7 @@ const downloadVersion = (version: IDocumentVersion) => {
         const downloadUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
         const link = window.document.createElement('a')
         link.href = downloadUrl
-        link.download = `${props.document?.name}_v${version.version_number}` || 'download'
+        link.download = `${props.document?.name}_v${version.version}` || 'download'
         link.target = '_blank'
 
         window.document.body.appendChild(link)
@@ -272,7 +237,7 @@ const confirmDeleteVersion = (version: IDocumentVersion) => {
     if (!props.document) return
 
     confirm.require({
-        message: `Вы уверены, что хотите удалить версию ${version.version_number}?`,
+        message: `Вы уверены, что хотите удалить версию ${version.version}?`,
         header: 'Подтверждение удаления',
         icon: 'pi pi-exclamation-triangle',
         acceptLabel: 'Удалить',
@@ -281,7 +246,8 @@ const confirmDeleteVersion = (version: IDocumentVersion) => {
         accept: async () => {
             try {
                 await documentsStore.deleteDocumentVersion(props.document!.id, version.id)
-                await loadDocumentVersions()
+                // Версии теперь приходят в составе документа, поэтому нужно обновить документ
+                // или обновить локальные данные
             } catch (error) {
                 // Error is already handled in store
             }
@@ -383,15 +349,24 @@ const confirmDeleteDocument = () => {
 // Обработчики событий
 const onVersionAdded = () => {
     showAddVersionDialog.value = false
-    loadDocumentVersions()
+    // Версии теперь приходят в составе документа при обновлении
 }
 
 const resetForm = () => {
     showAddVersionDialog.value = false
-    documentVersions.value = []
 }
 
 // Утилиты
+const getVisibilityLabel = (visibility?: string): string => {
+    const visibilityMap: Record<string, string> = {
+        creator: 'Только создатель',
+        public: 'Публичный',
+        private: 'Приватный',
+        department: 'Отдел',
+    }
+    return visibilityMap[visibility || ''] || visibility || '—'
+}
+
 const getFileTypeByExtension = (extension: string): string => {
     const ext = extension.toLowerCase()
     const typeMap: Record<string, string> = {
@@ -444,17 +419,7 @@ const formatDate = (dateString: string): string => {
     }
 }
 
-// Watchers
-watch(
-    () => props.visible,
-    (visible) => {
-        if (visible && props.document) {
-            loadDocumentVersions()
-        } else {
-            resetForm()
-        }
-    },
-)
+// Watchers - версии теперь приходят в составе документа, поэтому отдельная загрузка не нужна
 </script>
 
 <style scoped>
@@ -495,26 +460,13 @@ watch(
     @apply text-sm text-surface-900 dark:text-surface-0;
 }
 
-/* Вкладки */
-.document-tabs {
-    @apply mt-4;
-}
-
 /* Версии */
 .versions-section {
-    @apply space-y-4;
-}
-
-.section-header {
-    @apply flex items-center justify-between;
+    @apply bg-surface-50 dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700 space-y-4;
 }
 
 .versions-list {
     @apply min-h-[200px];
-}
-
-.loading-state {
-    @apply flex items-center justify-center gap-3 p-8 text-surface-600 dark:text-surface-300;
 }
 
 .empty-versions {
@@ -534,11 +486,11 @@ watch(
 }
 
 .version-header {
-    @apply grid grid-cols-[80px_140px_120px_1fr_100px] gap-4 p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200;
+    @apply grid grid-cols-[80px_100px_80px_140px_120px_1fr_100px] gap-4 p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200;
 }
 
 .version-row {
-    @apply grid grid-cols-[80px_140px_120px_1fr_100px] gap-4 p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm;
+    @apply grid grid-cols-[80px_100px_80px_140px_120px_1fr_100px] gap-4 p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm;
 }
 
 .version-row:last-child {
@@ -549,6 +501,8 @@ watch(
     @apply font-medium text-primary;
 }
 
+.version-status,
+.version-size,
 .version-date,
 .version-author,
 .version-description {
@@ -563,37 +517,34 @@ watch(
     @apply flex items-center gap-1;
 }
 
-/* Управление */
-.management-section {
-    @apply space-y-6;
-}
-
-.management-actions {
-    @apply space-y-6;
-}
-
-.action-group {
-    @apply space-y-3;
-}
-
-.action-group h5 {
-    @apply text-base font-semibold text-surface-900 dark:text-surface-0 m-0;
+/* Действия с документом */
+.document-actions-section {
+    @apply bg-surface-50 dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700 space-y-3;
 }
 
 .action-buttons {
     @apply flex gap-2 flex-wrap;
 }
 
+.danger-text {
+    @apply text-surface-500 dark:text-surface-400 text-xs;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
     .version-header,
     .version-row {
-        @apply grid-cols-[60px_1fr_80px] gap-2;
+        @apply grid-cols-[60px_80px_1fr_80px] gap-2;
     }
 
+    .version-size,
     .version-date,
     .version-author {
         @apply hidden;
+    }
+
+    .action-buttons {
+        @apply flex-col;
     }
 }
 </style>
