@@ -801,7 +801,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         arrayToPath(pathArray: string[]): string {
             if (!pathArray || pathArray.length === 0) return '/'
-            return pathArray.join('/')
+            return '/' + pathArray.join('/')
         },
 
         getUrlFromCurrentState(): string {
