@@ -230,7 +230,6 @@ const handleSubmit = async () => {
         emit('added')
         resetForm()
     } catch (error) {
-        // Error is handled in the store
     } finally {
         isLoading.value = false
     }

@@ -21,21 +21,33 @@
 
             <!-- Breadcrumbs -->
             <div class="breadcrumbs-container">
-                <Breadcrumb :model="breadcrumbItems" class="breadcrumbs">
-                    <template #item="{ item }">
+                <div class="custom-breadcrumbs">
+                    <template v-for="(crumb, index) in documentsStore.breadcrumbs" :key="index">
                         <span
-                            v-if="item.command"
-                            @click="(event) => item.command?.({ originalEvent: event, item: item })"
+                            v-if="index < documentsStore.breadcrumbs.length - 1"
+                            @click="navigateToBreadcrumb(crumb)"
                             class="breadcrumb-item clickable"
+                            :title="crumb.name"
+                            v-tooltip.top="crumb.name"
                         >
-                            {{ item.label }}
+                            {{ truncateBreadcrumbName(crumb.name) }}
                         </span>
-                        <span v-else class="breadcrumb-item">{{ item.label }}</span>
-                    </template>
-                </Breadcrumb>
-            </div>
+                        <span
+                            v-else
+                            class="breadcrumb-item current"
+                            :title="crumb.name"
+                            v-tooltip.top="crumb.name"
+                        >
+                            {{ truncateBreadcrumbName(crumb.name) }}
+                        </span>
 
-            <!-- Панель выбора -->
+                        <i
+                            v-if="index < documentsStore.breadcrumbs.length - 1"
+                            class="pi pi-chevron-right breadcrumb-separator"
+                        ></i>
+                    </template>
+                </div>
+            </div>
         </div>
 
         <!-- Основная таблица документов -->
@@ -43,10 +55,7 @@
             <div class="table-card">
                 <!-- Заголовок таблицы -->
                 <div class="table-header">
-                    <div class="table-header-cell name-cell">
-                        <!-- <i class="pi pi-sort-alt"></i> -->
-                        Название
-                    </div>
+                    <div class="table-header-cell name-cell">Название</div>
                     <div class="table-header-cell type-cell">Тип</div>
                     <div class="table-header-cell size-cell">Размер</div>
                     <div class="table-header-cell date-cell">Дата изменения</div>
@@ -217,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
@@ -238,7 +247,6 @@ const props = withDefaults(defineProps<Props>(), {
     path: () => [],
 })
 
-
 const documentsStore = useDocumentsStore()
 const confirm = useConfirm()
 const route = useRoute()
@@ -250,23 +258,20 @@ const showCreateDocumentDialog = ref(false)
 const showAddVersionDialog = ref(false)
 const selectedDocument = ref<IDocument | null>(null)
 
-// Breadcrumbs
-const breadcrumbItems = computed(() => {
-    return documentsStore.breadcrumbs.map((crumb, index) => ({
-        label: crumb.name,
-        command:
-            index < documentsStore.breadcrumbs.length - 1
-                ? () => {
-                      if (crumb.id) {
-                          navigateToFolderId(crumb.id)
-                      } else {
-                          navigateToPath(crumb.path)
-                      }
-                  }
-                : undefined,
-    }))
-})
+const navigateToBreadcrumb = (crumb: { name: string; path: string; id: string | null }) => {
+    if (crumb.id) {
+        navigateToFolderId(crumb.id)
+    } else {
+        navigateToPath(crumb.path)
+    }
+}
 
+const truncateBreadcrumbName = (name: string, maxLength: number = 30): string => {
+    if (name.length <= maxLength) {
+        return name
+    }
+    return name.substring(0, maxLength) + '...'
+}
 
 const onFolderCreated = () => {
     showCreateFolderDialog.value = false
@@ -299,12 +304,10 @@ const confirmDeleteFolder = (folder: IDocumentFolder) => {
         rejectLabel: 'Отмена',
         acceptClass: 'p-button-danger',
         accept: () => {
-            return documentsStore
-                .deleteFolder(folder.id!)
-                .catch((error) => {
-                    throw error
-                })
-        }
+            return documentsStore.deleteFolder(folder.id!).catch((error) => {
+                throw error
+            })
+        },
     })
 }
 
@@ -330,7 +333,6 @@ const confirmDeleteDocument = (document: IDocument) => {
     })
 }
 
-
 const downloadDocument = (document: IDocument) => {
     const url = document.download_url || document.file_url
     if (!url) {
@@ -344,21 +346,16 @@ const downloadDocument = (document: IDocument) => {
     }
 
     try {
-        // Проверяем, является ли URL относительным
         const downloadUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-
-        // Создаем временную ссылку для скачивания
         const link = window.document.createElement('a')
         link.href = downloadUrl
         link.download = document.name || 'download'
         link.target = '_blank'
 
-        // Добавляем в DOM, кликаем и удаляем
         window.document.body.appendChild(link)
         link.click()
         window.document.body.removeChild(link)
 
-        // Показываем уведомление об успехе
         useFeedbackStore().showToast({
             type: 'success',
             title: 'Успех',
@@ -388,22 +385,19 @@ const viewDocument = (document: IDocument) => {
     }
 
     try {
-        // Проверяем, является ли URL относительным
         const viewUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+        //const newWindow = window.open(viewUrl, '_blank')
+        console.log(viewUrl)
 
-        // Открываем документ в новой вкладке
-        const newWindow = window.open(viewUrl, '_blank')
-
-        // Проверяем, удалось ли открыть окно (может быть заблокировано блокировщиком попапов)
-        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-            useFeedbackStore().showToast({
-                type: 'warn',
-                title: 'Внимание',
-                message:
-                    'Возможно, браузер заблокировал открытие новой вкладки. Попробуйте скачать документ.',
-                time: 7000,
-            })
-        }
+        // if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        //     useFeedbackStore().showToast({
+        //         type: 'warn',
+        //         title: 'Внимание',
+        //         message:
+        //             'Возможно, браузер заблокировал открытие новой вкладки. Попробуйте скачать документ.',
+        //         time: 7000,
+        //     })
+        // }
     } catch (error) {
         useFeedbackStore().showToast({
             type: 'error',
@@ -438,36 +432,36 @@ const getFileTypeByExtension = (extension: string): string => {
 const navigateToFolder = async (folder: IDocumentFolder) => {
     try {
         await documentsStore.navigateToFolder(folder)
-        // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
+        // Error handled in store
     }
 }
 
 const navigateToPath = async (path: string) => {
     try {
         await documentsStore.navigateToPath(path)
-        // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
+        // Error handled in store
     }
 }
 
 const navigateToFolderId = async (folderId: string) => {
     try {
         await documentsStore.navigateToFolderId(folderId)
-        // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
+        // Error handled in store
     }
 }
 
 const navigateUp = async () => {
     try {
         await documentsStore.navigateUp()
-        // Обновляем URL после успешной навигации
         documentsStore.updateUrl(router)
     } catch (error) {
+        // Error handled in store
     }
 }
 
@@ -476,9 +470,7 @@ const copyFolderLink = (folder: IDocumentFolder) => {
         let fullUrl: string
 
         if (folder.path && folder.path !== '/') {
-            // Создаем URL для папки на основе пути
             const pathArray = documentsStore.pathToArray(folder.path)
-
             const routeParams = {
                 name: ERouteNames.DOCUMENTS_FOLDER,
                 params: { pathMatch: pathArray },
@@ -588,29 +580,25 @@ onUnmounted(() => {
     @apply px-4 pb-3;
 }
 
-.breadcrumbs {
-    @apply p-0;
-    background: transparent;
+.custom-breadcrumbs {
+    @apply flex items-center gap-2 text-sm flex-wrap;
 }
 
 .breadcrumb-item {
-    @apply text-sm;
+    @apply text-surface-600 dark:text-surface-300 transition-colors whitespace-nowrap;
+    max-width: 200px;
 }
 
 .breadcrumb-item.clickable {
-    @apply cursor-pointer text-primary hover:text-primary-600;
+    @apply cursor-pointer text-primary hover:text-primary-600 hover:underline;
 }
 
-.selection-panel {
-    @apply flex items-center justify-between px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-t border-primary-200 dark:border-primary-800;
+.breadcrumb-item.current {
+    @apply font-medium text-surface-900 dark:text-surface-0;
 }
 
-.selection-info {
-    @apply text-sm font-medium text-primary-700 dark:text-primary-300;
-}
-
-.selection-actions {
-    @apply flex gap-2;
+.breadcrumb-separator {
+    @apply text-xs text-surface-400 dark:text-surface-500 mx-1;
 }
 
 .documents-table-container {
@@ -651,10 +639,6 @@ onUnmounted(() => {
 
 .table-cell {
     @apply flex items-center text-sm;
-}
-
-.select-cell {
-    @apply justify-center;
 }
 
 .name-cell {
