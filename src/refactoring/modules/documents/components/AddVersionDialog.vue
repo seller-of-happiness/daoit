@@ -84,6 +84,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
+import { formatFileSize, formatDate, getFileIcon } from '@/refactoring/modules/documents/utils/documentUtils'
 import type { IDocument, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
 
 interface Props {
@@ -135,64 +136,6 @@ const onFileClear = () => {
     selectedFile.value = null
 }
 
-// Утилиты
-const getFileIcon = (filename: string): string => {
-    const ext = filename.toLowerCase().split('.').pop() || ''
-
-    const iconMap: Record<string, string> = {
-        pdf: 'pi pi-file-pdf',
-        doc: 'pi pi-file-word',
-        docx: 'pi pi-file-word',
-        xls: 'pi pi-file-excel',
-        xlsx: 'pi pi-file-excel',
-        csv: 'pi pi-file-excel',
-        jpg: 'pi pi-image',
-        jpeg: 'pi pi-image',
-        png: 'pi pi-image',
-        gif: 'pi pi-image',
-        webp: 'pi pi-image',
-        svg: 'pi pi-image',
-        zip: 'pi pi-box',
-        rar: 'pi pi-box',
-        '7z': 'pi pi-box',
-        mp4: 'pi pi-video',
-        mov: 'pi pi-video',
-        avi: 'pi pi-video',
-        mkv: 'pi pi-video',
-        mp3: 'pi pi-volume-up',
-        wav: 'pi pi-volume-up',
-        ogg: 'pi pi-volume-up',
-    }
-
-    return iconMap[ext] || 'pi pi-file'
-}
-
-const formatFileSize = (bytes: number): string => {
-    const units = ['Б', 'КБ', 'МБ', 'ГБ']
-    let size = bytes
-    let unitIndex = 0
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-        size /= 1024
-        unitIndex++
-    }
-
-    return `${Math.round(size * 10) / 10} ${units[unitIndex]}`
-}
-
-const formatDate = (dateString: string): string => {
-    try {
-        return new Date(dateString).toLocaleDateString('ru-RU', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        })
-    } catch {
-        return dateString
-    }
-}
 
 // Валидация
 const validateForm = () => {

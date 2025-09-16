@@ -1,9 +1,18 @@
-import axios from 'axios'
 import { defineStore } from 'pinia'
-import { BASE_URL } from '@/refactoring/environment/environment'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import { logger } from '@/refactoring/utils/eventLogger'
-import { ERouteNames } from '@/router/ERouteNames'
+import { formatFileSize, formatDate, getDocumentIcon } from '@/refactoring/modules/documents/utils/documentUtils'
+import { 
+    folderIdToUrl, 
+    urlToFolderId, 
+    pathToUrl, 
+    urlToPath, 
+    pathToArray, 
+    arrayToPath, 
+    getParentPath 
+} from '@/refactoring/modules/documents/utils/pathUtils'
+import { NavigationService, type IBreadcrumb } from '@/refactoring/modules/documents/services/NavigationService'
+import { DocumentsApiService } from '@/refactoring/modules/documents/services/DocumentsApiService'
 import type {
     IDocumentsStoreState,
     IDocumentItem,
@@ -16,21 +25,15 @@ import type {
     IDocumentDetailsResponse,
 } from '@/refactoring/modules/documents/types/IDocument'
 
-// Расширяем интерфейс состояния для кеша
-interface IExtendedDocumentsStoreState extends IDocumentsStoreState {
-    _folderPathCache: Map<string, string>
+// Расширяем интерфейс состояния
+interface IExtendedDocumentsStoreState extends Omit<IDocumentsStoreState, 'breadcrumbs'> {
+    breadcrumbs: IBreadcrumb[]
+    // Сервисы
+    _navigationService: NavigationService
+    _apiService: DocumentsApiService
 }
 
-// Типы для API ответа
-interface IApiResponse {
-    path?: string
-    current_folder?: any
-    parent_folders?: any[]
-    virtual_path?: string
-    name?: string
-    path_parent?: string[] | string // Может быть массивом или строкой
-    items?: any[]
-}
+import type { IListDocumentsResponse } from '@/refactoring/modules/documents/types/ApiTypes'
 
 export const useDocumentsStore = defineStore('documentsStore', {
     state: (): IExtendedDocumentsStoreState => ({
@@ -42,12 +45,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         isLoading: false,
         selectedItems: new Set(),
         _urlUpdateTimeout: null as ReturnType<typeof setTimeout> | null,
-        // Добавляем кеш для хранения путей папок
-        _folderPathCache: new Map() as Map<string, string>,
         // Поля для поиска
         searchQuery: '',
         isSearchMode: false,
         searchTimeout: null as ReturnType<typeof setTimeout> | null,
+        // Сервисы
+        _navigationService: new NavigationService(),
+        _apiService: new DocumentsApiService(),
     }),
 
     getters: {
@@ -68,8 +72,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
     actions: {
         async fetchDocumentTypes(): Promise<void> {
             try {
-                const response = await axios.get(`${BASE_URL}/api/documents/type/`)
-                this.documentTypes = response.data?.results || response.data || []
+                this.documentTypes = await this._apiService.fetchDocumentTypes()
             } catch (error) {
                 logger.error('documents_fetchTypes_error', {
                     file: 'documentsStore',
@@ -86,63 +89,73 @@ export const useDocumentsStore = defineStore('documentsStore', {
             }
         },
 
-        async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
-            let requestPath = '/'
-
+        /**
+         * Определяет путь для запроса на основе payload
+         */
+        _getRequestPath(payload: IListDocumentsPayload): string {
             if (payload.folder_id) {
-                requestPath = payload.folder_id
+                return payload.folder_id
             } else if (payload.path) {
-                requestPath = payload.path === '/' ? '/' : payload.path
+                return payload.path === '/' ? '/' : payload.path
             } else if (this.currentFolderId) {
-                requestPath = this.currentFolderId
+                return this.currentFolderId
             } else {
-                requestPath = this.currentPath
+                return this.currentPath
+            }
+        },
+
+        /**
+         * Обрабатывает ответ API и обновляет состояние
+         */
+        _processApiResponse(data: IListDocumentsResponse, payload: IListDocumentsPayload): void {
+            if (!data || typeof data !== 'object') return
+
+            this.currentPath = data.path || this._getRequestPath(payload)
+            this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
+            this.currentItems = data.items || []
+
+            // Обновляем breadcrumbs только если не в режиме поиска
+            if (!payload.search) {
+                this._updateBreadcrumbs(data)
+            }
+        },
+
+        /**
+         * Обновляет breadcrumbs на основе данных API
+         */
+        _updateBreadcrumbs(data: IListDocumentsResponse): void {
+            // Кешируем путь текущей папки по её virtual_path
+            if (data.virtual_path && data.path) {
+                this._navigationService.cacheFolderPath(data.virtual_path, data.path)
             }
 
+            if (data.current_folder && data.parent_folders) {
+                this.breadcrumbs = this._navigationService.updateFolderChainFromApi(
+                    data.current_folder,
+                    data.parent_folders || [],
+                )
+            } else {
+                // Обрабатываем virtual_path или name с учетом path_parent (массив или строка)
+                const virtualPath = data.virtual_path || data.name || 'Документы'
+                const parentPaths = data.path_parent || null
+                this.breadcrumbs = this._navigationService.updateBreadcrumbsFromVirtualPath(
+                    virtualPath, 
+                    parentPaths, 
+                    this.currentPath
+                )
+            }
+        },
+
+        async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
+            const requestPath = this._getRequestPath(payload)
+
             try {
-                const requestPayload: Record<string, any> = {
+                const data = await this._apiService.fetchDocuments({
+                    ...payload,
                     path: requestPath,
-                    parent_folder: payload.parent_folder,
-                    page: payload.page || 1,
-                    page_size: payload.page_size || 100,
-                    search: payload.search || '',
-                }
+                })
 
-                // Добавляем параметры сортировки если они есть
-                if (payload.sort_by) {
-                    requestPayload.sort_by = payload.sort_by
-                    requestPayload.sort_order = payload.sort_order || 'ascending'
-                }
-
-                const response = await axios.post(`${BASE_URL}/api/documents/list/`, requestPayload)
-                const data = response.data
-
-                if (data && typeof data === 'object') {
-                    this.currentPath = data.path || requestPath
-                    this.currentFolderId =
-                        data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
-                    this.currentItems = data.items || []
-
-                    // Обновляем breadcrumbs только если не в режиме поиска
-                    if (!payload.search) {
-                        // Кешируем путь текущей папки по её virtual_path
-                        if (data.virtual_path && data.path) {
-                            this._folderPathCache.set(data.virtual_path, data.path)
-                        }
-
-                        if (data.current_folder && data.parent_folders) {
-                            this.updateFolderChainFromApi(
-                                data.current_folder,
-                                data.parent_folders || [],
-                            )
-                        } else {
-                            // Обрабатываем virtual_path или name с учетом path_parent (массив или строка)
-                            const virtualPath = data.virtual_path || data.name || 'Документы'
-                            const parentPaths = data.path_parent || null
-                            this.updateBreadcrumbsFromVirtualPath(virtualPath, parentPaths)
-                        }
-                    }
-                }
+                this._processApiResponse(data, payload)
             } catch (error) {
                 logger.error('documents_fetch_error', {
                     file: 'documentsStore',
@@ -151,6 +164,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     condition: String(error),
                 })
 
+                // Пытаемся загрузить корневую папку в случае ошибки
                 if (requestPath !== '/') {
                     try {
                         await this.fetchDocuments({ path: '/' })
@@ -280,112 +294,30 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
             await this.clearSearch()
 
-            let parentPath = this.currentPath.slice(0, -4)
-
-            if (!parentPath) {
-                parentPath = '/'
-            }
-
+            const parentPath = getParentPath(this.currentPath)
             await this.fetchDocuments({ path: parentPath })
         },
 
-        updateBreadcrumbsFromVirtualPath(
-            virtualPath: string,
-            parentPaths?: string[] | string | null,
-        ): void {
-            // Всегда начинаем с корневого элемента
-            this.breadcrumbs = [{ name: 'Документы', path: '/', id: null }]
 
-            // Если это корень, больше ничего не добавляем
-            if (!virtualPath || virtualPath === 'Документы' || virtualPath === '/') {
-                return
+        /**
+         * Обновляет текущий вид (обычный или поисковый)
+         */
+        async _refreshCurrentView(): Promise<void> {
+            if (this.isSearchMode && this.searchQuery) {
+                await this.searchDocuments(this.searchQuery)
+            } else {
+                await this.fetchDocuments()
             }
-
-            // Разделяем virtual_path по слешам
-            const folderNames = virtualPath
-                .split('/')
-                .map((name) => name.trim())
-                .filter(Boolean)
-
-            // Нормализуем parentPaths в массив
-            let parentPathsArray: string[] = []
-            if (Array.isArray(parentPaths)) {
-                parentPathsArray = parentPaths
-            } else if (typeof parentPaths === 'string') {
-                // Обратная совместимость: если пришла строка, делаем массив из одного элемента
-                parentPathsArray = [parentPaths]
-            }
-
-            // Добавляем каждую папку как отдельный breadcrumb
-            folderNames.forEach((folderName, index) => {
-                let breadcrumbPath: string
-
-                if (index === folderNames.length - 1) {
-                    // Для последней (текущей) папки используем реальный путь из API
-                    breadcrumbPath = this.currentPath
-                } else if (index < parentPathsArray.length) {
-                    // Для родительских папок используем соответствующий путь из массива path_parent
-                    breadcrumbPath = parentPathsArray[index]
-                } else {
-                    // Fallback: пытаемся найти в кеше или составляем путь
-                    const parentVirtualPath = folderNames.slice(0, index + 1).join('/')
-                    breadcrumbPath =
-                        this._folderPathCache.get(parentVirtualPath) || parentVirtualPath
-                }
-
-                this.breadcrumbs.push({
-                    name: folderName,
-                    path: breadcrumbPath,
-                    id: null,
-                })
-            })
-
-            // Кешируем все пути из parentPathsArray для будущего использования
-            if (parentPathsArray.length > 0) {
-                folderNames.forEach((folderName, index) => {
-                    if (index < parentPathsArray.length) {
-                        const virtualPath = folderNames.slice(0, index + 1).join('/')
-                        this._folderPathCache.set(virtualPath, parentPathsArray[index])
-                    }
-                })
-            }
-        },
-
-        updateBreadcrumbs(currentName: string): void {
-            // Используем новый метод без parentPath (для обратной совместимости)
-            this.updateBreadcrumbsFromVirtualPath(currentName, null)
-        },
-
-        updateFolderChainFromApi(
-            currentFolder: IDocumentFolder,
-            parentFolders: IDocumentFolder[] = [],
-        ): void {
-            const fullChain = [...parentFolders, currentFolder].filter((folder) => folder.name)
-
-            this.breadcrumbs = [
-                { name: 'Документы', path: '/', id: null },
-                ...fullChain.map((folder) => ({
-                    name: folder.name,
-                    path: folder.folder_id || folder.path,
-                    id: folder.folder_id || null,
-                })),
-            ]
         },
 
         async createDocument(payload: ICreateDocumentPayload): Promise<void> {
             try {
-                const formData = new FormData()
-                formData.append('name', payload.name)
-                if (payload.description) formData.append('description', payload.description)
-                formData.append('type', payload.type_id ? payload.type_id.toString() : '1')
-                formData.append('number', Date.now().toString())
-                formData.append('folder_path', payload.parent_folder || this.currentFolderId || '/')
-                formData.append('file', payload.file)
-                formData.append('visibility', payload.visibility)
-
-                await axios.post(`${BASE_URL}/api/documents/document/`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                })
+                const documentPayload = {
+                    ...payload,
+                    parent_folder: payload.parent_folder || this.currentFolderId || '/'
+                }
+                
+                await this._apiService.createDocument(documentPayload)
 
                 useFeedbackStore().showToast({
                     type: 'success',
@@ -395,11 +327,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 })
 
                 // Обновляем список с учетом режима поиска
-                if (this.isSearchMode && this.searchQuery) {
-                    await this.searchDocuments(this.searchQuery)
-                } else {
-                    await this.fetchDocuments()
-                }
+                await this._refreshCurrentView()
             } catch (error) {
                 logger.error('documents_create_error', {
                     file: 'documentsStore',
@@ -418,11 +346,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async createFolder(payload: ICreateFolderPayload): Promise<void> {
             try {
-                await axios.post(`${BASE_URL}/api/documents/document-folder/`, {
-                    name: payload.name,
-                    path: payload.path,
-                    visibility: payload.visibility,
-                })
+                await this._apiService.createFolder(payload)
 
                 useFeedbackStore().showToast({
                     type: 'success',
@@ -432,11 +356,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 })
 
                 // Обновляем список с учетом режима поиска
-                if (this.isSearchMode && this.searchQuery) {
-                    await this.searchDocuments(this.searchQuery)
-                } else {
-                    await this.fetchDocuments()
-                }
+                await this._refreshCurrentView()
             } catch (error) {
                 logger.error('documents_createFolder_error', {
                     file: 'documentsStore',
@@ -455,25 +375,17 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async deleteDocument(id: number): Promise<void> {
             try {
-                const response = await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
+                await this._apiService.deleteDocument(id)
 
-                if (response.status === 204 || response.status === 200) {
-                    useFeedbackStore().showToast({
-                        type: 'success',
-                        title: 'Удалено',
-                        message: 'Документ удален',
-                        time: 4000,
-                    })
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Удалено',
+                    message: 'Документ удален',
+                    time: 4000,
+                })
 
-                    // Обновляем список с учетом режима поиска
-                    if (this.isSearchMode && this.searchQuery) {
-                        await this.searchDocuments(this.searchQuery)
-                    } else {
-                        await this.fetchDocuments()
-                    }
-                } else {
-                    throw new Error(`Unexpected response status: ${response.status}`)
-                }
+                // Обновляем список с учетом режима поиска
+                await this._refreshCurrentView()
             } catch (error) {
                 logger.error('documents_delete_error', {
                     file: 'documentsStore',
@@ -492,27 +404,17 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async deleteFolder(id: number): Promise<void> {
             try {
-                const response = await axios.delete(
-                    `${BASE_URL}/api/documents/document-folder/${id}/`,
-                )
+                await this._apiService.deleteFolder(id)
 
-                if (response.status === 204 || response.status === 200) {
-                    useFeedbackStore().showToast({
-                        type: 'success',
-                        title: 'Удалено',
-                        message: 'Папка удалена',
-                        time: 4000,
-                    })
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Удалено',
+                    message: 'Папка удалена',
+                    time: 4000,
+                })
 
-                    // Обновляем список с учетом режима поиска
-                    if (this.isSearchMode && this.searchQuery) {
-                        await this.searchDocuments(this.searchQuery)
-                    } else {
-                        await this.fetchDocuments()
-                    }
-                } else {
-                    throw new Error(`Unexpected response status: ${response.status}`)
-                }
+                // Обновляем список с учетом режима поиска
+                await this._refreshCurrentView()
             } catch (error) {
                 logger.error('documents_deleteFolder_error', {
                     file: 'documentsStore',
@@ -535,17 +437,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
             description?: string,
         ): Promise<void> {
             try {
-                const formData = new FormData()
-                formData.append('file', file)
-                if (description) formData.append('description', description)
-
-                await axios.post(
-                    `${BASE_URL}/api/documents/document/${documentId}/versions/`,
-                    formData,
-                    {
-                        headers: { 'Content-Type': 'multipart/form-data' },
-                    },
-                )
+                await this._apiService.addDocumentVersion(documentId, file, description)
 
                 useFeedbackStore().showToast({
                     type: 'success',
@@ -555,11 +447,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 })
 
                 // Обновляем список с учетом режима поиска
-                if (this.isSearchMode && this.searchQuery) {
-                    await this.searchDocuments(this.searchQuery)
-                } else {
-                    await this.fetchDocuments()
-                }
+                await this._refreshCurrentView()
             } catch (error) {
                 logger.error('documents_addVersion_error', {
                     file: 'documentsStore',
@@ -578,10 +466,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async fetchDocumentDetails(documentId: number): Promise<IDocumentDetailsResponse> {
             try {
-                const response = await axios.get(
-                    `${BASE_URL}/api/documents/document/${documentId}/`,
-                )
-                return response.data
+                return await this._apiService.fetchDocumentDetails(documentId)
             } catch (error) {
                 logger.error('documents_fetchDetails_error', {
                     file: 'documentsStore',
@@ -601,10 +486,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async fetchDocumentVersions(documentId: number): Promise<any[]> {
             try {
-                const response = await axios.get(
-                    `${BASE_URL}/api/documents/document/${documentId}/versions/`,
-                )
-                return response.data?.results || response.data || []
+                return await this._apiService.fetchDocumentVersions(documentId)
             } catch (error) {
                 logger.error('documents_fetchVersions_error', {
                     file: 'documentsStore',
@@ -624,20 +506,14 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async deleteDocumentVersion(documentId: number, versionId: number): Promise<void> {
             try {
-                const response = await axios.delete(
-                    `${BASE_URL}/api/documents/document/${documentId}/versions/${versionId}/`,
-                )
+                await this._apiService.deleteDocumentVersion(documentId, versionId)
 
-                if (response.status === 204 || response.status === 200) {
-                    useFeedbackStore().showToast({
-                        type: 'success',
-                        title: 'Удалено',
-                        message: 'Версия документа удалена',
-                        time: 4000,
-                    })
-                } else {
-                    throw new Error(`Unexpected response status: ${response.status}`)
-                }
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Удалено',
+                    message: 'Версия документа удалена',
+                    time: 4000,
+                })
             } catch (error) {
                 logger.error('documents_deleteVersion_error', {
                     file: 'documentsStore',
@@ -684,179 +560,15 @@ export const useDocumentsStore = defineStore('documentsStore', {
             this.selectedItems.clear()
         },
 
-        getDocumentIcon(item: IDocumentItem): string {
-            if (item.is_dir) {
-                return 'pi pi-folder'
-            }
-
-            const ext = item.extension?.toLowerCase() || ''
-            switch (ext) {
-                case 'pdf':
-                    return 'pi pi-file-pdf'
-                case 'doc':
-                case 'docx':
-                    return 'pi pi-file-word'
-                case 'xls':
-                case 'xlsx':
-                case 'csv':
-                    return 'pi pi-file-excel'
-                case 'jpg':
-                case 'jpeg':
-                case 'png':
-                case 'gif':
-                case 'webp':
-                case 'svg':
-                    return 'pi pi-image'
-                case 'zip':
-                case 'rar':
-                case '7z':
-                    return 'pi pi-box'
-                case 'mp4':
-                case 'mov':
-                case 'avi':
-                case 'mkv':
-                    return 'pi pi-video'
-                case 'mp3':
-                case 'wav':
-                case 'ogg':
-                    return 'pi pi-volume-up'
-                default:
-                    return 'pi pi-file'
-            }
-        },
-
-        formatFileSize(bytes: number | null): string {
-            if (!bytes) return '—'
-
-            const units = ['Б', 'КБ', 'МБ', 'ГБ']
-            let size = bytes
-            let unitIndex = 0
-
-            while (size >= 1024 && unitIndex < units.length - 1) {
-                size /= 1024
-                unitIndex++
-            }
-
-            return `${Math.round(size * 10) / 10} ${units[unitIndex]}`
-        },
-
-        formatDate(dateString: string | null): string {
-            if (!dateString) return '—'
-
-            try {
-                return new Date(dateString).toLocaleDateString('ru-RU', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                })
-            } catch {
-                return dateString
-            }
-        },
-
-        folderIdToUrl(folderId: string | null): string {
-            return folderId || ''
-        },
-
-        urlToFolderId(urlParam: string): string | null {
-            if (!urlParam || urlParam === '') return null
-            return urlParam
-        },
-
-        pathToUrl(path: string): string {
-            if (path === '/') {
-                return ''
-            }
-            return path.startsWith('/') ? path.slice(1) : path
-        },
-
-        urlToPath(urlParam: string | string[]): string {
-            if (!urlParam || urlParam === '' || (Array.isArray(urlParam) && urlParam.length === 0))
-                return '/'
-
-            if (Array.isArray(urlParam)) {
-                const filteredParam = urlParam.filter(Boolean)
-                return filteredParam.length > 0 ? filteredParam.join('/') : '/'
-            }
-
-            return urlParam === '/' ? '/' : urlParam
-        },
-
-        pathToArray(path: string): string[] {
-            if (path === '/' || !path) return []
-            const cleanPath = path.startsWith('/') ? path.slice(1) : path
-
-            // Разделяем по слешам, но учитываем, что в названиях папок могут быть слеши
-            // Проверяем, если это API ответ с составным путем
-            const segments = cleanPath.split('/')
-
-            // Фильтруем пустые сегменты
-            return segments.filter(Boolean)
-        },
-
-        arrayToPath(pathArray: string[]): string {
-            if (!pathArray || pathArray.length === 0) return '/'
-            return pathArray.join('/')
-        },
 
         getUrlFromCurrentState(): string {
             return this.currentFolderId
-                ? this.folderIdToUrl(this.currentFolderId)
-                : this.pathToUrl(this.currentPath)
+                ? folderIdToUrl(this.currentFolderId)
+                : pathToUrl(this.currentPath)
         },
 
         updateUrl(router: any): void {
-            try {
-                const currentRoute = router.currentRoute.value
-
-                if (this._urlUpdateTimeout) {
-                    clearTimeout(this._urlUpdateTimeout)
-                }
-
-                this._urlUpdateTimeout = setTimeout(() => {
-                    const currentPathArray = this.pathToArray(this.currentPath)
-                    const currentPathMatch = currentRoute.params.pathMatch
-
-                    let needsUpdate = false
-
-                    if (currentPathArray.length === 0) {
-                        needsUpdate =
-                            currentRoute.name !== ERouteNames.DOCUMENTS || !!currentPathMatch
-                    } else {
-                        const expectedPathMatch = currentPathArray.join('/')
-                        const actualPathMatch = Array.isArray(currentPathMatch)
-                            ? currentPathMatch.join('/')
-                            : currentPathMatch || ''
-
-                        needsUpdate =
-                            currentRoute.name !== ERouteNames.DOCUMENTS_FOLDER ||
-                            actualPathMatch !== expectedPathMatch
-                    }
-
-                    if (needsUpdate) {
-                        if (currentPathArray.length === 0) {
-                            router.replace({ name: ERouteNames.DOCUMENTS }).catch((error: any) => {
-                                if (error.name !== 'NavigationDuplicated') {
-                                    console.error('Navigation error:', error)
-                                }
-                            })
-                        } else {
-                            router
-                                .replace({
-                                    name: ERouteNames.DOCUMENTS_FOLDER,
-                                    params: { pathMatch: currentPathArray },
-                                })
-                                .catch((error: any) => {
-                                    if (error.name !== 'NavigationDuplicated') {
-                                        console.error('Navigation error:', error)
-                                    }
-                                })
-                        }
-                    }
-                }, 10)
-            } catch (error) {}
+            this._navigationService.updateUrl(router, this.currentPath)
         },
 
         cleanup(): void {
@@ -869,6 +581,8 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 clearTimeout(this.searchTimeout)
                 this.searchTimeout = null
             }
+
+            this._navigationService.cleanup()
         },
     },
 })

@@ -11,24 +11,24 @@
                 <label for="documentFile" class="field-label required">Файл</label>
                 <div class="file-upload-area">
                     <FileUpload
-                        ref="fileUpload"
+                        ref="fileUploadRef"
                         mode="basic"
                         :auto="false"
                         :choose-label="selectedFile ? 'Изменить файл' : 'Выбрать файл'"
                         :show-upload-button="false"
                         :show-cancel-button="false"
-                        accept=".pdf,.doc,.docx,.txt,.jpg,.png,.zip,.rar"
-                        :max-file-size="100000000"
+                        :accept="getAcceptString()"
+                        :max-file-size="getMaxSizeMB() * 1024 * 1024"
                         @select="onFileSelect"
                         @clear="onFileClear"
                         class="w-full"
                     />
-                    <div v-if="selectedFile" class="selected-file-info">
+                    <div v-if="fileInfo" class="selected-file-info">
                         <div class="file-info">
-                            <i :class="getFileIcon(selectedFile.name)" class="file-icon"></i>
+                            <i :class="fileInfo.icon" class="file-icon"></i>
                             <div class="file-details">
-                                <div class="file-name">{{ selectedFile.name }}</div>
-                                <div class="file-size">{{ formatFileSize(selectedFile.size) }}</div>
+                                <div class="file-name">{{ fileInfo.name }}</div>
+                                <div class="file-size">{{ fileInfo.formattedSize }}</div>
                             </div>
                         </div>
                     </div>
@@ -108,6 +108,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
+import { useFileUpload } from '@/refactoring/modules/documents/composables/useFileUpload'
+import { useFormValidation } from '@/refactoring/modules/documents/composables/useFormValidation'
+import { useDialog } from '@/refactoring/modules/documents/composables/useDialog'
+import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
 import type { IDocumentType } from '@/refactoring/modules/documents/types/IDocument'
 
 interface Props {
@@ -125,15 +129,13 @@ const emit = defineEmits<Emits>()
 
 const documentsStore = useDocumentsStore()
 
-// Реактивность диалога
-const dialogVisible = computed({
-    get: () => props.visible,
-    set: (value) => emit('update:visible', value),
+// Composables
+const { handleError, showSuccess } = useErrorHandler()
+const { validateForm, documentRules, errors, clearErrors } = useFormValidation()
+const { createVModel, isLoading, setLoading } = useDialog({
+    autoReset: true,
+    onReset: () => resetForm()
 })
-
-// Файл
-const fileUpload = ref()
-const selectedFile = ref<File | null>(null)
 
 // Форма
 const form = ref({
@@ -143,13 +145,26 @@ const form = ref({
     visibility: 'public' as 'public' | 'private' | 'department',
 })
 
-const errors = ref({
-    file: '',
-    name: '',
-    visibility: '',
+// Файловый загрузчик
+const { 
+    selectedFile, 
+    fileUploadRef, 
+    fileInfo, 
+    onFileSelect: handleFileSelect, 
+    clearFile,
+    reset: resetFileUpload,
+    getAcceptString,
+    getMaxSizeMB
+} = useFileUpload({
+    autoFillName: true,
+    nameField: computed({
+        get: () => form.value.name,
+        set: (value) => form.value.name = value
+    })
 })
 
-const isLoading = ref(false)
+// Реактивность диалога
+const dialogVisible = createVModel(emit)
 
 // Опции видимости
 const visibilityOptions = [
@@ -160,100 +175,19 @@ const visibilityOptions = [
 
 // Обработчики файлов
 const onFileSelect = (event: any) => {
-    const file = event.files[0]
-    if (file) {
-        selectedFile.value = file
-        if (!form.value.name.trim()) {
-            const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
-            form.value.name = nameWithoutExt
-        }
+    const result = handleFileSelect(event)
+    if (!result.isValid && result.error) {
+        errors.value.file = result.error
+    } else {
         errors.value.file = ''
     }
 }
 
 const onFileClear = () => {
-    selectedFile.value = null
-}
-
-// Утилиты
-const getFileIcon = (filename: string): string => {
-    const ext = filename.toLowerCase().split('.').pop() || ''
-
-    const iconMap: Record<string, string> = {
-        pdf: 'pi pi-file-pdf',
-        doc: 'pi pi-file-word',
-        docx: 'pi pi-file-word',
-        xls: 'pi pi-file-excel',
-        xlsx: 'pi pi-file-excel',
-        csv: 'pi pi-file-excel',
-        jpg: 'pi pi-image',
-        jpeg: 'pi pi-image',
-        png: 'pi pi-image',
-        gif: 'pi pi-image',
-        webp: 'pi pi-image',
-        svg: 'pi pi-image',
-        zip: 'pi pi-box',
-        rar: 'pi pi-box',
-        '7z': 'pi pi-box',
-        mp4: 'pi pi-video',
-        mov: 'pi pi-video',
-        avi: 'pi pi-video',
-        mkv: 'pi pi-video',
-        mp3: 'pi pi-volume-up',
-        wav: 'pi pi-volume-up',
-        ogg: 'pi pi-volume-up',
-    }
-
-    return iconMap[ext] || 'pi pi-file'
-}
-
-const formatFileSize = (bytes: number): string => {
-    const units = ['Б', 'КБ', 'МБ', 'ГБ']
-    let size = bytes
-    let unitIndex = 0
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-        size /= 1024
-        unitIndex++
-    }
-
-    return `${Math.round(size * 10) / 10} ${units[unitIndex]}`
+    clearFile()
 }
 
 // Валидация
-const validateForm = () => {
-    errors.value = {
-        file: '',
-        name: '',
-        visibility: '',
-    }
-
-    let isValid = true
-
-    if (!selectedFile.value) {
-        errors.value.file = 'Выберите файл для загрузки'
-        isValid = false
-    }
-
-    if (!form.value.name.trim()) {
-        errors.value.name = 'Название документа обязательно'
-        isValid = false
-    } else if (form.value.name.trim().length < 2) {
-        errors.value.name = 'Название должно содержать минимум 2 символа'
-        isValid = false
-    } else if (form.value.name.trim().length > 200) {
-        errors.value.name = 'Название не должно превышать 200 символов'
-        isValid = false
-    }
-
-    if (!form.value.visibility) {
-        errors.value.visibility = 'Выберите уровень видимости'
-        isValid = false
-    }
-
-    return isValid
-}
-
 const isFormValid = computed(() => {
     return (
         selectedFile.value &&
@@ -265,9 +199,19 @@ const isFormValid = computed(() => {
 
 // Обработчики
 const handleSubmit = async () => {
-    if (!validateForm() || !selectedFile.value) return
+    const formData = {
+        file: selectedFile.value,
+        name: form.value.name,
+        visibility: form.value.visibility,
+    }
 
-    isLoading.value = true
+    if (!validateForm(formData, documentRules.createDocument)) {
+        return
+    }
+
+    if (!selectedFile.value) return
+
+    setLoading(true)
 
     try {
         await documentsStore.createDocument({
@@ -279,12 +223,19 @@ const handleSubmit = async () => {
             visibility: form.value.visibility,
         })
 
+        showSuccess('Успех', 'Документ создан')
         emit('created')
-        resetForm()
+        dialogVisible.value = false
     } catch (error) {
-        // Error is handled in the store
+        handleError(error, {
+            context: 'CreateDocumentDialog',
+            functionName: 'handleSubmit',
+            toastTitle: 'Ошибка',
+            toastMessage: 'Не удалось создать документ',
+            toastTime: 7000,
+        })
     } finally {
-        isLoading.value = false
+        setLoading(false)
     }
 }
 
@@ -296,27 +247,9 @@ const resetForm = () => {
         visibility: 'public',
     }
 
-    errors.value = {
-        file: '',
-        name: '',
-        visibility: '',
-    }
-
-    selectedFile.value = null
-
-    if (fileUpload.value) {
-        fileUpload.value.clear()
-    }
+    clearErrors()
+    resetFileUpload()
 }
-
-watch(
-    () => props.visible,
-    (visible) => {
-        if (!visible) {
-            resetForm()
-        }
-    },
-)
 </script>
 
 <style scoped>

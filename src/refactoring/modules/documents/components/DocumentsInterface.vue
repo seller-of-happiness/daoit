@@ -155,7 +155,7 @@
                     >
                         <div class="table-cell name-cell">
                             <i
-                                :class="documentsStore.getDocumentIcon(folder)"
+                                :class="getDocumentIcon(folder)"
                                 class="item-icon"
                             ></i>
                             <span class="item-name">{{ folder.name }}</span>
@@ -163,7 +163,7 @@
                         <div class="table-cell type-cell">Папка</div>
                         <div class="table-cell size-cell">—</div>
                         <div class="table-cell date-cell">
-                            {{ documentsStore.formatDate(folder.updated_at) }}
+                            {{ formatDate(folder.updated_at) }}
                         </div>
                         <div class="table-cell actions-cell" @click.stop>
                             <div class="action-buttons">
@@ -204,7 +204,7 @@
                     >
                         <div class="table-cell name-cell" @click="downloadDocument(document)">
                             <i
-                                :class="documentsStore.getDocumentIcon(document)"
+                                :class="getDocumentIcon(document)"
                                 class="item-icon"
                             ></i>
                             <span class="item-name">{{ document.name }}</span>
@@ -216,10 +216,10 @@
                             }}
                         </div>
                         <div class="table-cell size-cell">
-                            {{ documentsStore.formatFileSize(document.size) }}
+                            {{ formatFileSize(document.size) }}
                         </div>
                         <div class="table-cell date-cell">
-                            {{ documentsStore.formatDate(document.updated_at) }}
+                            {{ formatDate(document.updated_at) }}
                         </div>
                         <div class="table-cell actions-cell" @click.stop>
                             <div class="action-buttons">
@@ -302,6 +302,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import { ERouteNames } from '@/router/ERouteNames'
+import { getFileTypeByExtension, formatFileSize, formatDate, getDocumentIcon } from '@/refactoring/modules/documents/utils/documentUtils'
+import { pathToArray, arrayToPath } from '@/refactoring/modules/documents/utils/pathUtils'
 import type {
     IDocument,
     IDocumentFolder,
@@ -554,26 +556,6 @@ const downloadDocument = (document: IDocument) => {
     }
 }
 
-const getFileTypeByExtension = (extension: string): string => {
-    const ext = extension.toLowerCase()
-    const typeMap: Record<string, string> = {
-        pdf: 'PDF документ',
-        doc: 'Word документ',
-        docx: 'Word документ',
-        xls: 'Excel таблица',
-        xlsx: 'Excel таблица',
-        csv: 'CSV файл',
-        txt: 'Текстовый файл',
-        jpg: 'Изображение',
-        jpeg: 'Изображение',
-        png: 'Изображение',
-        gif: 'Изображение',
-        zip: 'Архив',
-        rar: 'Архив',
-        '7z': 'Архив',
-    }
-    return typeMap[ext] || 'Файл'
-}
 
 const navigateToFolder = async (folder: IDocumentFolder) => {
     try {
@@ -624,7 +606,7 @@ const copyFolderLink = (folder: IDocumentFolder) => {
         let fullUrl: string
 
         if (folder.path && folder.path !== '/') {
-            const pathArray = documentsStore.pathToArray(folder.path)
+            const pathArray = pathToArray(folder.path)
             const routeParams = {
                 name: ERouteNames.DOCUMENTS_FOLDER,
                 params: { pathMatch: pathArray },
@@ -672,7 +654,7 @@ const copyFolderLink = (folder: IDocumentFolder) => {
 const initializeFromUrl = async () => {
     try {
         if (props.path && Array.isArray(props.path) && props.path.length > 0) {
-            const targetPath = documentsStore.arrayToPath(props.path)
+            const targetPath = arrayToPath(props.path)
             await documentsStore.fetchDocuments({ path: targetPath })
         } else {
             await documentsStore.fetchDocuments()
@@ -687,7 +669,7 @@ watch(
     async (newPath, oldPath) => {
         try {
             const targetPath =
-                newPath && newPath.length > 0 ? documentsStore.arrayToPath(newPath) : '/'
+                newPath && newPath.length > 0 ? arrayToPath(newPath) : '/'
 
             if (targetPath !== documentsStore.currentPath) {
                 await documentsStore.fetchDocuments({ path: targetPath })
