@@ -280,14 +280,11 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
             await this.clearSearch()
 
-            const currentPathArray = this.pathToArray(this.currentPath)
+            let parentPath = this.currentPath.slice(0, -4)
 
-            if (currentPathArray.length === 0) {
-                return
+            if (!parentPath) {
+                parentPath = '/'
             }
-
-            const parentPathArray = currentPathArray.slice(0, -1)
-            const parentPath = this.arrayToPath(parentPathArray)
 
             await this.fetchDocuments({ path: parentPath })
         },
@@ -801,7 +798,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         arrayToPath(pathArray: string[]): string {
             if (!pathArray || pathArray.length === 0) return '/'
-            return '/' + pathArray.join('/')
+            return pathArray.join('/')
         },
 
         getUrlFromCurrentState(): string {

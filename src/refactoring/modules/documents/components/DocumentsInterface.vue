@@ -135,7 +135,6 @@
                         v-if="!documentsStore.isRootPath && !documentsStore.isSearchMode"
                         class="table-row back-row"
                         @click="navigateUp"
-                        title="Перейти на одну папку вверх"
                     >
                         <div class="table-cell name-cell">
                             <i class="pi pi-arrow-left text-primary"></i>
@@ -303,7 +302,11 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import { ERouteNames } from '@/router/ERouteNames'
-import type { IDocument, IDocumentFolder, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
+import type {
+    IDocument,
+    IDocumentFolder,
+    IDocumentDetailsResponse,
+} from '@/refactoring/modules/documents/types/IDocument'
 import CreateFolderDialog from './CreateFolderDialog.vue'
 import CreateDocumentDialog from './CreateDocumentDialog.vue'
 import AddVersionDialog from './AddVersionDialog.vue'
