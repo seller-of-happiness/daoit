@@ -164,7 +164,7 @@
                         :key="`doc-${document.id}`"
                         class="table-row document-row"
                     >
-                        <div class="table-cell name-cell">
+                        <div class="table-cell name-cell" @click="downloadDocument(document)">
                             <i
                                 :class="documentsStore.getDocumentIcon(document)"
                                 class="item-icon"
@@ -183,36 +183,12 @@
                         <div class="table-cell actions-cell" @click.stop>
                             <div class="action-buttons">
                                 <Button
-                                    icon="pi pi-download"
+                                    icon="pi pi-cog"
                                     severity="secondary"
                                     text
                                     size="small"
-                                    @click="downloadDocument(document)"
-                                    v-tooltip.top="'Скачать'"
-                                />
-                                <Button
-                                    icon="pi pi-eye"
-                                    severity="secondary"
-                                    text
-                                    size="small"
-                                    @click="viewDocument(document)"
-                                    v-tooltip.top="'Просмотр'"
-                                />
-                                <Button
-                                    icon="pi pi-upload"
-                                    severity="secondary"
-                                    text
-                                    size="small"
-                                    @click="openAddVersionDialog(document)"
-                                    v-tooltip.top="'Добавить версию'"
-                                />
-                                <Button
-                                    icon="pi pi-trash"
-                                    severity="danger"
-                                    text
-                                    size="small"
-                                    @click="confirmDeleteDocument(document)"
-                                    v-tooltip.top="'Удалить'"
+                                    @click="openEditDocumentDialog(document)"
+                                    v-tooltip.top="'Редактировать документ'"
                                 />
                             </div>
                         </div>
@@ -247,6 +223,13 @@
             @added="onVersionAdded"
         />
 
+        <!-- Диалог редактирования документа -->
+        <EditDocumentDialog
+            v-model:visible="showEditDocumentDialog"
+            :document="selectedDocument"
+            @documentDeleted="onDocumentDeleted"
+        />
+
         <!-- Диалог подтверждения удаления -->
         <ConfirmDialog />
     </div>
@@ -263,6 +246,7 @@ import type { IDocument, IDocumentFolder } from '@/refactoring/modules/documents
 import CreateFolderDialog from './CreateFolderDialog.vue'
 import CreateDocumentDialog from './CreateDocumentDialog.vue'
 import AddVersionDialog from './AddVersionDialog.vue'
+import EditDocumentDialog from './EditDocumentDialog.vue'
 import { BASE_URL } from '@/refactoring/environment/environment'
 
 // Props
@@ -283,6 +267,7 @@ const router = useRouter()
 const showCreateFolderDialog = ref(false)
 const showCreateDocumentDialog = ref(false)
 const showAddVersionDialog = ref(false)
+const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | null>(null)
 
 // Сортировка
@@ -376,9 +361,21 @@ const onVersionAdded = () => {
     selectedDocument.value = null
 }
 
+const onDocumentDeleted = () => {
+    showEditDocumentDialog.value = false
+    selectedDocument.value = null
+    // Обновляем список документов после удаления
+    refreshDocuments()
+}
+
 const openAddVersionDialog = (document: IDocument) => {
     selectedDocument.value = document
     showAddVersionDialog.value = true
+}
+
+const openEditDocumentDialog = (document: IDocument) => {
+    selectedDocument.value = document
+    showEditDocumentDialog.value = true
 }
 
 const confirmDeleteFolder = (folder: IDocumentFolder) => {
@@ -756,6 +753,14 @@ onUnmounted(() => {
 
 .name-cell {
     @apply gap-3;
+}
+
+.document-row .name-cell {
+    @apply cursor-pointer;
+}
+
+.document-row .name-cell:hover {
+    @apply text-primary;
 }
 
 .item-icon {
