@@ -9,11 +9,28 @@ const LABELS = {
     completed: 'Завершён',
     in_progress: 'В работе',
     new: 'Новое',
+    draft: 'Черновик',
+    approved: 'Утверждён',
+    rejected: 'Отклонён',
 } as const
 
 const key = computed(() => (props.status ?? '').toString().trim().toLowerCase().replace(/-/g, '_'))
 const label = computed(() => (key.value ? (LABELS as any)[key.value] ?? props.status ?? '' : ''))
-const statusClass = computed(() => (key.value === 'completed' ? 'completed' : key.value === 'new' ? 'new' : 'in-progress'))
+const statusClass = computed(() => {
+    switch (key.value) {
+        case 'completed':
+        case 'approved':
+            return 'completed'
+        case 'new':
+        case 'draft':
+            return 'new'
+        case 'rejected':
+            return 'rejected'
+        case 'in_progress':
+        default:
+            return 'in-progress'
+    }
+})
 </script>
 
 <template>
@@ -32,4 +49,5 @@ const statusClass = computed(() => (key.value === 'completed' ? 'completed' : ke
 .completed   { color: var(--primary-color); }
 .in-progress { color: var(--p-orange-400); }
 .new         { color: var(--p-blue-400); }
+.rejected    { color: var(--p-red-400); }
 </style>

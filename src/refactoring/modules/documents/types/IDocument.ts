@@ -24,17 +24,23 @@ export interface IDocumentFolder {
 
 export interface IDocument {
     id: number
+    type: number
     name: string
-    description: string
-    path: string
+    number: string
+    description?: string
+    path?: string
     virtual_path: string
-    is_dir: false
+    is_dir?: false
     visibility: 'creator' | 'public' | 'private' | 'department'
+    created_by: string
     created_at: string
     updated_at: string
     size: number | null
-    extension: string
-    type?: IDocumentType
+    extension?: string
+    type_name?: string
+    status?: string
+    approved_at?: string
+    versions?: IDocumentVersion[]
     file_url?: string
     download_url?: string
 }
@@ -43,12 +49,19 @@ export type IDocumentItem = IDocumentFolder | IDocument
 
 export interface IDocumentVersion {
     id: number
-    version_number: number
-    file_url: string
-    download_url: string
-    created_at: string
-    created_by: string
+    document: number
+    version: string
+    status: 'draft' | 'approved' | 'rejected'
+    file: string
+    size: number
+    extension: string
     description?: string
+    approved_at?: string
+    valid_until?: string
+    created_by: string
+    created_at: string
+    file_url?: string
+    download_url?: string
 }
 
 export interface IDocumentsStoreState {
