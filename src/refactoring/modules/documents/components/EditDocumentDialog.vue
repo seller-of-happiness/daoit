@@ -165,6 +165,7 @@ import { ref, computed } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
+import { formatFileSize, formatDate, getFileTypeByExtension, getVisibilityLabel } from '@/refactoring/modules/documents/utils/documentUtils'
 import type {
     IDocument,
     IDocumentVersion,
@@ -367,68 +368,6 @@ const resetForm = () => {
     showAddVersionDialog.value = false
 }
 
-// Утилиты
-const getVisibilityLabel = (visibility?: string): string => {
-    const visibilityMap: Record<string, string> = {
-        creator: 'Только создатель',
-        public: 'Публичный',
-        private: 'Приватный',
-        department: 'Отдел',
-    }
-    return visibilityMap[visibility || ''] || visibility || '—'
-}
-
-const getFileTypeByExtension = (extension: string): string => {
-    const ext = extension.toLowerCase()
-    const typeMap: Record<string, string> = {
-        pdf: 'PDF документ',
-        doc: 'Word документ',
-        docx: 'Word документ',
-        xls: 'Excel таблица',
-        xlsx: 'Excel таблица',
-        csv: 'CSV файл',
-        txt: 'Текстовый файл',
-        jpg: 'Изображение',
-        jpeg: 'Изображение',
-        png: 'Изображение',
-        gif: 'Изображение',
-        zip: 'Архив',
-        rar: 'Архив',
-        '7z': 'Архив',
-    }
-    return typeMap[ext] || 'Файл'
-}
-
-const formatFileSize = (bytes: number): string => {
-    if (!bytes) return '—'
-
-    const units = ['Б', 'КБ', 'МБ', 'ГБ']
-    let size = bytes
-    let unitIndex = 0
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-        size /= 1024
-        unitIndex++
-    }
-
-    return `${Math.round(size * 10) / 10} ${units[unitIndex]}`
-}
-
-const formatDate = (dateString: string): string => {
-    if (!dateString) return '—'
-
-    try {
-        return new Date(dateString).toLocaleDateString('ru-RU', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        })
-    } catch {
-        return dateString
-    }
-}
 
 // Watchers - версии теперь приходят в составе документа, поэтому отдельная загрузка не нужна
 </script>
