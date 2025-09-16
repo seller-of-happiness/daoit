@@ -55,9 +55,36 @@
             <div class="table-card">
                 <!-- Заголовок таблицы -->
                 <div class="table-header">
-                    <div class="table-header-cell name-cell">Название</div>
-                    <div class="table-header-cell type-cell">Тип</div>
-                    <div class="table-header-cell size-cell">Размер</div>
+                    <div class="table-header-cell name-cell">
+                        <button
+                            class="sort-button"
+                            @click="handleSort('name')"
+                            :class="getSortButtonClass('name')"
+                        >
+                            <i class="sort-icon" :class="getSortIconClass('name')"></i>
+                            <span>Название</span>
+                        </button>
+                    </div>
+                    <div class="table-header-cell type-cell">
+                        <button
+                            class="sort-button"
+                            @click="handleSort('extension')"
+                            :class="getSortButtonClass('extension')"
+                        >
+                            <i class="sort-icon" :class="getSortIconClass('extension')"></i>
+                            <span>Тип</span>
+                        </button>
+                    </div>
+                    <div class="table-header-cell size-cell">
+                        <button
+                            class="sort-button"
+                            @click="handleSort('size')"
+                            :class="getSortButtonClass('size')"
+                        >
+                            <i class="sort-icon" :class="getSortIconClass('size')"></i>
+                            <span>Размер</span>
+                        </button>
+                    </div>
                     <div class="table-header-cell date-cell">Дата изменения</div>
                     <div class="table-header-cell actions-cell">Действия</div>
                 </div>
@@ -258,6 +285,69 @@ const showCreateDocumentDialog = ref(false)
 const showAddVersionDialog = ref(false)
 const selectedDocument = ref<IDocument | null>(null)
 
+// Сортировка
+const currentSort = ref<{
+    field: 'name' | 'size' | 'extension' | null
+    order: 'ascending' | 'descending'
+}>({
+    field: null,
+    order: 'ascending',
+})
+
+// Методы сортировки
+const handleSort = (field: 'name' | 'size' | 'extension') => {
+    if (currentSort.value.field === field) {
+        // Если кликнули по тому же полю, меняем порядок
+        currentSort.value.order =
+            currentSort.value.order === 'ascending' ? 'descending' : 'ascending'
+    } else {
+        // Если кликнули по новому полю, устанавливаем по возрастанию
+        currentSort.value.field = field
+        currentSort.value.order = 'ascending'
+    }
+
+    // Обновляем данные с новой сортировкой
+    refreshDocuments()
+}
+
+const getSortButtonClass = (field: string) => {
+    return {
+        'sort-active': currentSort.value.field === field,
+    }
+}
+
+const getSortIconClass = (field: string) => {
+    if (currentSort.value.field !== field) {
+        return 'pi pi-sort-alt text-surface-400'
+    }
+
+    return currentSort.value.order === 'ascending'
+        ? 'pi pi-sort-up text-primary'
+        : 'pi pi-sort-down text-primary'
+}
+
+const refreshDocuments = async () => {
+    try {
+        const payload: any = {}
+
+        if (documentsStore.currentFolderId) {
+            payload.folder_id = documentsStore.currentFolderId
+        } else {
+            payload.path = documentsStore.currentPath
+        }
+
+        // Добавляем параметры сортировки, если они установлены
+        if (currentSort.value.field) {
+            payload.sort_by = currentSort.value.field
+            payload.sort_order = currentSort.value.order
+        }
+
+        await documentsStore.fetchDocuments(payload)
+    } catch (error) {
+        // Error handled in store
+    }
+}
+
 const navigateToBreadcrumb = (crumb: { name: string; path: string; id: string | null }) => {
     if (crumb.id) {
         navigateToFolderId(crumb.id)
@@ -386,18 +476,7 @@ const viewDocument = (document: IDocument) => {
 
     try {
         const viewUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-        //const newWindow = window.open(viewUrl, '_blank')
         console.log(viewUrl)
-
-        // if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        //     useFeedbackStore().showToast({
-        //         type: 'warn',
-        //         title: 'Внимание',
-        //         message:
-        //             'Возможно, браузер заблокировал открытие новой вкладки. Попробуйте скачать документ.',
-        //         time: 7000,
-        //     })
-        // }
     } catch (error) {
         useFeedbackStore().showToast({
             type: 'error',
@@ -433,6 +512,8 @@ const navigateToFolder = async (folder: IDocumentFolder) => {
     try {
         await documentsStore.navigateToFolder(folder)
         documentsStore.updateUrl(router)
+        // Сброс сортировки при переходе в папку
+        currentSort.value = { field: null, order: 'ascending' }
     } catch (error) {
         // Error handled in store
     }
@@ -442,6 +523,8 @@ const navigateToPath = async (path: string) => {
     try {
         await documentsStore.navigateToPath(path)
         documentsStore.updateUrl(router)
+        // Сброс сортировки при переходе по пути
+        currentSort.value = { field: null, order: 'ascending' }
     } catch (error) {
         // Error handled in store
     }
@@ -451,6 +534,8 @@ const navigateToFolderId = async (folderId: string) => {
     try {
         await documentsStore.navigateToFolderId(folderId)
         documentsStore.updateUrl(router)
+        // Сброс сортировки при переходе по ID папки
+        currentSort.value = { field: null, order: 'ascending' }
     } catch (error) {
         // Error handled in store
     }
@@ -460,6 +545,8 @@ const navigateUp = async () => {
     try {
         await documentsStore.navigateUp()
         documentsStore.updateUrl(router)
+        // Сброс сортировки при переходе вверх
+        currentSort.value = { field: null, order: 'ascending' }
     } catch (error) {
         // Error handled in store
     }
@@ -537,6 +624,8 @@ watch(
 
             if (targetPath !== documentsStore.currentPath) {
                 await documentsStore.fetchDocuments({ path: targetPath })
+                // Сброс сортировки при изменении пути через URL
+                currentSort.value = { field: null, order: 'ascending' }
             }
         } catch (error) {
             // Error is handled in the store
@@ -615,6 +704,30 @@ onUnmounted(() => {
 
 .table-header-cell {
     @apply flex items-center text-sm font-medium text-surface-600 dark:text-surface-300;
+}
+
+/* Стили для кнопок сортировки */
+.sort-button {
+    @apply flex items-center gap-2 text-left w-full border-0 p-0 cursor-pointer transition-colors;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.sort-button:hover {
+    @apply text-primary;
+}
+
+.sort-button.sort-active {
+    @apply text-primary;
+}
+
+.sort-button span {
+    @apply flex-1 text-left;
+}
+
+.sort-icon {
+    @apply text-xs transition-colors;
 }
 
 .table-body {

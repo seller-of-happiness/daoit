@@ -98,6 +98,15 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 const requestPayload: Record<string, any> = {
                     path: requestPath,
                     parent_folder: payload.parent_folder,
+                    page: payload.page || 1,
+                    page_size: payload.page_size || 100,
+                    search: payload.search || '',
+                }
+
+                // Добавляем параметры сортировки если они есть
+                if (payload.sort_by) {
+                    requestPayload.sort_by = payload.sort_by
+                    requestPayload.sort_order = payload.sort_order || 'ascending'
                 }
 
                 const response = await axios.post(`${BASE_URL}/api/documents/list/`, requestPayload)
