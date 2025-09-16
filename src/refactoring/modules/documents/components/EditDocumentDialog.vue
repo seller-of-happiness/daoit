@@ -475,11 +475,11 @@ const formatDate = (dateString: string): string => {
 }
 
 .version-header {
-    @apply grid grid-cols-[80px_80px_140px_100px] gap-4 p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200;
+    @apply grid grid-cols-[auto_auto_1fr_auto] gap-4 p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200 w-full;
 }
 
 .version-row {
-    @apply grid grid-cols-[80px_80px_140px_100px] gap-4 p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm;
+    @apply grid grid-cols-[auto_auto_1fr_auto] gap-4 p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm w-full;
 }
 
 .version-row:last-child {
@@ -517,7 +517,7 @@ const formatDate = (dateString: string): string => {
 @media (max-width: 768px) {
     .version-header,
     .version-row {
-        @apply grid-cols-[60px_1fr_80px] gap-2;
+        @apply grid-cols-[auto_1fr_auto] gap-2;
     }
 
     .version-size {
