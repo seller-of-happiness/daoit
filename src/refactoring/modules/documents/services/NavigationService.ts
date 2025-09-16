@@ -18,21 +18,35 @@ export interface IBreadcrumb {
 }
 
 export class NavigationService {
-    private _folderPathCache: Map<string, string> = new Map()
     private _urlUpdateTimeout: ReturnType<typeof setTimeout> | null = null
 
     /**
-     * Обновляет breadcrumbs на основе виртуального пути
+     * Обновляет breadcrumbs на основе данных из API
      */
-    updateBreadcrumbsFromVirtualPath(
-        virtualPath: string,
+    updateBreadcrumbs(
+        currentFolder?: IDocumentFolder,
+        parentFolders?: IDocumentFolder[],
+        virtualPath?: string,
         parentPaths?: string[] | string | null,
         currentPath?: string
     ): IBreadcrumb[] {
         // Всегда начинаем с корневого элемента
         const breadcrumbs: IBreadcrumb[] = [{ name: 'Документы', path: '/', id: null }]
 
-        // Если это корень, больше ничего не добавляем
+        // Если есть полная цепочка папок из API, используем её
+        if (currentFolder && parentFolders) {
+            const fullChain = [...parentFolders, currentFolder].filter((folder) => folder.name)
+            
+            breadcrumbs.push(...fullChain.map((folder) => ({
+                name: folder.name,
+                path: folder.folder_id || folder.path,
+                id: folder.folder_id || null,
+            })))
+            
+            return breadcrumbs
+        }
+
+        // Иначе используем virtual_path
         if (!virtualPath || virtualPath === 'Документы' || virtualPath === '/') {
             return breadcrumbs
         }
@@ -48,7 +62,6 @@ export class NavigationService {
         if (Array.isArray(parentPaths)) {
             parentPathsArray = parentPaths
         } else if (typeof parentPaths === 'string') {
-            // Обратная совместимость: если пришла строка, делаем массив из одного элемента
             parentPathsArray = [parentPaths]
         }
 
@@ -63,9 +76,8 @@ export class NavigationService {
                 // Для родительских папок используем соответствующий путь из массива path_parent
                 breadcrumbPath = parentPathsArray[index]
             } else {
-                // Fallback: пытаемся найти в кеше или составляем путь
-                const parentVirtualPath = folderNames.slice(0, index + 1).join('/')
-                breadcrumbPath = this._folderPathCache.get(parentVirtualPath) || parentVirtualPath
+                // Fallback: составляем путь
+                breadcrumbPath = folderNames.slice(0, index + 1).join('/')
             }
 
             breadcrumbs.push({
@@ -75,50 +87,7 @@ export class NavigationService {
             })
         })
 
-        // Кешируем все пути из parentPathsArray для будущего использования
-        if (parentPathsArray.length > 0) {
-            folderNames.forEach((folderName, index) => {
-                if (index < parentPathsArray.length) {
-                    const virtualPath = folderNames.slice(0, index + 1).join('/')
-                    this._folderPathCache.set(virtualPath, parentPathsArray[index])
-                }
-            })
-        }
-
         return breadcrumbs
-    }
-
-    /**
-     * Обновляет breadcrumbs на основе цепочки папок из API
-     */
-    updateFolderChainFromApi(
-        currentFolder: IDocumentFolder,
-        parentFolders: IDocumentFolder[] = []
-    ): IBreadcrumb[] {
-        const fullChain = [...parentFolders, currentFolder].filter((folder) => folder.name)
-
-        return [
-            { name: 'Документы', path: '/', id: null },
-            ...fullChain.map((folder) => ({
-                name: folder.name,
-                path: folder.folder_id || folder.path,
-                id: folder.folder_id || null,
-            })),
-        ]
-    }
-
-    /**
-     * Кеширует путь папки
-     */
-    cacheFolderPath(virtualPath: string, path: string): void {
-        this._folderPathCache.set(virtualPath, path)
-    }
-
-    /**
-     * Получает путь из кеша
-     */
-    getCachedPath(virtualPath: string): string | undefined {
-        return this._folderPathCache.get(virtualPath)
     }
 
     /**
@@ -126,53 +95,16 @@ export class NavigationService {
      */
     updateUrl(router: any, currentPath: string): void {
         try {
-            const currentRoute = router.currentRoute.value
+            const currentPathArray = pathToArray(currentPath)
 
-            if (this._urlUpdateTimeout) {
-                clearTimeout(this._urlUpdateTimeout)
+            if (currentPathArray.length === 0) {
+                router.replace({ name: ERouteNames.DOCUMENTS }).catch(() => {})
+            } else {
+                router.replace({
+                    name: ERouteNames.DOCUMENTS_FOLDER,
+                    params: { pathMatch: currentPathArray },
+                }).catch(() => {})
             }
-
-            this._urlUpdateTimeout = setTimeout(() => {
-                const currentPathArray = pathToArray(currentPath)
-                const currentPathMatch = currentRoute.params.pathMatch
-
-                let needsUpdate = false
-
-                if (currentPathArray.length === 0) {
-                    needsUpdate =
-                        currentRoute.name !== ERouteNames.DOCUMENTS || !!currentPathMatch
-                } else {
-                    const expectedPathMatch = currentPathArray.join('/')
-                    const actualPathMatch = Array.isArray(currentPathMatch)
-                        ? currentPathMatch.join('/')
-                        : currentPathMatch || ''
-
-                    needsUpdate =
-                        currentRoute.name !== ERouteNames.DOCUMENTS_FOLDER ||
-                        actualPathMatch !== expectedPathMatch
-                }
-
-                if (needsUpdate) {
-                    if (currentPathArray.length === 0) {
-                        router.replace({ name: ERouteNames.DOCUMENTS }).catch((error: any) => {
-                            if (error.name !== 'NavigationDuplicated') {
-                                console.error('Navigation error:', error)
-                            }
-                        })
-                    } else {
-                        router
-                            .replace({
-                                name: ERouteNames.DOCUMENTS_FOLDER,
-                                params: { pathMatch: currentPathArray },
-                            })
-                            .catch((error: any) => {
-                                if (error.name !== 'NavigationDuplicated') {
-                                    console.error('Navigation error:', error)
-                                }
-                            })
-                    }
-                }
-            }, 10)
         } catch (error) {
             // Ignore navigation errors
         }

@@ -92,11 +92,15 @@ export const getParentPath = (currentPath: string): string => {
         return '/'
     }
 
-    let parentPath = currentPath.slice(0, -4)
-
-    if (!parentPath) {
-        parentPath = '/'
+    // Убираем завершающий слеш если есть
+    const cleanPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath
+    
+    // Находим последний слеш
+    const lastSlashIndex = cleanPath.lastIndexOf('/')
+    
+    if (lastSlashIndex <= 0) {
+        return '/'
     }
-
-    return parentPath
+    
+    return cleanPath.substring(0, lastSlashIndex) || '/'
 }

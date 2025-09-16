@@ -43,7 +43,6 @@ export const useDocumentsStore = defineStore('documentsStore', {
         documentTypes: [],
         breadcrumbs: [{ name: 'Документы', path: '/', id: null }],
         isLoading: false,
-        selectedItems: new Set(),
         _urlUpdateTimeout: null as ReturnType<typeof setTimeout> | null,
         // Поля для поиска
         searchQuery: '',
@@ -66,43 +65,49 @@ export const useDocumentsStore = defineStore('documentsStore', {
         isRootPath: (state: IDocumentsStoreState): boolean =>
             state.currentPath === '/' && !state.currentFolderId,
 
-        selectedCount: (state: IDocumentsStoreState): number => state.selectedItems.size,
     },
 
     actions: {
+        /**
+         * Единая функция обработки ошибок
+         */
+        _handleError(error: any, context: string, functionName: string, toastMessage: string, additionalData?: Record<string, any>): void {
+            logger.error(`documents_${functionName}_error`, {
+                file: 'documentsStore',
+                function: functionName,
+                condition: String(error),
+                ...additionalData,
+            })
+
+            useFeedbackStore().showToast({
+                type: 'error',
+                title: 'Ошибка',
+                message: toastMessage,
+                time: 5000,
+            })
+        },
+
+        /**
+         * Единая функция показа успешного уведомления
+         */
+        _showSuccess(title: string, message: string): void {
+            useFeedbackStore().showToast({
+                type: 'success',
+                title,
+                message,
+                time: 4000,
+            })
+        },
+
         async fetchDocumentTypes(): Promise<void> {
             try {
                 this.documentTypes = await this._apiService.fetchDocumentTypes()
             } catch (error) {
-                logger.error('documents_fetchTypes_error', {
-                    file: 'documentsStore',
-                    function: 'fetchDocumentTypes',
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось загрузить типы документов',
-                    time: 5000,
-                })
+                this._handleError(error, 'documentsStore', 'fetchDocumentTypes', 'Не удалось загрузить типы документов')
                 throw error
             }
         },
 
-        /**
-         * Определяет путь для запроса на основе payload
-         */
-        _getRequestPath(payload: IListDocumentsPayload): string {
-            if (payload.folder_id) {
-                return payload.folder_id
-            } else if (payload.path) {
-                return payload.path === '/' ? '/' : payload.path
-            } else if (this.currentFolderId) {
-                return this.currentFolderId
-            } else {
-                return this.currentPath
-            }
-        },
 
         /**
          * Обрабатывает ответ API и обновляет состояние
@@ -110,7 +115,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         _processApiResponse(data: IListDocumentsResponse, payload: IListDocumentsPayload): void {
             if (!data || typeof data !== 'object') return
 
-            this.currentPath = data.path || this._getRequestPath(payload)
+            this.currentPath = data.path || payload.path || payload.folder_id || this.currentPath
             this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
             this.currentItems = data.items || []
 
@@ -124,45 +129,24 @@ export const useDocumentsStore = defineStore('documentsStore', {
          * Обновляет breadcrumbs на основе данных API
          */
         _updateBreadcrumbs(data: IListDocumentsResponse): void {
-            // Кешируем путь текущей папки по её virtual_path
-            if (data.virtual_path && data.path) {
-                this._navigationService.cacheFolderPath(data.virtual_path, data.path)
-            }
-
-            if (data.current_folder && data.parent_folders) {
-                this.breadcrumbs = this._navigationService.updateFolderChainFromApi(
-                    data.current_folder,
-                    data.parent_folders || [],
-                )
-            } else {
-                // Обрабатываем virtual_path или name с учетом path_parent (массив или строка)
-                const virtualPath = data.virtual_path || data.name || 'Документы'
-                const parentPaths = data.path_parent || null
-                this.breadcrumbs = this._navigationService.updateBreadcrumbsFromVirtualPath(
-                    virtualPath, 
-                    parentPaths, 
-                    this.currentPath
-                )
-            }
+            const virtualPath = data.virtual_path || data.name || 'Документы'
+            const parentPaths = data.path_parent || null
+            
+            this.breadcrumbs = this._navigationService.updateBreadcrumbs(
+                data.current_folder,
+                data.parent_folders,
+                virtualPath,
+                parentPaths,
+                this.currentPath
+            )
         },
 
         async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
-            const requestPath = this._getRequestPath(payload)
-
             try {
-                const data = await this._apiService.fetchDocuments({
-                    ...payload,
-                    path: requestPath,
-                })
-
+                const data = await this._apiService.fetchDocuments(payload)
                 this._processApiResponse(data, payload)
             } catch (error) {
-                logger.error('documents_fetch_error', {
-                    file: 'documentsStore',
-                    function: 'fetchDocuments',
-                    path: requestPath,
-                    condition: String(error),
-                })
+                const requestPath = payload.path || payload.folder_id || this.currentPath
 
                 // Пытаемся загрузить корневую папку в случае ошибки
                 if (requestPath !== '/') {
@@ -174,12 +158,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     }
                 }
 
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось загрузить документы',
-                    time: 5000,
-                })
+                this._handleError(error, 'documentsStore', 'fetchDocuments', 'Не удалось загрузить документы', { path: requestPath })
                 throw error
             }
         },
@@ -209,19 +188,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     sort_order: 'ascending',
                 })
             } catch (error) {
-                logger.error('documents_search_error', {
-                    file: 'documentsStore',
-                    function: 'searchDocuments',
-                    query: query,
-                    condition: String(error),
-                })
-
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка поиска',
-                    message: 'Не удалось выполнить поиск документов',
-                    time: 5000,
-                })
+                this._handleError(error, 'documentsStore', 'searchDocuments', 'Не удалось выполнить поиск документов', { query })
                 throw error
             }
         },
@@ -318,28 +285,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 }
                 
                 await this._apiService.createDocument(documentPayload)
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Успех',
-                    message: 'Документ создан',
-                    time: 5000,
-                })
-
+                this._showSuccess('Успех', 'Документ создан')
+                
                 // Обновляем список с учетом режима поиска
                 await this._refreshCurrentView()
             } catch (error) {
-                logger.error('documents_create_error', {
-                    file: 'documentsStore',
-                    function: 'createDocument',
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось создать документ',
-                    time: 7000,
-                })
+                this._handleError(error, 'documentsStore', 'createDocument', 'Не удалось создать документ')
                 throw error
             }
         },
@@ -347,28 +298,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
         async createFolder(payload: ICreateFolderPayload): Promise<void> {
             try {
                 await this._apiService.createFolder(payload)
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Успех',
-                    message: 'Папка создана',
-                    time: 5000,
-                })
-
+                this._showSuccess('Успех', 'Папка создана')
+                
                 // Обновляем список с учетом режима поиска
                 await this._refreshCurrentView()
             } catch (error) {
-                logger.error('documents_createFolder_error', {
-                    file: 'documentsStore',
-                    function: 'createFolder',
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось создать папку',
-                    time: 7000,
-                })
+                this._handleError(error, 'documentsStore', 'createFolder', 'Не удалось создать папку')
                 throw error
             }
         },
@@ -376,28 +311,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
         async deleteDocument(id: number): Promise<void> {
             try {
                 await this._apiService.deleteDocument(id)
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Удалено',
-                    message: 'Документ удален',
-                    time: 4000,
-                })
-
+                this._showSuccess('Удалено', 'Документ удален')
+                
                 // Обновляем список с учетом режима поиска
                 await this._refreshCurrentView()
             } catch (error) {
-                logger.error('documents_delete_error', {
-                    file: 'documentsStore',
-                    function: 'deleteDocument',
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось удалить документ',
-                    time: 7000,
-                })
+                this._handleError(error, 'documentsStore', 'deleteDocument', 'Не удалось удалить документ', { documentId: id })
                 throw error
             }
         },
@@ -405,28 +324,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
         async deleteFolder(id: number): Promise<void> {
             try {
                 await this._apiService.deleteFolder(id)
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Удалено',
-                    message: 'Папка удалена',
-                    time: 4000,
-                })
-
+                this._showSuccess('Удалено', 'Папка удалена')
+                
                 // Обновляем список с учетом режима поиска
                 await this._refreshCurrentView()
             } catch (error) {
-                logger.error('documents_deleteFolder_error', {
-                    file: 'documentsStore',
-                    function: 'deleteFolder',
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось удалить папку',
-                    time: 7000,
-                })
+                this._handleError(error, 'documentsStore', 'deleteFolder', 'Не удалось удалить папку', { folderId: id })
                 throw error
             }
         },
@@ -438,28 +341,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
         ): Promise<void> {
             try {
                 await this._apiService.addDocumentVersion(documentId, file, description)
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Успех',
-                    message: 'Версия документа добавлена',
-                    time: 5000,
-                })
-
+                this._showSuccess('Успех', 'Версия документа добавлена')
+                
                 // Обновляем список с учетом режима поиска
                 await this._refreshCurrentView()
             } catch (error) {
-                logger.error('documents_addVersion_error', {
-                    file: 'documentsStore',
-                    function: 'addDocumentVersion',
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось добавить версию документа',
-                    time: 7000,
-                })
+                this._handleError(error, 'documentsStore', 'addDocumentVersion', 'Не удалось добавить версию документа', { documentId })
                 throw error
             }
         },
@@ -468,18 +355,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
             try {
                 return await this._apiService.fetchDocumentDetails(documentId)
             } catch (error) {
-                logger.error('documents_fetchDetails_error', {
-                    file: 'documentsStore',
-                    function: 'fetchDocumentDetails',
-                    documentId: documentId,
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось загрузить детали документа',
-                    time: 5000,
-                })
+                this._handleError(error, 'documentsStore', 'fetchDocumentDetails', 'Не удалось загрузить детали документа', { documentId })
                 throw error
             }
         },
@@ -488,18 +364,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
             try {
                 return await this._apiService.fetchDocumentVersions(documentId)
             } catch (error) {
-                logger.error('documents_fetchVersions_error', {
-                    file: 'documentsStore',
-                    function: 'fetchDocumentVersions',
-                    documentId: documentId,
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось загрузить версии документа',
-                    time: 5000,
-                })
+                this._handleError(error, 'documentsStore', 'fetchDocumentVersions', 'Не удалось загрузить версии документа', { documentId })
                 throw error
             }
         },
@@ -507,58 +372,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         async deleteDocumentVersion(documentId: number, versionId: number): Promise<void> {
             try {
                 await this._apiService.deleteDocumentVersion(documentId, versionId)
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Удалено',
-                    message: 'Версия документа удалена',
-                    time: 4000,
-                })
+                this._showSuccess('Удалено', 'Версия документа удалена')
             } catch (error) {
-                logger.error('documents_deleteVersion_error', {
-                    file: 'documentsStore',
-                    function: 'deleteDocumentVersion',
-                    documentId: documentId,
-                    versionId: versionId,
-                    condition: String(error),
-                })
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось удалить версию документа',
-                    time: 7000,
-                })
+                this._handleError(error, 'documentsStore', 'deleteDocumentVersion', 'Не удалось удалить версию документа', { documentId, versionId })
                 throw error
             }
         },
 
-        selectItem(id: number): void {
-            this.selectedItems.add(id)
-        },
-
-        deselectItem(id: number): void {
-            this.selectedItems.delete(id)
-        },
-
-        toggleSelectItem(id: number): void {
-            if (this.selectedItems.has(id)) {
-                this.deselectItem(id)
-            } else {
-                this.selectItem(id)
-            }
-        },
-
-        selectAll(): void {
-            this.currentItems.forEach((item: IDocumentItem) => {
-                if (item.id !== null) {
-                    this.selectedItems.add(item.id)
-                }
-            })
-        },
-
-        deselectAll(): void {
-            this.selectedItems.clear()
-        },
 
 
         getUrlFromCurrentState(): string {

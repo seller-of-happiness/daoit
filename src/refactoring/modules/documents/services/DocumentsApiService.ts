@@ -41,7 +41,7 @@ export class DocumentsApiService {
      * Получает список документов
      */
     async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<IListDocumentsResponse> {
-        const requestPath = this._getRequestPath(payload)
+        const requestPath = payload.folder_id || payload.path || '/'
 
         const requestPayload: IListDocumentsRequest = {
             path: requestPath,
@@ -64,17 +64,6 @@ export class DocumentsApiService {
         return response.data
     }
 
-    /**
-     * Определяет путь для запроса
-     */
-    private _getRequestPath(payload: IListDocumentsPayload): string {
-        if (payload.folder_id) {
-            return payload.folder_id
-        } else if (payload.path) {
-            return payload.path === '/' ? '/' : payload.path
-        }
-        return '/'
-    }
 
     /**
      * Создает документ

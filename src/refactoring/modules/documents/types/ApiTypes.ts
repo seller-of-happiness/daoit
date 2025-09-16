@@ -104,29 +104,9 @@ export interface IDocumentVersionsResponse {
 // === Utility Types ===
 
 /**
- * Тип для трансформации API ответа в клиентский формат
- */
-export type ApiToClientTransform<T> = {
-    [K in keyof T]: T[K] extends string | null | undefined
-        ? T[K]
-        : T[K] extends number | null | undefined
-        ? T[K]
-        : T[K] extends boolean | null | undefined
-        ? T[K]
-        : T[K] extends Array<infer U>
-        ? Array<ApiToClientTransform<U>>
-        : ApiToClientTransform<T[K]>
-}
-
-/**
  * Тип для создания payload'ов с обязательными полями
  */
 export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>
-
-/**
- * Тип для опциональных полей в запросах
- */
-export type OptionalFields<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
 // === Enums ===
 
@@ -161,38 +141,4 @@ export interface IApiErrorResponse {
     error: IApiError
     errors?: IApiError[]
     status_code?: number
-}
-
-// === Success Response Wrapper ===
-
-export interface IApiSuccessResponse<T = any> {
-    data: T
-    message?: string
-    status: 'success'
-}
-
-// === Pagination ===
-
-export interface IPaginationMeta {
-    current_page: number
-    per_page: number
-    total: number
-    total_pages: number
-    has_next: boolean
-    has_prev: boolean
-}
-
-export interface IPaginatedResponse<T> {
-    data: T[]
-    meta: IPaginationMeta
-}
-
-// === File Upload Progress ===
-
-export interface IUploadProgress {
-    loaded: number
-    total: number
-    percentage: number
-    speed?: number // bytes per second
-    estimated_time?: number // seconds
 }

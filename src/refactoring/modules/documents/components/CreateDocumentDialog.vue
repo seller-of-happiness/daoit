@@ -109,9 +109,7 @@
 import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFileUpload } from '@/refactoring/modules/documents/composables/useFileUpload'
-import { useFormValidation } from '@/refactoring/modules/documents/composables/useFormValidation'
 import { useDialog } from '@/refactoring/modules/documents/composables/useDialog'
-import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
 import type { IDocumentType } from '@/refactoring/modules/documents/types/IDocument'
 
 interface Props {
@@ -130,8 +128,6 @@ const emit = defineEmits<Emits>()
 const documentsStore = useDocumentsStore()
 
 // Composables
-const { handleError, showSuccess } = useErrorHandler()
-const { validateForm, documentRules, errors, clearErrors } = useFormValidation()
 const { createVModel, isLoading, setLoading } = useDialog({
     autoReset: true,
     onReset: () => resetForm()
@@ -143,6 +139,13 @@ const form = ref({
     description: '',
     type_id: null as number | null,
     visibility: 'public' as 'public' | 'private' | 'department',
+})
+
+// Простая валидация
+const errors = ref({
+    file: '',
+    name: '',
+    visibility: '',
 })
 
 // Файловый загрузчик
@@ -197,19 +200,40 @@ const isFormValid = computed(() => {
     )
 })
 
+// Простая функция валидации
+const validateForm = (): boolean => {
+    errors.value = { file: '', name: '', visibility: '' }
+    let isValid = true
+
+    if (!selectedFile.value) {
+        errors.value.file = 'Выберите файл'
+        isValid = false
+    }
+
+    if (!form.value.name.trim()) {
+        errors.value.name = 'Введите название документа'
+        isValid = false
+    } else if (form.value.name.trim().length < 2) {
+        errors.value.name = 'Название должно содержать минимум 2 символа'
+        isValid = false
+    } else if (form.value.name.trim().length > 200) {
+        errors.value.name = 'Название не должно превышать 200 символов'
+        isValid = false
+    }
+
+    if (!form.value.visibility) {
+        errors.value.visibility = 'Выберите уровень видимости'
+        isValid = false
+    }
+
+    return isValid
+}
+
 // Обработчики
 const handleSubmit = async () => {
-    const formData = {
-        file: selectedFile.value,
-        name: form.value.name,
-        visibility: form.value.visibility,
-    }
-
-    if (!validateForm(formData, documentRules.createDocument)) {
+    if (!validateForm()) {
         return
     }
-
-    if (!selectedFile.value) return
 
     setLoading(true)
 
@@ -223,17 +247,11 @@ const handleSubmit = async () => {
             visibility: form.value.visibility,
         })
 
-        showSuccess('Успех', 'Документ создан')
         emit('created')
         dialogVisible.value = false
     } catch (error) {
-        handleError(error, {
-            context: 'CreateDocumentDialog',
-            functionName: 'handleSubmit',
-            toastTitle: 'Ошибка',
-            toastMessage: 'Не удалось создать документ',
-            toastTime: 7000,
-        })
+        // Ошибка уже обработана в store
+        console.error('Create document error:', error)
     } finally {
         setLoading(false)
     }
@@ -247,7 +265,7 @@ const resetForm = () => {
         visibility: 'public',
     }
 
-    clearErrors()
+    errors.value = { file: '', name: '', visibility: '' }
     resetFileUpload()
 }
 </script>

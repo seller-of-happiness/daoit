@@ -25,7 +25,7 @@
                     <IconField iconPosition="left" class="w-full">
                         <InputIcon class="pi pi-search" />
                         <InputText
-                            v-model="searchQuery"
+                            v-model="documentsStore.searchQuery"
                             @input="onSearchInput"
                             placeholder="Поиск документов"
                             class="w-full search-input"
@@ -337,15 +337,10 @@ const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
-// Поиск
-const searchQuery = ref('')
-
 // Методы для поиска
 const onSearchInput = (event: Event): void => {
     const target = event.target as HTMLInputElement
     const query = target.value.trim()
-
-    searchQuery.value = query
 
     if (query.length >= 3) {
         documentsStore.handleSearchInput(query)
@@ -355,7 +350,6 @@ const onSearchInput = (event: Event): void => {
 }
 
 const clearSearch = async (): Promise<void> => {
-    searchQuery.value = ''
     await documentsStore.clearSearch()
 }
 
