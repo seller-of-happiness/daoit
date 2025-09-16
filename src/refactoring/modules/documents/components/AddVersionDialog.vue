@@ -84,11 +84,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
-import type { IDocument } from '@/refactoring/modules/documents/types/IDocument'
+import type { IDocument, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
 
 interface Props {
     visible: boolean
-    document: IDocument | null
+    document: IDocument | IDocumentDetailsResponse | null
 }
 
 interface Emits {

@@ -303,7 +303,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import { ERouteNames } from '@/router/ERouteNames'
-import type { IDocument, IDocumentFolder } from '@/refactoring/modules/documents/types/IDocument'
+import type { IDocument, IDocumentFolder, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
 import CreateFolderDialog from './CreateFolderDialog.vue'
 import CreateDocumentDialog from './CreateDocumentDialog.vue'
 import AddVersionDialog from './AddVersionDialog.vue'
@@ -330,7 +330,7 @@ const showCreateFolderDialog = ref(false)
 const showCreateDocumentDialog = ref(false)
 const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
-const selectedDocument = ref<IDocument | null>(null)
+const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
 // Поиск
 const searchQuery = ref('')

@@ -24,7 +24,7 @@
                     <div class="detail-row">
                         <span class="detail-label">Тип:</span>
                         <span class="detail-value">{{
-                            document?.type_name || getFileTypeByExtension(document?.extension || '')
+                            document?.type_name || getFileTypeByExtension(documentExtension)
                         }}</span>
                     </div>
                     <div class="detail-row">
@@ -194,6 +194,12 @@ const confirm = useConfirm()
 const dialogVisible = computed({
     get: () => props.visible,
     set: (value) => emit('update:visible', value),
+})
+
+// Computed properties
+const documentExtension = computed(() => {
+    if (!props.document) return ''
+    return (props.document as any).extension || ''
 })
 
 // Состояние
