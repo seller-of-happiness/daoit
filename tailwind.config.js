@@ -13,10 +13,10 @@ export default {
             xl: '1200px',
             '2xl': '1920px',
         },
-        colors: {
-            linkHover: '#34d399',
-        },
         extend: {
+            colors: {
+                linkHover: '#34d399',
+            },
             gridTemplateColumns: {
                 'auto-fill-230': 'repeat(auto-fill, minmax(230px, 1fr))',
                 'auto-fit-100': 'repeat(auto-fit, minmax(100px, 1fr))',
