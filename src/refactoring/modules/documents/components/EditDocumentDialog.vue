@@ -24,8 +24,7 @@
                     <div class="detail-row">
                         <span class="detail-label">Тип:</span>
                         <span class="detail-value">{{
-                            document?.type_name ||
-                            getFileTypeByExtension(document?.extension || '')
+                            document?.type_name || getFileTypeByExtension(document?.extension || '')
                         }}</span>
                     </div>
                     <div class="detail-row">
@@ -34,7 +33,9 @@
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Видимость:</span>
-                        <span class="detail-value">{{ getVisibilityLabel(document?.visibility) }}</span>
+                        <span class="detail-value">{{
+                            getVisibilityLabel(document?.visibility)
+                        }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Создан:</span>
@@ -50,9 +51,7 @@
                     </div>
                     <div v-if="document?.approved_at" class="detail-row">
                         <span class="detail-label">Утвержден:</span>
-                        <span class="detail-value">{{
-                            formatDate(document.approved_at)
-                        }}</span>
+                        <span class="detail-value">{{ formatDate(document.approved_at) }}</span>
                     </div>
                 </div>
             </div>
@@ -64,7 +63,10 @@
                 </div>
 
                 <div class="versions-list">
-                    <div v-if="!document?.versions || document.versions.length === 0" class="empty-versions">
+                    <div
+                        v-if="!document?.versions || document.versions.length === 0"
+                        class="empty-versions"
+                    >
                         <i class="pi pi-file-o"></i>
                         <p>У документа пока нет версий</p>
                     </div>
@@ -82,7 +84,12 @@
                             :key="version.id"
                             class="version-row"
                         >
-                            <div class="version-number">{{ version.version }}</div>
+                            <div
+                                class="version-number cursor-pointer"
+                                @click="downloadVersion(version)"
+                            >
+                                {{ version.version }}
+                            </div>
                             <div class="version-size">{{ formatFileSize(version.size) }}</div>
                             <div class="version-date">
                                 {{ formatDate(version.created_at) }}
@@ -96,14 +103,14 @@
                                     @click="downloadVersion(version)"
                                     v-tooltip.top="'Скачать эту версию'"
                                 />
-                                <Button
+                                <!-- <Button
                                     icon="pi pi-trash"
                                     severity="danger"
                                     text
                                     size="small"
                                     @click="confirmDeleteVersion(version)"
                                     v-tooltip.top="'Удалить версию'"
-                                />
+                                /> -->
                             </div>
                         </div>
                     </div>
@@ -113,27 +120,31 @@
             <!-- Действия с документом -->
             <div class="document-actions-section">
                 <div class="action-buttons">
-                    <Button
-                        icon="pi pi-upload"
-                        label="Добавить версию"
-                        @click="showAddVersionDialog = true"
-                    />
-                    <Button
-                        icon="pi pi-download"
-                        label="Скачать файл"
-                        severity="secondary"
-                        @click="downloadDocument"
-                    />
-                    <Button
-                        icon="pi pi-trash"
-                        label="Удалить файл"
-                        severity="danger"
-                        @click="confirmDeleteDocument"
-                    />
+                    <div>
+                        <Button
+                            icon="pi pi-upload"
+                            label="Добавить версию"
+                            @click="showAddVersionDialog = true"
+                        />
+                    </div>
+                    <div>
+                        <Button
+                            icon="pi pi-download"
+                            label="Скачать файл"
+                            @click="downloadDocument"
+                            class="download-btn"
+                        />
+                        <Button
+                            icon="pi pi-trash"
+                            label="Удалить файл"
+                            severity="danger"
+                            @click="confirmDeleteDocument"
+                        />
+                    </div>
                 </div>
-                <small class="danger-text">
+                <div class="danger-text">
                     Удаление документа необратимо. Все версии будут удалены.
-                </small>
+                </div>
             </div>
         </div>
 
@@ -154,7 +165,11 @@ import { ref, computed } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
-import type { IDocument, IDocumentVersion, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
+import type {
+    IDocument,
+    IDocumentVersion,
+    IDocumentDetailsResponse,
+} from '@/refactoring/modules/documents/types/IDocument'
 import AddVersionDialog from './AddVersionDialog.vue'
 import { BASE_URL } from '@/refactoring/environment/environment'
 
@@ -475,15 +490,20 @@ const formatDate = (dateString: string): string => {
 }
 
 .version-header {
-    @apply grid grid-cols-[80px_80px_140px_100px] gap-4 p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200;
+    @apply grid grid-cols-[25%_25%_25%_25%] p-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 text-sm font-medium text-surface-700 dark:text-surface-200;
 }
 
 .version-row {
-    @apply grid grid-cols-[80px_80px_140px_100px] gap-4 p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm;
+    @apply grid grid-cols-[25%_25%_25%_25%] p-3 border-b border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-sm;
 }
 
 .version-row:last-child {
     @apply border-b-0;
+}
+
+.version-header div,
+.version-row div {
+    @apply px-2 text-center;
 }
 
 .version-number {
@@ -495,9 +515,8 @@ const formatDate = (dateString: string): string => {
     @apply text-surface-700 dark:text-surface-200;
 }
 
-
 .version-actions {
-    @apply flex items-center gap-1;
+    @apply flex items-center justify-center gap-1;
 }
 
 /* Действия с документом */
@@ -506,11 +525,15 @@ const formatDate = (dateString: string): string => {
 }
 
 .action-buttons {
-    @apply flex gap-2 flex-wrap;
+    @apply flex gap-2 flex-wrap justify-between;
 }
 
 .danger-text {
-    @apply text-surface-500 dark:text-surface-400 text-xs;
+    @apply text-surface-500 dark:text-surface-400 text-xs w-full text-right mt-3;
+}
+
+.download-btn {
+    margin-right: 24px !important;
 }
 
 /* Адаптивность */

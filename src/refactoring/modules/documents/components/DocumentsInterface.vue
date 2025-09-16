@@ -19,8 +19,47 @@
                 </div>
             </div>
 
-            <!-- Breadcrumbs -->
-            <div class="breadcrumbs-container">
+            <!-- Поле поиска -->
+            <div class="search-container">
+                <div class="search-field w-full max-w-80">
+                    <IconField iconPosition="left" class="w-full">
+                        <InputIcon class="pi pi-search" />
+                        <InputText
+                            v-model="searchQuery"
+                            @input="onSearchInput"
+                            placeholder="Поиск документов"
+                            class="w-full search-input"
+                        />
+                    </IconField>
+                    <Button
+                        v-if="documentsStore.isSearchMode"
+                        icon="pi pi-times"
+                        severity="secondary"
+                        text
+                        @click="clearSearch"
+                        v-tooltip.top="'Очистить поиск'"
+                        class="clear-search-btn"
+                    />
+                </div>
+
+                <!-- Индикатор режима поиска -->
+                <div v-if="documentsStore.isSearchMode" class="search-indicator">
+                    <i class="pi pi-search text-primary"></i>
+                    <span class="search-text">
+                        Результаты поиска: "{{ documentsStore.searchQuery }}"
+                    </span>
+                    <Button
+                        label="Вернуться к просмотру папок"
+                        severity="secondary"
+                        size="small"
+                        text
+                        @click="clearSearch"
+                    />
+                </div>
+            </div>
+
+            <!-- Breadcrumbs (скрываем в режиме поиска) -->
+            <div v-if="!documentsStore.isSearchMode" class="breadcrumbs-container">
                 <div class="custom-breadcrumbs">
                     <template v-for="(crumb, index) in documentsStore.breadcrumbs" :key="index">
                         <span
@@ -91,9 +130,9 @@
 
                 <!-- Строки таблицы -->
                 <div class="table-body">
-                    <!-- Кнопка "Назад" если не в корне -->
+                    <!-- Кнопка "Назад" если не в корне и не в режиме поиска -->
                     <div
-                        v-if="!documentsStore.isRootPath"
+                        v-if="!documentsStore.isRootPath && !documentsStore.isSearchMode"
                         class="table-row back-row"
                         @click="navigateUp"
                         title="Перейти на одну папку вверх"
@@ -194,12 +233,31 @@
                         </div>
                     </div>
 
-                    <!-- Сообщение о пустой папке -->
+                    <!-- Сообщение о пустой папке/отсутствии результатов -->
                     <div v-if="documentsStore.currentItems.length === 0" class="empty-state">
                         <div class="empty-state-content">
-                            <i class="pi pi-folder-open empty-icon"></i>
-                            <h4>Папка пуста</h4>
-                            <p>Создайте новую папку или загрузите документ</p>
+                            <i
+                                :class="
+                                    documentsStore.isSearchMode
+                                        ? 'pi pi-search'
+                                        : 'pi pi-folder-open'
+                                "
+                                class="empty-icon"
+                            ></i>
+                            <h4>
+                                {{
+                                    documentsStore.isSearchMode
+                                        ? 'Ничего не найдено'
+                                        : 'Папка пуста'
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    documentsStore.isSearchMode
+                                        ? 'Попробуйте изменить поисковый запрос'
+                                        : 'Создайте новую папку или загрузите документ'
+                                }}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -269,6 +327,28 @@ const showCreateDocumentDialog = ref(false)
 const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | null>(null)
+
+// Поиск
+const searchQuery = ref('')
+
+// Методы для поиска
+const onSearchInput = (event: Event): void => {
+    const target = event.target as HTMLInputElement
+    const query = target.value.trim()
+
+    searchQuery.value = query
+
+    if (query.length >= 3) {
+        documentsStore.handleSearchInput(query)
+    } else if (query.length === 0) {
+        void clearSearch()
+    }
+}
+
+const clearSearch = async (): Promise<void> => {
+    searchQuery.value = ''
+    await documentsStore.clearSearch()
+}
 
 // Сортировка
 const currentSort = ref<{
@@ -467,30 +547,30 @@ const downloadDocument = (document: IDocument) => {
     }
 }
 
-const viewDocument = (document: IDocument) => {
-    const url = document.file_url || document.download_url
-    if (!url) {
-        useFeedbackStore().showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось найти ссылку для просмотра документа',
-            time: 5000,
-        })
-        return
-    }
+// const viewDocument = (document: IDocument) => {
+//     const url = document.file_url || document.download_url
+//     if (!url) {
+//         useFeedbackStore().showToast({
+//             type: 'error',
+//             title: 'Ошибка',
+//             message: 'Не удалось найти ссылку для просмотра документа',
+//             time: 5000,
+//         })
+//         return
+//     }
 
-    try {
-        const viewUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-        console.log(viewUrl)
-    } catch (error) {
-        useFeedbackStore().showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось открыть документ для просмотра',
-            time: 5000,
-        })
-    }
-}
+//     try {
+//         const viewUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+//         console.log(viewUrl)
+//     } catch (error) {
+//         useFeedbackStore().showToast({
+//             type: 'error',
+//             title: 'Ошибка',
+//             message: 'Не удалось открыть документ для просмотра',
+//             time: 5000,
+//         })
+//     }
+// }
 
 const getFileTypeByExtension = (extension: string): string => {
     const ext = extension.toLowerCase()
@@ -645,11 +725,40 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+    if (documentsStore.isSearchMode) {
+        void documentsStore.clearSearch()
+    }
     documentsStore.cleanup()
 })
 </script>
 
 <style scoped>
+/* Стили для поиска */
+.search-container {
+    @apply px-4 pb-3 space-y-3;
+}
+
+.search-field {
+    @apply flex items-center gap-2;
+}
+
+.search-input {
+    @apply flex-1;
+}
+
+.clear-search-btn {
+    @apply flex-shrink-0;
+}
+
+.search-indicator {
+    @apply flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800;
+}
+
+.search-text {
+    @apply text-sm font-medium text-primary-700 dark:text-primary-300 flex-1;
+}
+
+/* Основные стили */
 .documents-interface {
     @apply flex flex-col h-full;
 }
