@@ -53,7 +53,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
     getters: {
         currentFolders: (state: IDocumentsStoreState): IDocumentFolder[] =>
             state.currentItems.filter(
-                (item: IDocumentItem): item is IDocumentFolder => item.is_dir,
+                (item: IDocumentItem): item is IDocumentFolder => item.is_dir === true,
             ),
 
         currentDocuments: (state: IDocumentsStoreState): IDocument[] =>

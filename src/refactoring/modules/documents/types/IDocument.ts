@@ -110,14 +110,19 @@ export interface IDocumentDetailsResponse {
     type: number
     name: string
     number: string
+    description?: string
+    path?: string
     visibility: 'creator' | 'public' | 'private' | 'department'
     created_by: string
     created_at: string
     updated_at: string
     virtual_path: string
+    is_dir?: false
+    size: number | null
+    extension?: string
     type_name: string
     status: string
-    approved_at: string | null
+    approved_at?: string
     versions: IDocumentVersion[]
     file_url?: string
     download_url?: string
