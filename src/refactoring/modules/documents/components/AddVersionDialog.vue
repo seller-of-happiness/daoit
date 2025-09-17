@@ -160,7 +160,7 @@ const handleSubmit = async () => {
             form.value.description.trim() || undefined,
         )
 
-        showSuccess('Успех', 'Версия документа добавлена')
+        // Сообщение об успехе уже показывается в store
         emit('added')
         resetForm()
     } catch (error) {

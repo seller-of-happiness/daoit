@@ -115,7 +115,7 @@ const handleSubmit = async () => {
             visibility: form.value.visibility,
         })
 
-        showSuccess('Успех', 'Папка создана')
+        // Сообщение об успехе уже показывается в store
         emit('created')
         resetForm()
     } catch (error) {

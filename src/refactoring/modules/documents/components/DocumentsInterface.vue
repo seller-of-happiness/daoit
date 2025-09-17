@@ -348,10 +348,14 @@ const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
 const onFolderCreated = () => {
     showCreateFolderDialog.value = false
+    // Обновляем список папок после создания
+    documentSort.refreshDocuments()
 }
 
 const onDocumentCreated = () => {
     showCreateDocumentDialog.value = false
+    // Обновляем список документов после создания
+    documentSort.refreshDocuments()
 }
 
 const onVersionAdded = () => {
@@ -393,10 +397,13 @@ const confirmDeleteFolder = (folder: IDocumentFolder) => {
         acceptLabel: 'Удалить',
         rejectLabel: 'Отмена',
         acceptClass: 'p-button-danger',
-        accept: () => {
-            return documentsStore.deleteFolder(folder.id!).catch((error) => {
-                throw error
-            })
+        accept: async () => {
+            try {
+                await documentsStore.deleteFolder(folder.id!)
+                confirm.close()
+            } catch (error) {
+                // Ошибка уже обработана в store
+            }
         },
     })
 }
@@ -413,10 +420,9 @@ const confirmDeleteDocument = (document: IDocument) => {
             try {
                 await documentsStore.deleteDocument(document.id)
                 confirm.close()
-            } catch (error) {}
-        },
-        reject: () => {
-            confirm.close()
+            } catch (error) {
+                // Ошибка уже обработана в store
+            }
         },
     })
 }
