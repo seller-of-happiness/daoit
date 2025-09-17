@@ -25,10 +25,10 @@
                     />
                     <div v-if="selectedFile" class="selected-file-info">
                         <div class="file-info">
-                            <i :class="getFileIcon(selectedFile.name)" class="file-icon"></i>
+                            <i :class="fileInfo?.icon" class="file-icon"></i>
                             <div class="file-details">
-                                <div class="file-name">{{ selectedFile.name }}</div>
-                                <div class="file-size">{{ formatFileSize(selectedFile.size) }}</div>
+                                <div class="file-name">{{ fileInfo?.name }}</div>
+                                <div class="file-size">{{ fileInfo?.formattedSize }}</div>
                             </div>
                         </div>
                     </div>
@@ -86,10 +86,10 @@ import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFormValidation } from '@/refactoring/modules/documents/composables/useFormValidation'
 import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
+import { useFileUpload } from '@/refactoring/modules/documents/composables/useFileUpload'
 import {
     formatFileSize,
     formatDate,
-    getFileIcon,
 } from '@/refactoring/modules/documents/utils/documentUtils'
 import type {
     IDocument,
@@ -114,14 +114,20 @@ const { errors, documentRules, validateForm, clearErrors, clearFieldError, hasEr
     useFormValidation()
 const { handleError, showSuccess } = useErrorHandler()
 
+// Файловый загрузчик
+const {
+    selectedFile,
+    fileUploadRef: fileUpload,
+    fileInfo,
+    onFileSelect: handleFileSelect,
+    clearFile,
+    reset: resetFileUpload,
+} = useFileUpload()
+
 const dialogVisible = computed({
     get: () => props.visible,
     set: (value) => emit('update:visible', value),
 })
-
-// Файл
-const fileUpload = ref()
-const selectedFile = ref<File | null>(null)
 
 // Форма
 const form = ref({
@@ -132,15 +138,16 @@ const isLoading = ref(false)
 
 // Обработчики файлов
 const onFileSelect = (event: any) => {
-    const file = event.files[0]
-    if (file) {
-        selectedFile.value = file
+    const result = handleFileSelect(event)
+    if (!result.isValid && result.error) {
+        errors.value.file = result.error
+    } else {
         clearFieldError('file')
     }
 }
 
 const onFileClear = () => {
-    selectedFile.value = null
+    clearFile()
 }
 
 const isFormValid = computed(() => !hasErrors.value && selectedFile.value !== null)
@@ -182,11 +189,7 @@ const resetForm = () => {
     }
 
     clearErrors()
-    selectedFile.value = null
-
-    if (fileUpload.value) {
-        fileUpload.value.clear()
-    }
+    resetFileUpload()
 }
 
 watch(

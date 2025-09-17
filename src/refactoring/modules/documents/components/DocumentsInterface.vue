@@ -9,14 +9,14 @@
                         icon="pi pi-folder-plus"
                         label="Создать папку"
                         severity="secondary"
-                        @click="showCreateFolderDialog = true"
+                        @click="documentDialogs.showCreateFolderDialog.value = true"
                     />
                     <Button
                         icon="pi pi-plus"
                         label="Загрузить документ"
                         :loading="documentsStore.isLoading"
                         :disabled="documentsStore.isLoading"
-                        @click="showCreateDocumentDialog = true"
+                        @click="documentDialogs.showCreateDocumentDialog.value = true"
                     />
                 </div>
             </div>
@@ -266,27 +266,27 @@
         </div>
 
         <!-- Диалог создания папки -->
-        <CreateFolderDialog v-model:visible="showCreateFolderDialog" @created="onFolderCreated" />
+        <CreateFolderDialog v-model:visible="documentDialogs.showCreateFolderDialog.value" @created="onFolderCreated" />
 
         <!-- Диалог создания документа -->
         <CreateDocumentDialog
-            :visible="showCreateDocumentDialog"
-            @update:visible="showCreateDocumentDialog = $event"
+            :visible="documentDialogs.showCreateDocumentDialog.value"
+            @update:visible="documentDialogs.showCreateDocumentDialog.value = $event"
             :document-types="documentsStore.documentTypes"
             @created="onDocumentCreated"
         />
 
         <!-- Диалог добавления версии -->
         <AddVersionDialog
-            v-model:visible="showAddVersionDialog"
-            :document="selectedDocument"
+            v-model:visible="documentDialogs.showAddVersionDialog.value"
+            :document="documentDialogs.selectedDocument.value"
             @added="onVersionAdded"
         />
 
         <!-- Диалог редактирования документа -->
         <EditDocumentDialog
-            v-model:visible="showEditDocumentDialog"
-            :document="selectedDocument"
+            v-model:visible="documentDialogs.showEditDocumentDialog.value"
+            :document="documentDialogs.selectedDocument.value"
             @documentDeleted="onDocumentDeleted"
         />
 
@@ -304,7 +304,9 @@ import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedback
 import { useDocumentSearch } from '@/refactoring/modules/documents/composables/useDocumentSearch'
 import { useDocumentSort } from '@/refactoring/modules/documents/composables/useDocumentSort'
 import { useDocumentNavigation } from '@/refactoring/modules/documents/composables/useDocumentNavigation'
-import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
+import { useDocumentActions } from '@/refactoring/modules/documents/composables/useDocumentActions'
+import { useDocumentDialogs } from '@/refactoring/modules/documents/composables/useDocumentDialogs'
+import { useFolderActions } from '@/refactoring/modules/documents/composables/useFolderActions'
 import { ERouteNames } from '@/router/ERouteNames'
 import {
     getFileTypeByExtension,
@@ -322,7 +324,6 @@ import CreateFolderDialog from './CreateFolderDialog.vue'
 import CreateDocumentDialog from './CreateDocumentDialog.vue'
 import AddVersionDialog from './AddVersionDialog.vue'
 import EditDocumentDialog from './EditDocumentDialog.vue'
-import { BASE_URL } from '@/refactoring/environment/environment'
 
 interface Props {
     path?: string[]
@@ -341,148 +342,25 @@ const router = useRouter()
 const documentSearch = useDocumentSearch()
 const documentSort = useDocumentSort()
 const documentNavigation = useDocumentNavigation(documentSort)
-const { handleError, showSuccess } = useErrorHandler()
+const documentActions = useDocumentActions()
+const documentDialogs = useDocumentDialogs()
+const folderActions = useFolderActions()
 
-const showCreateFolderDialog = ref(false)
-const showCreateDocumentDialog = ref(false)
+// Используем методы из композиблов
+const {
+    onFolderCreated,
+    onDocumentCreated,
+    onVersionAdded,
+    onDocumentDeleted,
+    openAddVersionDialog,
+    openEditDocumentDialog,
+} = documentDialogs
 
-const showAddVersionDialog = ref(false)
-const showEditDocumentDialog = ref(false)
-const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
+// Используем метод из композибла
+const { confirmDeleteFolder } = folderActions
 
-const onFolderCreated = async () => {
-    showCreateFolderDialog.value = false
-    // Обновляем список папок после создания - используем принудительное обновление
-    try {
-        await documentsStore.forceRefreshDocuments()
-    } catch (error) {
-        // Fallback на documentSort если основной метод не сработал
-        await documentSort.refreshDocuments()
-    }
-}
-
-const onDocumentCreated = async () => {
-    showCreateDocumentDialog.value = false
-    // Обновляем список документов после создания - используем принудительное обновление
-    try {
-        await documentsStore.forceRefreshDocuments()
-    } catch (error) {
-        // Fallback на documentSort если основной метод не сработал
-        await documentSort.refreshDocuments()
-    }
-}
-
-const onVersionAdded = () => {
-    showAddVersionDialog.value = false
-    selectedDocument.value = null
-}
-
-const onDocumentDeleted = async () => {
-    showEditDocumentDialog.value = false
-    selectedDocument.value = null
-    // Обновляем список после удаления документа - используем принудительное обновление
-    try {
-        await documentsStore.forceRefreshDocuments()
-    } catch (error) {
-        // Fallback на documentSort если основной метод не сработал
-        await documentSort.refreshDocuments()
-    }
-}
-
-
-const openAddVersionDialog = (document: IDocument) => {
-    selectedDocument.value = document
-    showAddVersionDialog.value = true
-}
-
-const openEditDocumentDialog = async (document: IDocument) => {
-    try {
-        const detailedDocument = await documentsStore.fetchDocumentDetails(document.id)
-        selectedDocument.value = detailedDocument
-        showEditDocumentDialog.value = true
-    } catch (error) {
-        selectedDocument.value = document
-        showEditDocumentDialog.value = true
-    }
-}
-
-const confirmDeleteFolder = (folder: IDocumentFolder) => {
-    if (!folder.id) {
-        return
-    }
-
-    confirm.require({
-        message: `Вы уверены, что хотите удалить папку "${folder.name}"?`,
-        header: 'Подтверждение удаления',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Удалить',
-        rejectLabel: 'Отмена',
-        acceptClass: 'p-button-danger',
-        accept: async () => {
-            try {
-                await documentsStore.deleteFolder(folder.id!)
-                confirm.close()
-            } catch (error) {
-                // Ошибка уже обработана в store
-            }
-        },
-    })
-}
-
-const confirmDeleteDocument = (document: IDocument) => {
-    confirm.require({
-        message: `Вы уверены, что хотите удалить документ "${document.name}"?`,
-        header: 'Подтверждение удаления',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Удалить',
-        rejectLabel: 'Отмена',
-        acceptClass: 'p-button-danger',
-        accept: async () => {
-            try {
-                await documentsStore.deleteDocument(document.id)
-                confirm.close()
-            } catch (error) {
-                // Ошибка уже обработана в store
-            }
-        },
-    })
-}
-
-const downloadDocument = (document: IDocument) => {
-    const url = document.download_url || document.file_url
-    if (!url) {
-        handleError(new Error('No download URL'), {
-            context: 'DocumentsInterface',
-            functionName: 'downloadDocument',
-            toastTitle: 'Ошибка',
-            toastMessage: 'Не удалось найти ссылку для скачивания документа',
-            additionalData: { documentId: document.id },
-        })
-        return
-    }
-
-    try {
-        const downloadUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-        const link = window.document.createElement('a')
-        link.href = downloadUrl
-        link.download = document.name || 'download'
-        link.target = '_blank'
-
-        window.document.body.appendChild(link)
-        link.click()
-        window.document.body.removeChild(link)
-
-        showSuccess('Успех', 'Скачивание файла началось')
-    } catch (error) {
-        handleError(error, {
-            context: 'DocumentsInterface',
-            functionName: 'downloadDocument',
-            toastTitle: 'Ошибка',
-            toastMessage: 'Не удалось скачать документ',
-            additionalData: { documentId: document.id },
-        })
-    }
-}
+// Используем методы из композиблов
+const { downloadDocument, confirmDeleteDocument } = documentActions
 
 const initializeFromUrl = async () => {
     try {

@@ -162,9 +162,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
-import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
+import { useDocumentActions } from '@/refactoring/modules/documents/composables/useDocumentActions'
 import {
     formatFileSize,
     formatDate,
@@ -177,7 +176,6 @@ import type {
     IDocumentDetailsResponse,
 } from '@/refactoring/modules/documents/types/IDocument'
 import AddVersionDialog from './AddVersionDialog.vue'
-import { BASE_URL } from '@/refactoring/environment/environment'
 
 interface Props {
     visible: boolean
@@ -193,8 +191,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const documentsStore = useDocumentsStore()
-const feedbackStore = useFeedbackStore()
-const confirm = useConfirm()
+const documentActions = useDocumentActions()
 
 const dialogVisible = computed({
     get: () => props.visible,
@@ -210,159 +207,38 @@ const showAddVersionDialog = ref(false)
 const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
 const downloadVersion = (version: IDocumentVersion) => {
-    const url = version.download_url || version.file_url || version.file
-    if (!url) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось найти ссылку для скачивания версии',
-            time: 5000,
-        })
-        return
-    }
-
-    try {
-        const downloadUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-        const link = window.document.createElement('a')
-        link.href = downloadUrl
-        link.download = `${props.document?.name}_v${version.version}` || 'download'
-        link.target = '_blank'
-
-        window.document.body.appendChild(link)
-        link.click()
-        window.document.body.removeChild(link)
-
-        feedbackStore.showToast({
-            type: 'success',
-            title: 'Успех',
-            message: 'Скачивание версии началось',
-            time: 3000,
-        })
-    } catch (error) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось скачать версию документа',
-            time: 5000,
-        })
-    }
+    documentActions.downloadVersion(version, props.document?.name)
 }
 
 const confirmDeleteVersion = (version: IDocumentVersion) => {
     if (!props.document) return
 
-    confirm.require({
-        message: `Вы уверены, что хотите удалить версию ${version.version}?`,
-        header: 'Подтверждение удаления',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Удалить',
-        rejectLabel: 'Отмена',
-        acceptClass: 'p-button-danger',
-        accept: async () => {
-            try {
-                await documentsStore.deleteDocumentVersion(props.document!.id, version.id)
-                confirm.close()
-                // Обновляем список версий
-                if (props.document?.id) {
-                    const updatedDocument = await documentsStore.fetchDocumentDetails(props.document.id)
-                    selectedDocument.value = updatedDocument
-                }
-            } catch (error) {
-                // Ошибка уже обработана в store
-            }
-        },
+    documentActions.confirmDeleteVersion(props.document, version, async () => {
+        // Обновляем список версий после удаления
+        if (props.document?.id) {
+            const updatedDocument = await documentsStore.fetchDocumentDetails(props.document.id)
+            selectedDocument.value = updatedDocument
+        }
     })
 }
 
 // Методы для управления документом
 const downloadDocument = () => {
     if (!props.document) return
-
-    const url = props.document.download_url || props.document.file_url
-    if (!url) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось найти ссылку для скачивания документа',
-            time: 5000,
-        })
-        return
-    }
-
-    try {
-        const downloadUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-        const link = window.document.createElement('a')
-        link.href = downloadUrl
-        link.download = props.document.name || 'download'
-        link.target = '_blank'
-
-        window.document.body.appendChild(link)
-        link.click()
-        window.document.body.removeChild(link)
-
-        feedbackStore.showToast({
-            type: 'success',
-            title: 'Успех',
-            message: 'Скачивание файла началось',
-            time: 3000,
-        })
-    } catch (error) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось скачать документ',
-            time: 5000,
-        })
-    }
+    documentActions.downloadDocument(props.document)
 }
 
 const viewDocument = () => {
     if (!props.document) return
-
-    const url = props.document.file_url || props.document.download_url
-    if (!url) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось найти ссылку для просмотра документа',
-            time: 5000,
-        })
-        return
-    }
-
-    try {
-        const viewUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
-        window.open(viewUrl, '_blank')
-    } catch (error) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось открыть документ для просмотра',
-            time: 5000,
-        })
-    }
+    documentActions.viewDocument(props.document)
 }
 
 const confirmDeleteDocument = () => {
     if (!props.document) return
 
-    confirm.require({
-        message: `Вы уверены, что хотите удалить документ "${props.document.name}"? Это действие необратимо.`,
-        header: 'Подтверждение удаления',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Удалить',
-        rejectLabel: 'Отмена',
-        acceptClass: 'p-button-danger',
-        accept: async () => {
-            try {
-                await documentsStore.deleteDocument(props.document!.id)
-                confirm.close()
-                emit('documentDeleted')
-                dialogVisible.value = false
-            } catch (error) {
-                // Ошибка уже обработана в store
-            }
-        },
+    documentActions.confirmDeleteDocument(props.document, () => {
+        emit('documentDeleted')
+        dialogVisible.value = false
     })
 }
 
