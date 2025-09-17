@@ -1368,6 +1368,43 @@ function onEmployeeSelected(employee: ICreatedBy | null) {
     currentAdverseEvent.value.coordinator = employee
 }
 
+/**
+ * Безопасное открытие чата с пользователем
+ *
+ * Назначение:
+ * - Проверяет наличие ID пользователя перед открытием чата
+ * - Обрабатывает ошибки и показывает уведомления
+ *
+ * Параметры:
+ * @param {string | number | null | undefined} userId — ID пользователя
+ *
+ * Возвращает:
+ * @returns {Promise<void>}
+ */
+async function handleOpenChat(userId: string | number | null | undefined): Promise<void> {
+    if (!userId) {
+        feedbackStore.showToast({
+            type: 'warn',
+            title: 'Предупреждение',
+            message: 'Не удается открыть чат: пользователь не найден',
+            time: 3000,
+        })
+        return
+    }
+
+    try {
+        await openChat(String(userId))
+    } catch (error) {
+        feedbackStore.showToast({
+            type: 'error',
+            title: 'Ошибка',
+            message: 'Не удалось открыть чат',
+            time: 5000,
+        })
+        console.error('Ошибка при открытии чата:', error)
+    }
+}
+
 const centrifugeStore = useCentrifugeStore()
 let currentAdverseEventsChannel: string | null = null
 
@@ -2102,11 +2139,13 @@ onUnmounted(() => {
                         >
                             <!-- Режим редактирования/просмотра - показываем автора события -->
                             <div
-                                class="md:flex gap-2 text-sm text-surface-600 dark:text-surface-300 cursor-pointer"
-                                @click.prevent="openChat(currentAdverseEvent.created_by?.id)"
+                                class="md:flex gap-2 text-sm text-surface-600 dark:text-surface-300"
+                                :class="{ 'cursor-pointer hover:text-primary transition-colors': currentAdverseEvent.created_by }"
+                                @click.prevent="handleOpenChat(currentAdverseEvent.created_by?.id)"
                             >
                             <span>Создатель НС - </span>
                             <span>{{ getFullName(currentAdverseEvent.created_by ?? {}) }}</span>
+                            <i v-if="currentAdverseEvent.created_by" class="pi pi-comments text-xs ml-1 opacity-60" title="Открыть чат"></i>
                             <i class="pi pi-building"></i>
                             <span>{{
                                 currentAdverseEvent.created_by?.department?.name ||
@@ -2117,8 +2156,9 @@ onUnmounted(() => {
                             <span class="cursor-default" title="Дата создания НС">{{  formatResponsibilityDate(currentAdverseEvent?.created_at) || 'Не удалось определить дату создания НС' }}</span>
                         </div>
                         <div
-                            class="md:flex items-center gap-2 ml-4 text-sm text-surface-600 dark:text-surface-300 cursor-pointer 2222"
-                            @click.prevent="openChat(currentAdverseEvent.coordinator?.id)"
+                            class="md:flex items-center gap-2 ml-4 text-sm text-surface-600 dark:text-surface-300"
+                            :class="{ 'cursor-pointer hover:text-primary transition-colors': currentAdverseEvent.coordinator }"
+                            @click.prevent="handleOpenChat(currentAdverseEvent.coordinator?.id)"
                         >
                             <!-- Координатор -->
                             <span>Координатор НС - </span>
@@ -2127,6 +2167,7 @@ onUnmounted(() => {
                                     ? getFullName(currentAdverseEvent.coordinator)
                                     : 'Координатор не назначен'
                             }}</span>
+                            <i v-if="currentAdverseEvent.coordinator" class="pi pi-comments text-xs ml-1 opacity-60" title="Открыть чат"></i>
                             <i class="pi pi-building"></i>
                             <span>{{
                                 currentAdverseEvent.coordinator?.department?.name ||
