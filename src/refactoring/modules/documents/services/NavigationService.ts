@@ -172,7 +172,7 @@ export class NavigationService {
                             })
                     }
                 }
-            }, 10)
+            }, 50) // Увеличиваем задержку для предотвращения гонки условий
         } catch (error) {
             // Ignore navigation errors
         }

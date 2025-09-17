@@ -472,11 +472,18 @@ const initializeFromUrl = async () => {
 watch(
     () => props.path,
     async (newPath, oldPath) => {
+        // Предотвращаем обработку если уже идет навигация
+        if (documentsStore.isNavigating) {
+            return
+        }
+
         try {
             const targetPath = newPath && newPath.length > 0 ? arrayToPath(newPath) : '/'
 
-            if (targetPath !== documentsStore.currentPath) {
-                await documentNavigation.navigateToPath(targetPath)
+            // Проверяем, что путь действительно изменился и не совпадает с текущим
+            if (targetPath !== documentsStore.currentPath && !documentsStore.isNavigating) {
+                // Навигация без обновления URL, так как URL уже изменен
+                await documentsStore.fetchDocuments({ path: targetPath })
             }
         } catch (error) {}
     },

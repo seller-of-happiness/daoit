@@ -38,6 +38,7 @@ export function useDocumentNavigation(documentSort?: any) {
     const navigateToFolder = async (folder: IDocumentFolder): Promise<void> => {
         try {
             await documentsStore.navigateToFolder(folder)
+            // Обновляем URL только после успешной навигации
             updateUrl()
             // Сбрасываем сортировку при навигации
             if (documentSort?.resetSort) {
