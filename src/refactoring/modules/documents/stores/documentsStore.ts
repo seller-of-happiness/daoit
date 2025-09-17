@@ -28,6 +28,9 @@ import type {
 // Расширяем интерфейс состояния
 interface IExtendedDocumentsStoreState extends Omit<IDocumentsStoreState, 'breadcrumbs'> {
     breadcrumbs: IBreadcrumb[]
+    // Поля для предотвращения дублирования запросов
+    _lastRequestPath: string | null
+    _currentRequest: Promise<void> | null
     // Сервисы
     _navigationService: NavigationService
     _apiService: DocumentsApiService
@@ -50,6 +53,9 @@ export const useDocumentsStore = defineStore('documentsStore', {
         searchQuery: '',
         isSearchMode: false,
         searchTimeout: null as ReturnType<typeof setTimeout> | null,
+        // Поле для предотвращения дублирования запросов
+        _lastRequestPath: null as string | null,
+        _currentRequest: null as Promise<void> | null,
         // Сервисы
         _navigationService: new NavigationService(),
         _apiService: new DocumentsApiService(),
@@ -173,14 +179,42 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
             // Предотвращаем дублирование запросов
-            if (this.isNavigating) {
+            if (this.isNavigating || this._currentRequest) {
+                // Если уже идет запрос, ждем его завершения
+                if (this._currentRequest) {
+                    await this._currentRequest
+                }
                 return
             }
 
             const requestPath = this._getRequestPath(payload)
+            
+            // Дополнительная проверка - если запрашиваем тот же путь, что уже загружен
+            if (!payload.search && requestPath === this.currentPath && this.currentItems.length > 0) {
+                return
+            }
+            
+            // Проверяем, что не делаем тот же запрос, что и в прошлый раз
+            const requestKey = `${requestPath}|${payload.search || ''}|${payload.sort_by || ''}|${payload.sort_order || ''}`
+            if (requestKey === this._lastRequestPath) {
+                return
+            }
 
+            const requestPromise = this._executeRequest(payload, requestPath, requestKey)
+            this._currentRequest = requestPromise
+            
+            try {
+                await requestPromise
+            } finally {
+                this._currentRequest = null
+            }
+        },
+        
+        async _executeRequest(payload: IListDocumentsPayload, requestPath: string, requestKey: string): Promise<void> {
             try {
                 this.isNavigating = true
+                this._lastRequestPath = requestKey
+                
                 const data = await this._apiService.fetchDocuments({
                     ...payload,
                     path: requestPath,
@@ -276,8 +310,16 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         async navigateToFolder(folder: IDocumentFolder): Promise<void> {
+            // Предотвращаем дублирование запросов
+            if (this.isNavigating) {
+                return
+            }
+            
             // При навигации к папке выходим из режима поиска
-            await this.clearSearch()
+            if (this.isSearchMode) {
+                this.isSearchMode = false
+                this.searchQuery = ''
+            }
 
             if (folder.folder_id) {
                 await this.fetchDocuments({ folder_id: folder.folder_id })
@@ -289,12 +331,28 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         async navigateToFolderId(folderId: string): Promise<void> {
-            await this.clearSearch()
+            // Предотвращаем дублирование запросов
+            if (this.isNavigating) {
+                return
+            }
+            
+            if (this.isSearchMode) {
+                this.isSearchMode = false
+                this.searchQuery = ''
+            }
             await this.fetchDocuments({ folder_id: folderId })
         },
 
         async navigateToPath(path: string): Promise<void> {
-            await this.clearSearch()
+            // Предотвращаем дублирование запросов
+            if (this.isNavigating) {
+                return
+            }
+            
+            if (this.isSearchMode) {
+                this.isSearchMode = false
+                this.searchQuery = ''
+            }
             try {
                 await this.fetchDocuments({ path })
             } catch (error) {
@@ -309,8 +367,16 @@ export const useDocumentsStore = defineStore('documentsStore', {
             if (this.currentPath === '/' || !this.currentPath) {
                 return
             }
+            
+            // Предотвращаем дублирование запросов
+            if (this.isNavigating) {
+                return
+            }
 
-            await this.clearSearch()
+            if (this.isSearchMode) {
+                this.isSearchMode = false
+                this.searchQuery = ''
+            }
 
             const parentPath = getParentPath(this.currentPath)
             await this.fetchDocuments({ path: parentPath })
@@ -596,6 +662,10 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 clearTimeout(this.searchTimeout)
                 this.searchTimeout = null
             }
+            
+            // Очищаем состояние запросов
+            this._lastRequestPath = null
+            this._currentRequest = null
 
             this._navigationService.cleanup()
         },

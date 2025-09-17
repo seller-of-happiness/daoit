@@ -133,48 +133,52 @@ export class NavigationService {
             }
 
             this._urlUpdateTimeout = setTimeout(() => {
-                const currentPathArray = pathToArray(currentPath)
-                const currentPathMatch = currentRoute.params.pathMatch
+                try {
+                    const currentPathArray = pathToArray(currentPath)
+                    const currentPathMatch = currentRoute.params.pathMatch
 
-                let needsUpdate = false
+                    let needsUpdate = false
 
-                if (currentPathArray.length === 0) {
-                    needsUpdate =
-                        currentRoute.name !== ERouteNames.DOCUMENTS || !!currentPathMatch
-                } else {
-                    const expectedPathMatch = currentPathArray.join('/')
-                    const actualPathMatch = Array.isArray(currentPathMatch)
-                        ? currentPathMatch.join('/')
-                        : currentPathMatch || ''
-
-                    needsUpdate =
-                        currentRoute.name !== ERouteNames.DOCUMENTS_FOLDER ||
-                        actualPathMatch !== expectedPathMatch
-                }
-
-                if (needsUpdate) {
                     if (currentPathArray.length === 0) {
-                        router.replace({ name: ERouteNames.DOCUMENTS }).catch((error: any) => {
-                            if (error.name !== 'NavigationDuplicated') {
-                                console.error('Navigation error:', error)
-                            }
-                        })
+                        needsUpdate =
+                            currentRoute.name !== ERouteNames.DOCUMENTS || !!currentPathMatch
                     } else {
-                        router
-                            .replace({
-                                name: ERouteNames.DOCUMENTS_FOLDER,
-                                params: { pathMatch: currentPathArray },
-                            })
-                            .catch((error: any) => {
+                        const expectedPathMatch = currentPathArray.join('/')
+                        const actualPathMatch = Array.isArray(currentPathMatch)
+                            ? currentPathMatch.join('/')
+                            : currentPathMatch || ''
+
+                        needsUpdate =
+                            currentRoute.name !== ERouteNames.DOCUMENTS_FOLDER ||
+                            actualPathMatch !== expectedPathMatch
+                    }
+
+                    if (needsUpdate) {
+                        if (currentPathArray.length === 0) {
+                            router.replace({ name: ERouteNames.DOCUMENTS }).catch((error: any) => {
                                 if (error.name !== 'NavigationDuplicated') {
-                                    console.error('Navigation error:', error)
+                                    console.warn('Navigation warning:', error)
                                 }
                             })
+                        } else {
+                            router
+                                .replace({
+                                    name: ERouteNames.DOCUMENTS_FOLDER,
+                                    params: { pathMatch: currentPathArray },
+                                })
+                                .catch((error: any) => {
+                                    if (error.name !== 'NavigationDuplicated') {
+                                        console.warn('Navigation warning:', error)
+                                    }
+                                })
+                        }
                     }
+                } catch (innerError) {
+                    // Игнорируем ошибки обновления URL
                 }
-            }, 50) // Увеличиваем задержку для предотвращения гонки условий
+            }, 100) // Увеличиваем задержку для предотвращения гонки условий
         } catch (error) {
-            // Ignore navigation errors
+            // Игнорируем ошибки навигации
         }
     }
 

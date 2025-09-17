@@ -38,12 +38,12 @@ export function useDocumentNavigation(documentSort?: any) {
     const navigateToFolder = async (folder: IDocumentFolder): Promise<void> => {
         try {
             await documentsStore.navigateToFolder(folder)
-            // Обновляем URL только после успешной навигации
-            updateUrl()
             // Сбрасываем сортировку при навигации
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
+            // Обновляем URL только после успешной навигации
+            updateUrl()
         } catch (error) {}
     }
 
@@ -53,11 +53,12 @@ export function useDocumentNavigation(documentSort?: any) {
     const navigateToPath = async (path: string): Promise<void> => {
         try {
             await documentsStore.navigateToPath(path)
-            updateUrl()
             // Сбрасываем сортировку при навигации
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
+            // Обновляем URL только после успешной навигации
+            updateUrl()
         } catch (error) {}
     }
 
@@ -67,11 +68,12 @@ export function useDocumentNavigation(documentSort?: any) {
     const navigateToFolderId = async (folderId: string): Promise<void> => {
         try {
             await documentsStore.navigateToFolderId(folderId)
-            updateUrl()
             // Сбрасываем сортировку при навигации
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
+            // Обновляем URL только после успешной навигации
+            updateUrl()
         } catch (error) {}
     }
 
@@ -81,11 +83,12 @@ export function useDocumentNavigation(documentSort?: any) {
     const navigateUp = async (): Promise<void> => {
         try {
             await documentsStore.navigateUp()
-            updateUrl()
             // Сбрасываем сортировку при навигации
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
+            // Обновляем URL только после успешной навигации
+            updateUrl()
         } catch (error) {}
     }
 
