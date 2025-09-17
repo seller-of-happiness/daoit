@@ -14,6 +14,8 @@
                     <Button
                         icon="pi pi-plus"
                         label="Загрузить документ"
+                        :loading="documentsStore.isLoading"
+                        :disabled="documentsStore.isLoading"
                         @click="showCreateDocumentDialog = true"
                     />
                 </div>
@@ -268,7 +270,8 @@
 
         <!-- Диалог создания документа -->
         <CreateDocumentDialog
-            v-model:visible="showCreateDocumentDialog"
+            :visible="showCreateDocumentDialog"
+            @update:visible="showCreateDocumentDialog = $event"
             :document-types="documentsStore.documentTypes"
             @created="onDocumentCreated"
         />
@@ -342,6 +345,7 @@ const { handleError, showSuccess } = useErrorHandler()
 
 const showCreateFolderDialog = ref(false)
 const showCreateDocumentDialog = ref(false)
+
 const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
@@ -384,6 +388,7 @@ const onDocumentDeleted = async () => {
         await documentSort.refreshDocuments()
     }
 }
+
 
 const openAddVersionDialog = (document: IDocument) => {
     selectedDocument.value = document
