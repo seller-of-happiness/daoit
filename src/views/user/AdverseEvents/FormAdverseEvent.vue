@@ -2103,7 +2103,7 @@ onUnmounted(() => {
                             <!-- Режим редактирования/просмотра - показываем автора события -->
                             <div
                                 class="md:flex gap-2 text-sm text-surface-600 dark:text-surface-300 cursor-pointer"
-                                @click.prevent="openChat(currentAdverseEvent.created_by?.id)"
+                                @click.prevent="currentAdverseEvent.created_by?.id && openChat(currentAdverseEvent.created_by.id)"
                             >
                             <span>Создатель НС - </span>
                             <span>{{ getFullName(currentAdverseEvent.created_by ?? {}) }}</span>
@@ -2118,7 +2118,7 @@ onUnmounted(() => {
                         </div>
                         <div
                             class="md:flex items-center gap-2 ml-4 text-sm text-surface-600 dark:text-surface-300 cursor-pointer 2222"
-                            @click.prevent="openChat(currentAdverseEvent.coordinator?.id)"
+                            @click.prevent="currentAdverseEvent.coordinator?.id && openChat(currentAdverseEvent.coordinator.id)"
                         >
                             <!-- Координатор -->
                             <span>Координатор НС - </span>
