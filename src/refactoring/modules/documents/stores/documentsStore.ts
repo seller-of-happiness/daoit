@@ -185,7 +185,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         /**
-         * Выполнение поиска документов
+         * Выполнение поиска документов (используется композиблом)
          */
         async searchDocuments(query: string): Promise<void> {
             if (query.length < 3) {
@@ -227,22 +227,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         /**
-         * Обработчик изменения поискового запроса с дебаунсом
-         */
-        handleSearchInput(query: string): void {
-            // Очищаем предыдущий таймер
-            if (this.searchTimeout) {
-                clearTimeout(this.searchTimeout)
-            }
-
-            // Устанавливаем новый таймер
-            this.searchTimeout = setTimeout(async () => {
-                await this.searchDocuments(query)
-            }, 300) // Дебаунс 300мс
-        },
-
-        /**
-         * Очистка поиска и возврат к обычному просмотру
+         * Очистка поиска и возврат к обычному просмотру (используется композиблом)
          */
         async clearSearch(): Promise<void> {
             if (this.searchTimeout) {
@@ -567,9 +552,6 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 : pathToUrl(this.currentPath)
         },
 
-        updateUrl(router: any): void {
-            this._navigationService.updateUrl(router, this.currentPath)
-        },
 
         cleanup(): void {
             if (this._urlUpdateTimeout) {

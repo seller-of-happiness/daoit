@@ -16,10 +16,18 @@ import { pathToArray } from '@/refactoring/modules/documents/utils/pathUtils'
 import type { IDocumentFolder } from '@/refactoring/modules/documents/types/IDocument'
 import type { IBreadcrumb } from '@/refactoring/modules/documents/services/NavigationService'
 
-export function useDocumentNavigation() {
+export function useDocumentNavigation(documentSort?: any) {
     const router = useRouter()
     const documentsStore = useDocumentsStore()
     const feedbackStore = useFeedbackStore()
+    const navigationService = new NavigationService()
+
+    /**
+     * Обновляет URL в соответствии с текущим состоянием
+     */
+    const updateUrl = (): void => {
+        navigationService.updateUrl(router, documentsStore.currentPath)
+    }
 
     /**
      * Навигация к папке
@@ -27,7 +35,11 @@ export function useDocumentNavigation() {
     const navigateToFolder = async (folder: IDocumentFolder): Promise<void> => {
         try {
             await documentsStore.navigateToFolder(folder)
-            documentsStore.updateUrl(router)
+            updateUrl()
+            // Сбрасываем сортировку при навигации
+            if (documentSort?.resetSort) {
+                documentSort.resetSort()
+            }
         } catch (error) {
             // Ошибка обрабатывается в store
         }
@@ -39,7 +51,11 @@ export function useDocumentNavigation() {
     const navigateToPath = async (path: string): Promise<void> => {
         try {
             await documentsStore.navigateToPath(path)
-            documentsStore.updateUrl(router)
+            updateUrl()
+            // Сбрасываем сортировку при навигации
+            if (documentSort?.resetSort) {
+                documentSort.resetSort()
+            }
         } catch (error) {
             // Ошибка обрабатывается в store
         }
@@ -51,7 +67,11 @@ export function useDocumentNavigation() {
     const navigateToFolderId = async (folderId: string): Promise<void> => {
         try {
             await documentsStore.navigateToFolderId(folderId)
-            documentsStore.updateUrl(router)
+            updateUrl()
+            // Сбрасываем сортировку при навигации
+            if (documentSort?.resetSort) {
+                documentSort.resetSort()
+            }
         } catch (error) {
             // Ошибка обрабатывается в store
         }
@@ -63,7 +83,11 @@ export function useDocumentNavigation() {
     const navigateUp = async (): Promise<void> => {
         try {
             await documentsStore.navigateUp()
-            documentsStore.updateUrl(router)
+            updateUrl()
+            // Сбрасываем сортировку при навигации
+            if (documentSort?.resetSort) {
+                documentSort.resetSort()
+            }
         } catch (error) {
             // Ошибка обрабатывается в store
         }
@@ -194,6 +218,7 @@ export function useDocumentNavigation() {
         copyFolderLink,
         initializeFromUrl,
         copyToClipboard,
+        updateUrl,
         
         // Геттеры
         isRootPath,

@@ -84,6 +84,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
+import { useFormValidation } from '@/refactoring/modules/documents/composables/useFormValidation'
+import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
 import { formatFileSize, formatDate, getFileIcon } from '@/refactoring/modules/documents/utils/documentUtils'
 import type { IDocument, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
 
@@ -101,6 +103,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const documentsStore = useDocumentsStore()
+const { errors, documentRules, validateForm, clearErrors, clearFieldError, hasErrors } = useFormValidation()
+const { handleError, showSuccess } = useErrorHandler()
 
 // Реактивность диалога
 const dialogVisible = computed({
@@ -117,9 +121,6 @@ const form = ref({
     description: '',
 })
 
-const errors = ref({
-    file: '',
-})
 
 const isLoading = ref(false)
 
@@ -128,7 +129,7 @@ const onFileSelect = (event: any) => {
     const file = event.files[0]
     if (file) {
         selectedFile.value = file
-        errors.value.file = ''
+        clearFieldError('file')
     }
 }
 
@@ -137,29 +138,14 @@ const onFileClear = () => {
 }
 
 
-// Валидация
-const validateForm = () => {
-    errors.value = {
-        file: '',
-    }
 
-    let isValid = true
-
-    if (!selectedFile.value) {
-        errors.value.file = 'Выберите файл для новой версии'
-        isValid = false
-    }
-
-    return isValid
-}
-
-const isFormValid = computed(() => {
-    return selectedFile.value !== null
-})
+const isFormValid = computed(() => !hasErrors.value && selectedFile.value !== null)
 
 // Обработчики
 const handleSubmit = async () => {
-    if (!validateForm() || !selectedFile.value || !props.document) return
+    const formData = { file: selectedFile.value }
+    const isValid = validateForm(formData, documentRules.addVersion)
+    if (!isValid || !selectedFile.value || !props.document) return
 
     isLoading.value = true
 
@@ -170,9 +156,17 @@ const handleSubmit = async () => {
             form.value.description.trim() || undefined,
         )
 
+        showSuccess('Успех', 'Версия документа добавлена')
         emit('added')
         resetForm()
     } catch (error) {
+        handleError(error, {
+            context: 'AddVersionDialog',
+            functionName: 'handleSubmit',
+            toastTitle: 'Ошибка',
+            toastMessage: 'Не удалось добавить версию документа',
+            additionalData: { documentId: props.document?.id }
+        })
     } finally {
         isLoading.value = false
     }
@@ -183,10 +177,7 @@ const resetForm = () => {
         description: '',
     }
 
-    errors.value = {
-        file: '',
-    }
-
+    clearErrors()
     selectedFile.value = null
 
     if (fileUpload.value) {
