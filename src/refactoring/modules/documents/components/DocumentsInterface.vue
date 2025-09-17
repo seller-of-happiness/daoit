@@ -346,16 +346,26 @@ const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
-const onFolderCreated = () => {
+const onFolderCreated = async () => {
     showCreateFolderDialog.value = false
-    // Обновляем список папок после создания
-    documentSort.refreshDocuments()
+    // Обновляем список папок после создания - используем принудительное обновление
+    try {
+        await documentsStore.forceRefreshDocuments()
+    } catch (error) {
+        // Fallback на documentSort если основной метод не сработал
+        await documentSort.refreshDocuments()
+    }
 }
 
-const onDocumentCreated = () => {
+const onDocumentCreated = async () => {
     showCreateDocumentDialog.value = false
-    // Обновляем список документов после создания
-    documentSort.refreshDocuments()
+    // Обновляем список документов после создания - используем принудительное обновление
+    try {
+        await documentsStore.forceRefreshDocuments()
+    } catch (error) {
+        // Fallback на documentSort если основной метод не сработал
+        await documentSort.refreshDocuments()
+    }
 }
 
 const onVersionAdded = () => {
@@ -363,10 +373,16 @@ const onVersionAdded = () => {
     selectedDocument.value = null
 }
 
-const onDocumentDeleted = () => {
+const onDocumentDeleted = async () => {
     showEditDocumentDialog.value = false
     selectedDocument.value = null
-    documentSort.refreshDocuments()
+    // Обновляем список после удаления документа - используем принудительное обновление
+    try {
+        await documentsStore.forceRefreshDocuments()
+    } catch (error) {
+        // Fallback на documentSort если основной метод не сработал
+        await documentSort.refreshDocuments()
+    }
 }
 
 const openAddVersionDialog = (document: IDocument) => {

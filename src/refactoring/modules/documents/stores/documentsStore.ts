@@ -389,6 +389,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         async _forceRefreshDocuments(): Promise<void> {
             // Сбрасываем кэш запросов для принудительного обновления
             this._lastRequestPath = null
+            this._currentRequest = null
             
             const payload: IListDocumentsPayload = {}
             
@@ -398,7 +399,11 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 payload.path = this.currentPath
             }
             
-            await this.fetchDocuments(payload)
+            // Добавляем timestamp для гарантии уникальности запроса
+            const requestPath = this._getRequestPath(payload)
+            const requestKey = `${requestPath}|${payload.search || ''}|${payload.sort_by || ''}|${payload.sort_order || ''}|${Date.now()}`
+            
+            await this._executeRequest(payload, requestPath, requestKey)
         },
 
         /**
@@ -407,6 +412,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         async forceRefreshDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
             // Сбрасываем кэш запросов для принудительного обновления
             this._lastRequestPath = null
+            this._currentRequest = null
             
             const refreshPayload: IListDocumentsPayload = {
                 ...payload
@@ -420,7 +426,11 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 }
             }
             
-            await this.fetchDocuments(refreshPayload)
+            // Добавляем timestamp для гарантии уникальности запроса
+            const requestPath = this._getRequestPath(refreshPayload)
+            const requestKey = `${requestPath}|${refreshPayload.search || ''}|${refreshPayload.sort_by || ''}|${refreshPayload.sort_order || ''}|${Date.now()}`
+            
+            await this._executeRequest(refreshPayload, requestPath, requestKey)
         },
 
         /**
