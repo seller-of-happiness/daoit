@@ -64,7 +64,7 @@
 
                 <div class="versions-list">
                     <div
-                        v-if="!document?.versions || document.versions.length === 0"
+                        v-if="!selectedDocument?.versions || selectedDocument.versions.length === 0"
                         class="empty-versions"
                     >
                         <i class="pi pi-file-o"></i>
@@ -80,7 +80,7 @@
                         </div>
 
                         <div
-                            v-for="version in document.versions"
+                            v-for="version in selectedDocument.versions"
                             :key="version.id"
                             class="version-row"
                         >
@@ -151,7 +151,7 @@
         <!-- Диалог добавления версии (встроенный) -->
         <AddVersionDialog
             v-model:visible="showAddVersionDialog"
-            :document="document"
+            :document="selectedDocument || document"
             @added="onVersionAdded"
         />
 
@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
@@ -207,6 +207,7 @@ const documentExtension = computed(() => {
 })
 
 const showAddVersionDialog = ref(false)
+const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
 const downloadVersion = (version: IDocumentVersion) => {
     const url = version.download_url || version.file_url || version.file
@@ -260,7 +261,15 @@ const confirmDeleteVersion = (version: IDocumentVersion) => {
         accept: async () => {
             try {
                 await documentsStore.deleteDocumentVersion(props.document!.id, version.id)
-            } catch (error) {}
+                confirm.close()
+                // Обновляем список версий
+                if (props.document?.id) {
+                    const updatedDocument = await documentsStore.fetchDocumentDetails(props.document.id)
+                    selectedDocument.value = updatedDocument
+                }
+            } catch (error) {
+                // Ошибка уже обработана в store
+            }
         },
     })
 }
@@ -347,21 +356,44 @@ const confirmDeleteDocument = () => {
         accept: async () => {
             try {
                 await documentsStore.deleteDocument(props.document!.id)
+                confirm.close()
                 emit('documentDeleted')
                 dialogVisible.value = false
-            } catch (error) {}
+            } catch (error) {
+                // Ошибка уже обработана в store
+            }
         },
     })
 }
 
 // Обработчики событий
-const onVersionAdded = () => {
+const onVersionAdded = async () => {
     showAddVersionDialog.value = false
+    
+    // Обновляем детали документа для получения актуального списка версий
+    if (props.document?.id) {
+        try {
+            const updatedDocument = await documentsStore.fetchDocumentDetails(props.document.id)
+            // Обновляем текущий документ в родительском компоненте
+            selectedDocument.value = updatedDocument
+        } catch (error) {
+            // Игнорируем ошибку, основной список все равно обновится
+        }
+    }
 }
 
 const resetForm = () => {
     showAddVersionDialog.value = false
 }
+
+// Синхронизируем selectedDocument с props.document
+watch(
+    () => props.document,
+    (newDocument) => {
+        selectedDocument.value = newDocument
+    },
+    { immediate: true }
+)
 </script>
 
 <style scoped>
