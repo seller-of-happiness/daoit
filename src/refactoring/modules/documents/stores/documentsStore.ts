@@ -121,6 +121,27 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         /**
+         * Преобразует API структуру папки в IDocumentFolder
+         */
+        _convertApiFolderToDocumentFolder(apiFolder: { folder_id: string; name: string; path: string }): IDocumentFolder {
+            return {
+                id: null,
+                folder_id: apiFolder.folder_id,
+                name: apiFolder.name,
+                description: '',
+                path: apiFolder.path,
+                virtual_path: null,
+                is_dir: true,
+                visibility: 'public',
+                created_at: null,
+                updated_at: null,
+                size: null,
+                extension: '',
+                items: []
+            } as IDocumentFolder
+        },
+
+        /**
          * Обновляет breadcrumbs на основе данных API
          */
         _updateBreadcrumbs(data: IListDocumentsResponse): void {
@@ -130,9 +151,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
             }
 
             if (data.current_folder && data.parent_folders) {
+                const currentFolder = this._convertApiFolderToDocumentFolder(data.current_folder)
+                const parentFolders = data.parent_folders.map(folder => this._convertApiFolderToDocumentFolder(folder))
+                
                 this.breadcrumbs = this._navigationService.updateFolderChainFromApi(
-                    data.current_folder,
-                    data.parent_folders || [],
+                    currentFolder,
+                    parentFolders,
                 )
             } else {
                 // Обрабатываем virtual_path или name с учетом path_parent (массив или строка)

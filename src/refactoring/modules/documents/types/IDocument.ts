@@ -120,10 +120,10 @@ export interface IDocumentDetailsResponse {
     is_dir?: false
     size: number | null
     extension?: string
-    type_name: string
-    status: string
+    type_name?: string
+    status?: string
     approved_at?: string
-    versions: IDocumentVersion[]
+    versions?: IDocumentVersion[]
     file_url?: string
     download_url?: string
 }

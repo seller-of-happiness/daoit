@@ -34,7 +34,15 @@ export class DocumentsApiService {
      */
     async fetchDocumentTypes(): Promise<IDocumentType[]> {
         const response = await axios.get<IDocumentTypesResponse>(`${BASE_URL}/api/documents/type/`)
-        return response.data?.results || response.data || []
+        // Handle both paginated response format and direct array format
+        if (response.data?.results) {
+            return response.data.results
+        }
+        // If response.data is already an array, return it
+        if (Array.isArray(response.data)) {
+            return response.data
+        }
+        return []
     }
 
     /**
@@ -167,7 +175,15 @@ export class DocumentsApiService {
         const response = await axios.get<IDocumentVersionsResponse>(
             `${BASE_URL}/api/documents/document/${documentId}/versions/`
         )
-        return response.data?.results || response.data || []
+        // Handle both paginated response format and direct array format
+        if (response.data?.results) {
+            return response.data.results
+        }
+        // If response.data is already an array, return it
+        if (Array.isArray(response.data)) {
+            return response.data
+        }
+        return []
     }
 
     /**
