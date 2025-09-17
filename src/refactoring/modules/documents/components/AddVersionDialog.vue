@@ -86,8 +86,15 @@ import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFormValidation } from '@/refactoring/modules/documents/composables/useFormValidation'
 import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
-import { formatFileSize, formatDate, getFileIcon } from '@/refactoring/modules/documents/utils/documentUtils'
-import type { IDocument, IDocumentDetailsResponse } from '@/refactoring/modules/documents/types/IDocument'
+import {
+    formatFileSize,
+    formatDate,
+    getFileIcon,
+} from '@/refactoring/modules/documents/utils/documentUtils'
+import type {
+    IDocument,
+    IDocumentDetailsResponse,
+} from '@/refactoring/modules/documents/types/IDocument'
 
 interface Props {
     visible: boolean
@@ -103,10 +110,10 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const documentsStore = useDocumentsStore()
-const { errors, documentRules, validateForm, clearErrors, clearFieldError, hasErrors } = useFormValidation()
+const { errors, documentRules, validateForm, clearErrors, clearFieldError, hasErrors } =
+    useFormValidation()
 const { handleError, showSuccess } = useErrorHandler()
 
-// Реактивность диалога
 const dialogVisible = computed({
     get: () => props.visible,
     set: (value) => emit('update:visible', value),
@@ -120,7 +127,6 @@ const selectedFile = ref<File | null>(null)
 const form = ref({
     description: '',
 })
-
 
 const isLoading = ref(false)
 
@@ -136,8 +142,6 @@ const onFileSelect = (event: any) => {
 const onFileClear = () => {
     selectedFile.value = null
 }
-
-
 
 const isFormValid = computed(() => !hasErrors.value && selectedFile.value !== null)
 
@@ -165,7 +169,7 @@ const handleSubmit = async () => {
             functionName: 'handleSubmit',
             toastTitle: 'Ошибка',
             toastMessage: 'Не удалось добавить версию документа',
-            additionalData: { documentId: props.document?.id }
+            additionalData: { documentId: props.document?.id },
         })
     } finally {
         isLoading.value = false

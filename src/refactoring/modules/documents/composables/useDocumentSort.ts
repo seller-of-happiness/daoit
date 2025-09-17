@@ -1,6 +1,6 @@
 /**
  * Composable для сортировки документов
- * 
+ *
  * Предоставляет логику для:
  * - Управления сортировкой документов
  * - Переключения направления сортировки
@@ -20,7 +20,7 @@ export interface SortState {
 
 export function useDocumentSort() {
     const documentsStore = useDocumentsStore()
-    
+
     const currentSort = ref<SortState>({
         field: null,
         order: 'ascending',
@@ -32,7 +32,7 @@ export function useDocumentSort() {
     const handleSort = (field: Exclude<SortField, null>): void => {
         if (currentSort.value.field === field) {
             // Если кликнули по тому же полю, меняем порядок
-            currentSort.value.order = 
+            currentSort.value.order =
                 currentSort.value.order === 'ascending' ? 'descending' : 'ascending'
         } else {
             // Если кликнули по новому полю, устанавливаем по возрастанию
@@ -64,9 +64,7 @@ export function useDocumentSort() {
             }
 
             await documentsStore.fetchDocuments(payload)
-        } catch (error) {
-            // Ошибка обрабатывается в store
-        }
+        } catch (error) {}
     }
 
     /**
@@ -140,18 +138,18 @@ export function useDocumentSort() {
     return {
         // Состояние
         currentSort: currentSort as Ref<SortState>,
-        
+
         // Вычисляемые свойства
         sortField,
         sortOrder,
         hasActiveSort,
-        
+
         // Методы
         handleSort,
         refreshDocuments,
         resetSort,
         setSort,
-        
+
         // UI утилиты
         getSortButtonClass,
         getSortIconClass,

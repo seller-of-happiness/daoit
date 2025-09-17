@@ -74,7 +74,6 @@ const documentsStore = useDocumentsStore()
 const { errors, documentRules, validateForm, clearErrors, hasErrors } = useFormValidation()
 const { handleError, showSuccess } = useErrorHandler()
 
-// Реактивность диалога
 const dialogVisible = computed({
     get: () => props.visible,
     set: (value) => emit('update:visible', value),
@@ -86,7 +85,6 @@ const form = ref({
     visibility: 'creator' as 'creator' | 'public' | 'private' | 'department',
 })
 
-
 const isLoading = ref(false)
 
 // Опции видимости
@@ -97,8 +95,9 @@ const visibilityOptions = [
     { label: 'Приватная (только мне)', value: 'private' },
 ]
 
-
-const isFormValid = computed(() => !hasErrors.value && form.value.name.trim() && form.value.visibility)
+const isFormValid = computed(
+    () => !hasErrors.value && form.value.name.trim() && form.value.visibility,
+)
 
 // Обработчики
 const handleSubmit = async () => {
@@ -125,7 +124,7 @@ const handleSubmit = async () => {
             functionName: 'handleSubmit',
             toastTitle: 'Ошибка',
             toastMessage: 'Не удалось создать папку',
-            additionalData: { folderName: form.value.name }
+            additionalData: { folderName: form.value.name },
         })
     } finally {
         isLoading.value = false

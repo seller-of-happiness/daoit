@@ -129,12 +129,11 @@ const emit = defineEmits<Emits>()
 
 const documentsStore = useDocumentsStore()
 
-// Composables
 const { handleError, showSuccess } = useErrorHandler()
 const { validateForm, documentRules, errors, clearErrors } = useFormValidation()
 const { createVModel, isLoading, setLoading } = useDialog({
     autoReset: true,
-    onReset: () => resetForm()
+    onReset: () => resetForm(),
 })
 
 // Форма
@@ -146,24 +145,23 @@ const form = ref({
 })
 
 // Файловый загрузчик
-const { 
-    selectedFile, 
-    fileUploadRef, 
-    fileInfo, 
-    onFileSelect: handleFileSelect, 
+const {
+    selectedFile,
+    fileUploadRef,
+    fileInfo,
+    onFileSelect: handleFileSelect,
     clearFile,
     reset: resetFileUpload,
     getAcceptString,
-    getMaxSizeMB
+    getMaxSizeMB,
 } = useFileUpload({
     autoFillName: true,
     nameField: computed({
         get: () => form.value.name,
-        set: (value) => form.value.name = value
-    })
+        set: (value) => (form.value.name = value),
+    }),
 })
 
-// Реактивность диалога
 const dialogVisible = createVModel(emit)
 
 // Опции видимости

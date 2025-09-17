@@ -1,6 +1,6 @@
 /**
  * Composable для навигации по документам
- * 
+ *
  * Предоставляет логику для:
  * - Навигации по папкам
  * - Работы с breadcrumbs
@@ -14,7 +14,10 @@ import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedback
 import { ERouteNames } from '@/router/ERouteNames'
 import { pathToArray } from '@/refactoring/modules/documents/utils/pathUtils'
 import type { IDocumentFolder } from '@/refactoring/modules/documents/types/IDocument'
-import { NavigationService, type IBreadcrumb } from '@/refactoring/modules/documents/services/NavigationService'
+import {
+    NavigationService,
+    type IBreadcrumb,
+} from '@/refactoring/modules/documents/services/NavigationService'
 
 export function useDocumentNavigation(documentSort?: any) {
     const router = useRouter()
@@ -40,9 +43,7 @@ export function useDocumentNavigation(documentSort?: any) {
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
-        } catch (error) {
-            // Ошибка обрабатывается в store
-        }
+        } catch (error) {}
     }
 
     /**
@@ -56,9 +57,7 @@ export function useDocumentNavigation(documentSort?: any) {
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
-        } catch (error) {
-            // Ошибка обрабатывается в store
-        }
+        } catch (error) {}
     }
 
     /**
@@ -72,9 +71,7 @@ export function useDocumentNavigation(documentSort?: any) {
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
-        } catch (error) {
-            // Ошибка обрабатывается в store
-        }
+        } catch (error) {}
     }
 
     /**
@@ -88,9 +85,7 @@ export function useDocumentNavigation(documentSort?: any) {
             if (documentSort?.resetSort) {
                 documentSort.resetSort()
             }
-        } catch (error) {
-            // Ошибка обрабатывается в store
-        }
+        } catch (error) {}
     }
 
     /**
@@ -162,7 +157,6 @@ export function useDocumentNavigation(documentSort?: any) {
                 await documentsStore.fetchDocuments()
             }
         } catch (error) {
-            // Fallback к корневой папке
             await documentsStore.fetchDocuments()
         }
     }
@@ -174,7 +168,6 @@ export function useDocumentNavigation(documentSort?: any) {
         try {
             await navigator.clipboard.writeText(text)
         } catch (error) {
-            // Fallback для старых браузеров
             const textArea = document.createElement('textarea')
             textArea.value = text
             document.body.appendChild(textArea)
@@ -212,14 +205,14 @@ export function useDocumentNavigation(documentSort?: any) {
         navigateToFolderId,
         navigateUp,
         navigateToBreadcrumb,
-        
+
         // Утилиты
         truncateBreadcrumbName,
         copyFolderLink,
         initializeFromUrl,
         copyToClipboard,
         updateUrl,
-        
+
         // Геттеры
         isRootPath,
         getCurrentPath,

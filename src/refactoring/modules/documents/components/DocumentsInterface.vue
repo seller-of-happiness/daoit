@@ -110,7 +110,10 @@
                             @click="documentSort.handleSort('extension')"
                             :class="documentSort.getSortButtonClass('extension')"
                         >
-                            <i class="sort-icon" :class="documentSort.getSortIconClass('extension')"></i>
+                            <i
+                                class="sort-icon"
+                                :class="documentSort.getSortIconClass('extension')"
+                            ></i>
                             <span>Тип</span>
                         </button>
                     </div>
@@ -154,10 +157,7 @@
                         @click="documentNavigation.navigateToFolder(folder)"
                     >
                         <div class="table-cell name-cell">
-                            <i
-                                :class="getDocumentIcon(folder)"
-                                class="item-icon"
-                            ></i>
+                            <i :class="getDocumentIcon(folder)" class="item-icon"></i>
                             <span class="item-name">{{ folder.name }}</span>
                         </div>
                         <div class="table-cell type-cell">Папка</div>
@@ -203,10 +203,7 @@
                         class="table-row document-row"
                     >
                         <div class="table-cell name-cell" @click="downloadDocument(document)">
-                            <i
-                                :class="getDocumentIcon(document)"
-                                class="item-icon"
-                            ></i>
+                            <i :class="getDocumentIcon(document)" class="item-icon"></i>
                             <span class="item-name">{{ document.name }}</span>
                         </div>
                         <div class="table-cell type-cell">
@@ -306,7 +303,12 @@ import { useDocumentSort } from '@/refactoring/modules/documents/composables/use
 import { useDocumentNavigation } from '@/refactoring/modules/documents/composables/useDocumentNavigation'
 import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
 import { ERouteNames } from '@/router/ERouteNames'
-import { getFileTypeByExtension, formatFileSize, formatDate, getDocumentIcon } from '@/refactoring/modules/documents/utils/documentUtils'
+import {
+    getFileTypeByExtension,
+    formatFileSize,
+    formatDate,
+    getDocumentIcon,
+} from '@/refactoring/modules/documents/utils/documentUtils'
 import { pathToArray, arrayToPath } from '@/refactoring/modules/documents/utils/pathUtils'
 import type {
     IDocument,
@@ -319,7 +321,6 @@ import AddVersionDialog from './AddVersionDialog.vue'
 import EditDocumentDialog from './EditDocumentDialog.vue'
 import { BASE_URL } from '@/refactoring/environment/environment'
 
-// Props
 interface Props {
     path?: string[]
 }
@@ -334,21 +335,16 @@ const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
 
-// Композиблы
 const documentSearch = useDocumentSearch()
 const documentSort = useDocumentSort()
 const documentNavigation = useDocumentNavigation(documentSort)
 const { handleError, showSuccess } = useErrorHandler()
 
-// Диалоги
 const showCreateFolderDialog = ref(false)
 const showCreateDocumentDialog = ref(false)
 const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
-
-
-
 
 const onFolderCreated = () => {
     showCreateFolderDialog.value = false
@@ -366,7 +362,6 @@ const onVersionAdded = () => {
 const onDocumentDeleted = () => {
     showEditDocumentDialog.value = false
     selectedDocument.value = null
-    // Обновляем список документов после удаления
     documentSort.refreshDocuments()
 }
 
@@ -377,12 +372,10 @@ const openAddVersionDialog = (document: IDocument) => {
 
 const openEditDocumentDialog = async (document: IDocument) => {
     try {
-        // Fetch detailed document information including versions
         const detailedDocument = await documentsStore.fetchDocumentDetails(document.id)
         selectedDocument.value = detailedDocument
         showEditDocumentDialog.value = true
     } catch (error) {
-        // Error is already handled in store, but fallback to basic document info
         selectedDocument.value = document
         showEditDocumentDialog.value = true
     }
@@ -420,9 +413,7 @@ const confirmDeleteDocument = (document: IDocument) => {
             try {
                 await documentsStore.deleteDocument(document.id)
                 confirm.close()
-            } catch (error) {
-                // Error is already handled in the store
-            }
+            } catch (error) {}
         },
         reject: () => {
             confirm.close()
@@ -438,7 +429,7 @@ const downloadDocument = (document: IDocument) => {
             functionName: 'downloadDocument',
             toastTitle: 'Ошибка',
             toastMessage: 'Не удалось найти ссылку для скачивания документа',
-            additionalData: { documentId: document.id }
+            additionalData: { documentId: document.id },
         })
         return
     }
@@ -461,12 +452,10 @@ const downloadDocument = (document: IDocument) => {
             functionName: 'downloadDocument',
             toastTitle: 'Ошибка',
             toastMessage: 'Не удалось скачать документ',
-            additionalData: { documentId: document.id }
+            additionalData: { documentId: document.id },
         })
     }
 }
-
-
 
 const initializeFromUrl = async () => {
     try {
@@ -484,15 +473,12 @@ watch(
     () => props.path,
     async (newPath, oldPath) => {
         try {
-            const targetPath =
-                newPath && newPath.length > 0 ? arrayToPath(newPath) : '/'
+            const targetPath = newPath && newPath.length > 0 ? arrayToPath(newPath) : '/'
 
             if (targetPath !== documentsStore.currentPath) {
                 await documentNavigation.navigateToPath(targetPath)
             }
-        } catch (error) {
-            // Error is handled in the store
-        }
+        } catch (error) {}
     },
     { immediate: false, deep: true },
 )

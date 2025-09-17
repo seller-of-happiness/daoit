@@ -165,7 +165,12 @@ import { ref, computed } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
-import { formatFileSize, formatDate, getFileTypeByExtension, getVisibilityLabel } from '@/refactoring/modules/documents/utils/documentUtils'
+import {
+    formatFileSize,
+    formatDate,
+    getFileTypeByExtension,
+    getVisibilityLabel,
+} from '@/refactoring/modules/documents/utils/documentUtils'
 import type {
     IDocument,
     IDocumentVersion,
@@ -191,19 +196,16 @@ const documentsStore = useDocumentsStore()
 const feedbackStore = useFeedbackStore()
 const confirm = useConfirm()
 
-// Реактивность диалога
 const dialogVisible = computed({
     get: () => props.visible,
     set: (value) => emit('update:visible', value),
 })
 
-// Computed properties
 const documentExtension = computed(() => {
     if (!props.document) return ''
     return (props.document as any).extension || ''
 })
 
-// Состояние
 const showAddVersionDialog = ref(false)
 
 const downloadVersion = (version: IDocumentVersion) => {
@@ -258,11 +260,7 @@ const confirmDeleteVersion = (version: IDocumentVersion) => {
         accept: async () => {
             try {
                 await documentsStore.deleteDocumentVersion(props.document!.id, version.id)
-                // Версии теперь приходят в составе документа, поэтому нужно обновить документ
-                // или обновить локальные данные
-            } catch (error) {
-                // Error is already handled in store
-            }
+            } catch (error) {}
         },
     })
 }
@@ -351,9 +349,7 @@ const confirmDeleteDocument = () => {
                 await documentsStore.deleteDocument(props.document!.id)
                 emit('documentDeleted')
                 dialogVisible.value = false
-            } catch (error) {
-                // Error handled in store
-            }
+            } catch (error) {}
         },
     })
 }
@@ -361,15 +357,11 @@ const confirmDeleteDocument = () => {
 // Обработчики событий
 const onVersionAdded = () => {
     showAddVersionDialog.value = false
-    // Версии теперь приходят в составе документа при обновлении
 }
 
 const resetForm = () => {
     showAddVersionDialog.value = false
 }
-
-
-// Watchers - версии теперь приходят в составе документа, поэтому отдельная загрузка не нужна
 </script>
 
 <style scoped>
