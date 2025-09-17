@@ -131,7 +131,7 @@ const documentsStore = useDocumentsStore()
 
 const { handleError, showSuccess } = useErrorHandler()
 const { validateForm, documentRules, errors, clearErrors } = useFormValidation()
-const { createVModel, isLoading, setLoading } = useDialog({
+const { isLoading, setLoading } = useDialog({
     autoReset: true,
     onReset: () => resetForm(),
 })
@@ -162,7 +162,11 @@ const {
     }),
 })
 
-const dialogVisible = createVModel(emit)
+const dialogVisible = computed({
+    get: () => props.visible,
+    set: (value: boolean) => emit('update:visible', value)
+})
+
 
 // Опции видимости
 const visibilityOptions = [
