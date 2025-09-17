@@ -33,13 +33,13 @@ export interface ICreateDocumentRequest {
     number: string
     folder_path: string
     file: File
-    visibility: 'public' | 'private' | 'department'
+    visibility: 'creator' | 'public' | 'private' | 'department'
 }
 
 export interface ICreateFolderRequest {
     name: string
     path: string
-    visibility: 'public' | 'private' | 'department'
+    visibility: 'creator' | 'public' | 'private' | 'department'
 }
 
 export interface IAddVersionRequest {
@@ -143,6 +143,7 @@ export enum SortOrder {
 }
 
 export enum DocumentVisibility {
+    CREATOR = 'creator',
     PUBLIC = 'public',
     PRIVATE = 'private',
     DEPARTMENT = 'department'

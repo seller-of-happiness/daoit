@@ -14,7 +14,7 @@ import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedback
 import { ERouteNames } from '@/router/ERouteNames'
 import { pathToArray } from '@/refactoring/modules/documents/utils/pathUtils'
 import type { IDocumentFolder } from '@/refactoring/modules/documents/types/IDocument'
-import type { IBreadcrumb } from '@/refactoring/modules/documents/services/NavigationService'
+import { NavigationService, type IBreadcrumb } from '@/refactoring/modules/documents/services/NavigationService'
 
 export function useDocumentNavigation(documentSort?: any) {
     const router = useRouter()
