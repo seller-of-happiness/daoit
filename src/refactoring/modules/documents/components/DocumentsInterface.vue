@@ -479,13 +479,19 @@ watch(
 
         try {
             const targetPath = newPath && newPath.length > 0 ? arrayToPath(newPath) : '/'
+            const currentPath = documentsStore.currentPath
 
-            // Проверяем, что путь действительно изменился и не совпадает с текущим
-            if (targetPath !== documentsStore.currentPath && !documentsStore.isNavigating) {
-                // Навигация без обновления URL, так как URL уже изменен
-                await documentsStore.fetchDocuments({ path: targetPath })
+            // Проверяем, что путь действительно изменился
+            if (targetPath !== currentPath) {
+                // Дополнительная проверка - не вызываем фетч, если уже идет навигация
+                if (!documentsStore.isNavigating) {
+                    // Навигация без обновления URL, так как URL уже изменен
+                    await documentsStore.fetchDocuments({ path: targetPath })
+                }
             }
-        } catch (error) {}
+        } catch (error) {
+            // Игнорируем ошибки в watcher
+        }
     },
     { immediate: false, deep: true },
 )
