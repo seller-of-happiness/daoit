@@ -384,13 +384,54 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
 
         /**
+         * Принудительно обновляет список документов, игнорируя кэш
+         */
+        async _forceRefreshDocuments(): Promise<void> {
+            // Сбрасываем кэш запросов для принудительного обновления
+            this._lastRequestPath = null
+            
+            const payload: IListDocumentsPayload = {}
+            
+            if (this.currentFolderId) {
+                payload.folder_id = this.currentFolderId
+            } else {
+                payload.path = this.currentPath
+            }
+            
+            await this.fetchDocuments(payload)
+        },
+
+        /**
+         * Принудительно обновляет список документов с параметрами сортировки, игнорируя кэш
+         */
+        async forceRefreshDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
+            // Сбрасываем кэш запросов для принудительного обновления
+            this._lastRequestPath = null
+            
+            const refreshPayload: IListDocumentsPayload = {
+                ...payload
+            }
+            
+            if (!refreshPayload.folder_id && !refreshPayload.path) {
+                if (this.currentFolderId) {
+                    refreshPayload.folder_id = this.currentFolderId
+                } else {
+                    refreshPayload.path = this.currentPath
+                }
+            }
+            
+            await this.fetchDocuments(refreshPayload)
+        },
+
+        /**
          * Обновляет текущий вид (обычный или поисковый)
          */
         async _refreshCurrentView(): Promise<void> {
             if (this.isSearchMode && this.searchQuery) {
                 await this.searchDocuments(this.searchQuery)
             } else {
-                await this.fetchDocuments()
+                // Принудительно обновляем список, игнорируя кэш
+                await this._forceRefreshDocuments()
             }
         },
 

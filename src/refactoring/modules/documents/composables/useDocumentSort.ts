@@ -51,19 +51,14 @@ export function useDocumentSort() {
         try {
             const payload: any = {}
 
-            if (documentsStore.currentFolderId) {
-                payload.folder_id = documentsStore.currentFolderId
-            } else {
-                payload.path = documentsStore.currentPath
-            }
-
             // Добавляем параметры сортировки, если они установлены
             if (currentSort.value.field) {
                 payload.sort_by = currentSort.value.field
                 payload.sort_order = currentSort.value.order
             }
 
-            await documentsStore.fetchDocuments(payload)
+            // Используем новый метод принудительного обновления
+            await documentsStore.forceRefreshDocuments(payload)
         } catch (error) {}
     }
 
