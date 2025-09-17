@@ -25,8 +25,8 @@
                     <IconField iconPosition="left" class="w-full">
                         <InputIcon class="pi pi-search" />
                         <InputText
-                            v-model="searchQuery"
-                            @input="onSearchInput"
+                            v-model="documentSearch.searchQuery.value"
+                            @input="documentSearch.onSearchInput"
                             placeholder="Поиск документов"
                             class="w-full search-input"
                         />
@@ -36,7 +36,7 @@
                         icon="pi pi-times"
                         severity="secondary"
                         text
-                        @click="clearSearch"
+                        @click="documentSearch.clearSearch"
                         v-tooltip.top="'Очистить поиск'"
                         class="clear-search-btn"
                     />
@@ -53,7 +53,7 @@
                         severity="secondary"
                         size="small"
                         text
-                        @click="clearSearch"
+                        @click="documentSearch.clearSearch"
                     />
                 </div>
             </div>
@@ -64,12 +64,12 @@
                     <template v-for="(crumb, index) in documentsStore.breadcrumbs" :key="index">
                         <span
                             v-if="index < documentsStore.breadcrumbs.length - 1"
-                            @click="navigateToBreadcrumb(crumb)"
+                            @click="documentNavigation.navigateToBreadcrumb(crumb)"
                             class="breadcrumb-item clickable"
                             :title="crumb.name"
                             v-tooltip.top="crumb.name"
                         >
-                            {{ truncateBreadcrumbName(crumb.name) }}
+                            {{ documentNavigation.truncateBreadcrumbName(crumb.name) }}
                         </span>
                         <span
                             v-else
@@ -77,7 +77,7 @@
                             :title="crumb.name"
                             v-tooltip.top="crumb.name"
                         >
-                            {{ truncateBreadcrumbName(crumb.name) }}
+                            {{ documentNavigation.truncateBreadcrumbName(crumb.name) }}
                         </span>
 
                         <i
@@ -97,30 +97,30 @@
                     <div class="table-header-cell name-cell">
                         <button
                             class="sort-button"
-                            @click="handleSort('name')"
-                            :class="getSortButtonClass('name')"
+                            @click="documentSort.handleSort('name')"
+                            :class="documentSort.getSortButtonClass('name')"
                         >
-                            <i class="sort-icon" :class="getSortIconClass('name')"></i>
+                            <i class="sort-icon" :class="documentSort.getSortIconClass('name')"></i>
                             <span>Название</span>
                         </button>
                     </div>
                     <div class="table-header-cell type-cell">
                         <button
                             class="sort-button"
-                            @click="handleSort('extension')"
-                            :class="getSortButtonClass('extension')"
+                            @click="documentSort.handleSort('extension')"
+                            :class="documentSort.getSortButtonClass('extension')"
                         >
-                            <i class="sort-icon" :class="getSortIconClass('extension')"></i>
+                            <i class="sort-icon" :class="documentSort.getSortIconClass('extension')"></i>
                             <span>Тип</span>
                         </button>
                     </div>
                     <div class="table-header-cell size-cell">
                         <button
                             class="sort-button"
-                            @click="handleSort('size')"
-                            :class="getSortButtonClass('size')"
+                            @click="documentSort.handleSort('size')"
+                            :class="documentSort.getSortButtonClass('size')"
                         >
-                            <i class="sort-icon" :class="getSortIconClass('size')"></i>
+                            <i class="sort-icon" :class="documentSort.getSortIconClass('size')"></i>
                             <span>Размер</span>
                         </button>
                     </div>
@@ -134,7 +134,7 @@
                     <div
                         v-if="!documentsStore.isRootPath && !documentsStore.isSearchMode"
                         class="table-row back-row"
-                        @click="navigateUp"
+                        @click="documentNavigation.navigateUp"
                     >
                         <div class="table-cell name-cell">
                             <i class="pi pi-arrow-left text-primary"></i>
@@ -151,7 +151,7 @@
                         v-for="folder in documentsStore.currentFolders"
                         :key="`folder-${folder.id}`"
                         class="table-row folder-row"
-                        @click="navigateToFolder(folder)"
+                        @click="documentNavigation.navigateToFolder(folder)"
                     >
                         <div class="table-cell name-cell">
                             <i
@@ -172,7 +172,7 @@
                                     severity="secondary"
                                     text
                                     size="small"
-                                    @click="navigateToFolder(folder)"
+                                    @click="documentNavigation.navigateToFolder(folder)"
                                     v-tooltip.top="'Открыть'"
                                 />
                                 <Button
@@ -180,7 +180,7 @@
                                     severity="secondary"
                                     text
                                     size="small"
-                                    @click="copyFolderLink(folder)"
+                                    @click="documentNavigation.copyFolderLink(folder)"
                                     v-tooltip.top="'Скопировать ссылку'"
                                 />
                                 <Button
@@ -301,6 +301,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
+import { useDocumentSearch } from '@/refactoring/modules/documents/composables/useDocumentSearch'
+import { useDocumentSort } from '@/refactoring/modules/documents/composables/useDocumentSort'
+import { useDocumentNavigation } from '@/refactoring/modules/documents/composables/useDocumentNavigation'
+import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
 import { ERouteNames } from '@/router/ERouteNames'
 import { getFileTypeByExtension, formatFileSize, formatDate, getDocumentIcon } from '@/refactoring/modules/documents/utils/documentUtils'
 import { pathToArray, arrayToPath } from '@/refactoring/modules/documents/utils/pathUtils'
@@ -330,6 +334,12 @@ const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
 
+// Композиблы
+const documentSearch = useDocumentSearch()
+const documentSort = useDocumentSort()
+const documentNavigation = useDocumentNavigation(documentSort)
+const { handleError, showSuccess } = useErrorHandler()
+
 // Диалоги
 const showCreateFolderDialog = ref(false)
 const showCreateDocumentDialog = ref(false)
@@ -337,105 +347,8 @@ const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
 const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
-// Поиск
-const searchQuery = ref('')
 
-// Методы для поиска
-const onSearchInput = (event: Event): void => {
-    const target = event.target as HTMLInputElement
-    const query = target.value.trim()
 
-    searchQuery.value = query
-
-    if (query.length >= 3) {
-        documentsStore.handleSearchInput(query)
-    } else if (query.length === 0) {
-        void clearSearch()
-    }
-}
-
-const clearSearch = async (): Promise<void> => {
-    searchQuery.value = ''
-    await documentsStore.clearSearch()
-}
-
-// Сортировка
-const currentSort = ref<{
-    field: 'name' | 'size' | 'extension' | null
-    order: 'ascending' | 'descending'
-}>({
-    field: null,
-    order: 'ascending',
-})
-
-// Методы сортировки
-const handleSort = (field: 'name' | 'size' | 'extension') => {
-    if (currentSort.value.field === field) {
-        // Если кликнули по тому же полю, меняем порядок
-        currentSort.value.order =
-            currentSort.value.order === 'ascending' ? 'descending' : 'ascending'
-    } else {
-        // Если кликнули по новому полю, устанавливаем по возрастанию
-        currentSort.value.field = field
-        currentSort.value.order = 'ascending'
-    }
-
-    // Обновляем данные с новой сортировкой
-    refreshDocuments()
-}
-
-const getSortButtonClass = (field: string) => {
-    return {
-        'sort-active': currentSort.value.field === field,
-    }
-}
-
-const getSortIconClass = (field: string) => {
-    if (currentSort.value.field !== field) {
-        return 'pi pi-sort-alt text-surface-400'
-    }
-
-    return currentSort.value.order === 'ascending'
-        ? 'pi pi-sort-up text-primary'
-        : 'pi pi-sort-down text-primary'
-}
-
-const refreshDocuments = async () => {
-    try {
-        const payload: any = {}
-
-        if (documentsStore.currentFolderId) {
-            payload.folder_id = documentsStore.currentFolderId
-        } else {
-            payload.path = documentsStore.currentPath
-        }
-
-        // Добавляем параметры сортировки, если они установлены
-        if (currentSort.value.field) {
-            payload.sort_by = currentSort.value.field
-            payload.sort_order = currentSort.value.order
-        }
-
-        await documentsStore.fetchDocuments(payload)
-    } catch (error) {
-        // Error handled in store
-    }
-}
-
-const navigateToBreadcrumb = (crumb: { name: string; path: string; id: string | null }) => {
-    if (crumb.id) {
-        navigateToFolderId(crumb.id)
-    } else {
-        navigateToPath(crumb.path)
-    }
-}
-
-const truncateBreadcrumbName = (name: string, maxLength: number = 30): string => {
-    if (name.length <= maxLength) {
-        return name
-    }
-    return name.substring(0, maxLength) + '...'
-}
 
 const onFolderCreated = () => {
     showCreateFolderDialog.value = false
@@ -454,7 +367,7 @@ const onDocumentDeleted = () => {
     showEditDocumentDialog.value = false
     selectedDocument.value = null
     // Обновляем список документов после удаления
-    refreshDocuments()
+    documentSort.refreshDocuments()
 }
 
 const openAddVersionDialog = (document: IDocument) => {
@@ -520,11 +433,12 @@ const confirmDeleteDocument = (document: IDocument) => {
 const downloadDocument = (document: IDocument) => {
     const url = document.download_url || document.file_url
     if (!url) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось найти ссылку для скачивания документа',
-            time: 5000,
+        handleError(new Error('No download URL'), {
+            context: 'DocumentsInterface',
+            functionName: 'downloadDocument',
+            toastTitle: 'Ошибка',
+            toastMessage: 'Не удалось найти ссылку для скачивания документа',
+            additionalData: { documentId: document.id }
         })
         return
     }
@@ -540,122 +454,24 @@ const downloadDocument = (document: IDocument) => {
         link.click()
         window.document.body.removeChild(link)
 
-        feedbackStore.showToast({
-            type: 'success',
-            title: 'Успех',
-            message: 'Скачивание файла началось',
-            time: 3000,
-        })
+        showSuccess('Успех', 'Скачивание файла началось')
     } catch (error) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось скачать документ',
-            time: 5000,
+        handleError(error, {
+            context: 'DocumentsInterface',
+            functionName: 'downloadDocument',
+            toastTitle: 'Ошибка',
+            toastMessage: 'Не удалось скачать документ',
+            additionalData: { documentId: document.id }
         })
     }
 }
 
 
-const navigateToFolder = async (folder: IDocumentFolder) => {
-    try {
-        await documentsStore.navigateToFolder(folder)
-        documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе в папку
-        currentSort.value = { field: null, order: 'ascending' }
-    } catch (error) {
-        // Error handled in store
-    }
-}
-
-const navigateToPath = async (path: string) => {
-    try {
-        await documentsStore.navigateToPath(path)
-        documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе по пути
-        currentSort.value = { field: null, order: 'ascending' }
-    } catch (error) {
-        // Error handled in store
-    }
-}
-
-const navigateToFolderId = async (folderId: string) => {
-    try {
-        await documentsStore.navigateToFolderId(folderId)
-        documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе по ID папки
-        currentSort.value = { field: null, order: 'ascending' }
-    } catch (error) {
-        // Error handled in store
-    }
-}
-
-const navigateUp = async () => {
-    try {
-        await documentsStore.navigateUp()
-        documentsStore.updateUrl(router)
-        // Сброс сортировки при переходе вверх
-        currentSort.value = { field: null, order: 'ascending' }
-    } catch (error) {
-        // Error handled in store
-    }
-}
-
-const copyFolderLink = (folder: IDocumentFolder) => {
-    try {
-        let fullUrl: string
-
-        if (folder.path && folder.path !== '/') {
-            const pathArray = pathToArray(folder.path)
-            const routeParams = {
-                name: ERouteNames.DOCUMENTS_FOLDER,
-                params: { pathMatch: pathArray },
-            }
-            fullUrl = `${window.location.origin}${router.resolve(routeParams).href}`
-        } else {
-            fullUrl = `${window.location.origin}${router.resolve({ name: ERouteNames.DOCUMENTS }).href}`
-        }
-
-        navigator.clipboard
-            .writeText(fullUrl)
-            .then(() => {
-                feedbackStore.showToast({
-                    type: 'success',
-                    title: 'Успех',
-                    message: 'Ссылка на папку скопирована в буфер обмена',
-                    time: 3000,
-                })
-            })
-            .catch(() => {
-                const textArea = window.document.createElement('textarea')
-                textArea.value = fullUrl
-                window.document.body.appendChild(textArea)
-                textArea.select()
-                window.document.execCommand('copy')
-                window.document.body.removeChild(textArea)
-
-                feedbackStore.showToast({
-                    type: 'success',
-                    title: 'Успех',
-                    message: 'Ссылка на папку скопирована в буфер обмена',
-                    time: 3000,
-                })
-            })
-    } catch (error) {
-        feedbackStore.showToast({
-            type: 'error',
-            title: 'Ошибка',
-            message: 'Не удалось скопировать ссылку на папку',
-            time: 5000,
-        })
-    }
-}
 
 const initializeFromUrl = async () => {
     try {
         if (props.path && Array.isArray(props.path) && props.path.length > 0) {
-            const targetPath = arrayToPath(props.path)
-            await documentsStore.fetchDocuments({ path: targetPath })
+            await documentNavigation.initializeFromUrl(props.path)
         } else {
             await documentsStore.fetchDocuments()
         }
@@ -672,9 +488,7 @@ watch(
                 newPath && newPath.length > 0 ? arrayToPath(newPath) : '/'
 
             if (targetPath !== documentsStore.currentPath) {
-                await documentsStore.fetchDocuments({ path: targetPath })
-                // Сброс сортировки при изменении пути через URL
-                currentSort.value = { field: null, order: 'ascending' }
+                await documentNavigation.navigateToPath(targetPath)
             }
         } catch (error) {
             // Error is handled in the store
@@ -690,8 +504,9 @@ onMounted(async () => {
 
 onUnmounted(() => {
     if (documentsStore.isSearchMode) {
-        void documentsStore.clearSearch()
+        void documentSearch.clearSearch()
     }
+    documentSearch.cleanup()
     documentsStore.cleanup()
 })
 </script>

@@ -55,6 +55,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
+import { useFormValidation } from '@/refactoring/modules/documents/composables/useFormValidation'
+import { useErrorHandler } from '@/refactoring/modules/documents/composables/useErrorHandler'
 
 interface Props {
     visible: boolean
@@ -69,6 +71,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const documentsStore = useDocumentsStore()
+const { errors, documentRules, validateForm, clearErrors, hasErrors } = useFormValidation()
+const { handleError, showSuccess } = useErrorHandler()
 
 // Реактивность диалога
 const dialogVisible = computed({
@@ -82,10 +86,6 @@ const form = ref({
     visibility: 'creator' as 'creator' | 'public' | 'private' | 'department',
 })
 
-const errors = ref({
-    name: '',
-    visibility: '',
-})
 
 const isLoading = ref(false)
 
@@ -97,45 +97,13 @@ const visibilityOptions = [
     { label: 'Приватная (только мне)', value: 'private' },
 ]
 
-// Валидация
-const validateForm = () => {
-    errors.value = {
-        name: '',
-        visibility: '',
-    }
 
-    let isValid = true
-
-    if (!form.value.name.trim()) {
-        errors.value.name = 'Название папки обязательно'
-        isValid = false
-    } else if (form.value.name.trim().length < 2) {
-        errors.value.name = 'Название должно содержать минимум 2 символа'
-        isValid = false
-    } else if (form.value.name.trim().length > 100) {
-        errors.value.name = 'Название не должно превышать 100 символов'
-        isValid = false
-    }
-
-    if (!form.value.visibility) {
-        errors.value.visibility = 'Выберите уровень видимости'
-        isValid = false
-    }
-
-    return isValid
-}
-
-const isFormValid = computed(() => {
-    return (
-        form.value.name.trim().length >= 2 &&
-        form.value.name.trim().length <= 100 &&
-        form.value.visibility
-    )
-})
+const isFormValid = computed(() => !hasErrors.value && form.value.name.trim() && form.value.visibility)
 
 // Обработчики
 const handleSubmit = async () => {
-    if (!validateForm()) return
+    const isValid = validateForm(form.value, documentRules.createFolder)
+    if (!isValid) return
 
     isLoading.value = true
 
@@ -148,9 +116,17 @@ const handleSubmit = async () => {
             visibility: form.value.visibility,
         })
 
+        showSuccess('Успех', 'Папка создана')
         emit('created')
         resetForm()
     } catch (error) {
+        handleError(error, {
+            context: 'CreateFolderDialog',
+            functionName: 'handleSubmit',
+            toastTitle: 'Ошибка',
+            toastMessage: 'Не удалось создать папку',
+            additionalData: { folderName: form.value.name }
+        })
     } finally {
         isLoading.value = false
     }
@@ -162,10 +138,7 @@ const resetForm = () => {
         visibility: 'creator',
     }
 
-    errors.value = {
-        name: '',
-        visibility: '',
-    }
+    clearErrors()
 }
 
 watch(
