@@ -27,7 +27,18 @@ export const openChat = async (userId?: string | null, chatId?: number | null, o
         // Открываем скользящий чат без перезагрузки страницы
         console.log('openChat: Opening sliding chat with chatId:', chatId, 'userId:', userId)
         const { openSlidingChat } = useSlidingChatGlobal()
-        openSlidingChat(chatId, userId)
+        
+        // Проверяем, что userId действительно передан
+        if (userId) {
+            console.log('openChat: Opening chat with userId:', userId)
+            openSlidingChat(null, userId)
+        } else if (chatId) {
+            console.log('openChat: Opening chat with chatId:', chatId)
+            openSlidingChat(chatId, null)
+        } else {
+            console.log('openChat: Opening chat without specific parameters')
+            openSlidingChat(null, null)
+        }
     }
 }
 

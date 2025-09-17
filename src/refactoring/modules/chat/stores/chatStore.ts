@@ -451,8 +451,12 @@ export const useChatStore = defineStore('chatStore', {
 
         // Находит или создает диалог с пользователем
         async findOrCreateDirectChat(userId: string): Promise<IChat> {
+            console.log('chatStore.findOrCreateDirectChat: Looking for chat with userId:', userId)
+            
             const currentUser = useCurrentUser()
             const currentUserId = currentUser.id.value
+
+            console.log('chatStore.findOrCreateDirectChat: Current user ID:', currentUserId)
 
             if (!currentUserId) {
                 throw new Error('Текущий пользователь не определен')
@@ -467,13 +471,27 @@ export const useChatStore = defineStore('chatStore', {
                 }
 
                 const memberIds = chat.members.map((m) => m.user_uuid || m.user)
-                return memberIds.includes(currentUserId) && memberIds.includes(userId)
+                const hasCurrentUser = memberIds.includes(currentUserId)
+                const hasTargetUser = memberIds.includes(userId)
+                
+                console.log('chatStore.findOrCreateDirectChat: Checking chat:', {
+                    chatId: chat.id,
+                    chatType: chat.type,
+                    memberIds,
+                    hasCurrentUser,
+                    hasTargetUser,
+                    match: hasCurrentUser && hasTargetUser
+                })
+                
+                return hasCurrentUser && hasTargetUser
             })
 
             if (existingDialog) {
+                console.log('chatStore.findOrCreateDirectChat: Found existing dialog:', existingDialog)
                 return existingDialog
             }
 
+            console.log('chatStore.findOrCreateDirectChat: Creating new dialog with userId:', userId)
             return await this.createDirectChat(userId)
         },
 

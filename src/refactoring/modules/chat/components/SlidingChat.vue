@@ -173,8 +173,8 @@ const emit = defineEmits<Emits>()
 
 // Инициализация композабла с общей логикой чата
 const chatLogic = useChatLogic({
+    userId: props.initialUserId,
     initialChatId: props.initialChatId,
-    initialUserId: props.initialUserId,
     messagesContainerSelector: '#sliding-chat-messages',
 })
 
@@ -318,22 +318,29 @@ watch(
                 let chatToOpen: any = null
 
                 if (newUserId) {
+                    console.log('SlidingChat: Trying to find/create chat with userId:', newUserId)
                     chatToOpen = await chatStore.findOrCreateDirectChat(newUserId)
+                    console.log('SlidingChat: Successfully found/created chat:', chatToOpen)
                 } else if (newChatId) {
+                    console.log('SlidingChat: Trying to find chat with chatId:', newChatId)
                     chatToOpen = chatStore.chats.find((c) => c.id === newChatId) || null
                     if (!chatToOpen) {
                         // Попытаемся инициализировать чаты, если они еще не загружены
                         await chatStore.initializeOnce()
                         chatToOpen = chatStore.chats.find((c) => c.id === newChatId) || null
                     }
+                    console.log('SlidingChat: Found chat with chatId:', chatToOpen)
                 }
 
                 if (chatToOpen) {
+                    console.log('SlidingChat: Opening chat:', chatToOpen)
                     await chatStore.openChat(chatToOpen)
                     if (isMobile.value) mobileView.value = 'chat'
+                } else {
+                    console.log('SlidingChat: No chat found to open')
                 }
             } catch (error) {
-                // Ошибка при принудительном открытии чата
+                console.error('SlidingChat: Error opening chat:', error)
             }
         }
     },

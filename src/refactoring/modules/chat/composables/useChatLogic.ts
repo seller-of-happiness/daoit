@@ -13,11 +13,9 @@ import type {
 
 export interface ChatLogicOptions {
     /** ID пользователя для создания диалога при инициализации */
-    userId?: string
+    userId?: string | null
     /** ID чата для открытия при инициализации */
     initialChatId?: number | null
-    /** ID пользователя для создания диалога при инициализации */
-    initialUserId?: string | null
     /** Селектор контейнера сообщений для скролла */
     messagesContainerSelector?: string
     /** Колбэк при открытии чата */
@@ -207,10 +205,6 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                     console.log('useChatLogic: Trying to find/create chat with userId:', options.userId)
                     chatToOpen = await chatStore.findOrCreateDirectChat(options.userId)
                     console.log('useChatLogic: Successfully found/created chat with userId:', options.userId, chatToOpen)
-                } else if (options.initialUserId) {
-                    console.log('useChatLogic: Trying to find/create chat with initialUserId:', options.initialUserId)
-                    chatToOpen = await chatStore.findOrCreateDirectChat(options.initialUserId)
-                    console.log('useChatLogic: Successfully found/created chat with initialUserId:', options.initialUserId, chatToOpen)
                 } else if (options.initialChatId) {
                     // Ищем чат по ID в загруженном списке
                     console.log('useChatLogic: Trying to find chat with initialChatId:', options.initialChatId)
@@ -245,7 +239,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         chatStore.currentChat = null
 
                         // Попытаемся открыть первый доступный чат ТОЛЬКО если не был передан конкретный пользователь
-                        if (!options.userId && !options.initialUserId && chatStore.chats.length > 0) {
+                        if (!options.userId && chatStore.chats.length > 0) {
                             try {
                                 const firstChat = chatStore.chats[0]
                                 await chatStore.openChat(firstChat)
@@ -256,7 +250,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                             }
                         }
                     }
-                } else if (!options.userId && !options.initialUserId && chatStore.chats.length > 0) {
+                } else if (!options.userId && chatStore.chats.length > 0) {
                     // Если нет конкретного чата для открытия, но есть чаты - открываем первый
                     // ТОЛЬКО если не был передан конкретный пользователь
                     try {
@@ -274,7 +268,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                 
                 // Если была ошибка при создании чата с конкретным пользователем, 
                 // НЕ откатываемся к localStorage чату
-                if (options.userId || options.initialUserId) {
+                if (options.userId) {
                     console.log('useChatLogic: Failed to create chat with specific user, not falling back to localStorage')
                     // Очищаем текущий чат, чтобы показать пустое состояние
                     chatStore.currentChat = null
