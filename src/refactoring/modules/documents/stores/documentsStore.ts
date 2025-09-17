@@ -43,6 +43,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         documentTypes: [],
         breadcrumbs: [{ name: 'Документы', path: '/', id: null }],
         isLoading: false,
+        isNavigating: false,
         selectedItems: new Set(),
         _urlUpdateTimeout: null as ReturnType<typeof setTimeout> | null,
         // Поля для поиска
@@ -171,9 +172,15 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
+            // Предотвращаем дублирование запросов
+            if (this.isNavigating) {
+                return
+            }
+
             const requestPath = this._getRequestPath(payload)
 
             try {
+                this.isNavigating = true
                 const data = await this._apiService.fetchDocuments({
                     ...payload,
                     path: requestPath,
@@ -205,6 +212,8 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     time: 5000,
                 })
                 throw error
+            } finally {
+                this.isNavigating = false
             }
         },
 

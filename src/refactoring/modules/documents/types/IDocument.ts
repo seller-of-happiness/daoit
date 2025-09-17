@@ -71,6 +71,7 @@ export interface IDocumentsStoreState {
     documentTypes: IDocumentType[]
     breadcrumbs: Array<{ name: string; path: string; id: string | null }>
     isLoading: boolean
+    isNavigating: boolean
     selectedItems: Set<number>
     _urlUpdateTimeout: ReturnType<typeof setTimeout> | null
     // Поля для поиска
