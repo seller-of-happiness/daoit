@@ -204,21 +204,31 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
             // Попытка найти чат для открытия
             try {
                 if (options.userId) {
+                    console.log('useChatLogic: Trying to find/create chat with userId:', options.userId)
                     chatToOpen = await chatStore.findOrCreateDirectChat(options.userId)
+                    console.log('useChatLogic: Successfully found/created chat with userId:', options.userId, chatToOpen)
                 } else if (options.initialUserId) {
+                    console.log('useChatLogic: Trying to find/create chat with initialUserId:', options.initialUserId)
                     chatToOpen = await chatStore.findOrCreateDirectChat(options.initialUserId)
+                    console.log('useChatLogic: Successfully found/created chat with initialUserId:', options.initialUserId, chatToOpen)
                 } else if (options.initialChatId) {
                     // Ищем чат по ID в загруженном списке
+                    console.log('useChatLogic: Trying to find chat with initialChatId:', options.initialChatId)
                     chatToOpen = chatStore.chats.find((c) => c.id === options.initialChatId) || null
+                    console.log('useChatLogic: Found chat with initialChatId:', options.initialChatId, chatToOpen)
                 } else {
                     // Попытка восстановить последний выбранный чат из локального хранилища
+                    // ТОЛЬКО если не был передан конкретный пользователь
+                    console.log('useChatLogic: No specific user/chat provided, trying localStorage')
                     try {
                         const savedId = Number(localStorage.getItem('selectedChatId') || '')
                         if (savedId && !Number.isNaN(savedId)) {
                             chatToOpen = chatStore.chats.find((c) => c.id === savedId) || null
+                            console.log('useChatLogic: Found chat from localStorage:', savedId, chatToOpen)
                         }
                     } catch (e) {
                         // Игнорируем ошибки локального хранилища
+                        console.log('useChatLogic: Error reading from localStorage:', e)
                     }
                 }
 
@@ -234,8 +244,8 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         // Если не удалось открыть выбранный чат, сбрасываем его
                         chatStore.currentChat = null
 
-                        // Попытаемся открыть первый доступный чат
-                        if (chatStore.chats.length > 0) {
+                        // Попытаемся открыть первый доступный чат ТОЛЬКО если не был передан конкретный пользователь
+                        if (!options.userId && !options.initialUserId && chatStore.chats.length > 0) {
                             try {
                                 const firstChat = chatStore.chats[0]
                                 await chatStore.openChat(firstChat)
@@ -246,8 +256,9 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                             }
                         }
                     }
-                } else if (chatStore.chats.length > 0) {
+                } else if (!options.userId && !options.initialUserId && chatStore.chats.length > 0) {
                     // Если нет конкретного чата для открытия, но есть чаты - открываем первый
+                    // ТОЛЬКО если не был передан конкретный пользователь
                     try {
                         const firstChat = chatStore.chats[0]
                         await chatStore.openChat(firstChat)
@@ -259,6 +270,16 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                 }
             } catch (error) {
                 // Ошибка при инициализации чата
+                console.error('useChatLogic: Error during chat initialization:', error)
+                
+                // Если была ошибка при создании чата с конкретным пользователем, 
+                // НЕ откатываемся к localStorage чату
+                if (options.userId || options.initialUserId) {
+                    console.log('useChatLogic: Failed to create chat with specific user, not falling back to localStorage')
+                    // Очищаем текущий чат, чтобы показать пустое состояние
+                    chatStore.currentChat = null
+                }
+                
                 // Не прерываем инициализацию из-за ошибок чата
             }
 

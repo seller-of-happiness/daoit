@@ -9,6 +9,8 @@ import { useSlidingChatGlobal } from '@/refactoring/modules/chat/composables/use
  * @param openInNewTab - открыть в новой вкладке (по умолчанию false)
  */
 export const openChat = async (userId?: string | null, chatId?: number | null, openInNewTab = false) => {
+    console.log('openChat called with:', { userId, chatId, openInNewTab })
+    
     if (openInNewTab) {
         // Открываем в новой вкладке
         let href = '/chat?slide=true'
@@ -23,6 +25,7 @@ export const openChat = async (userId?: string | null, chatId?: number | null, o
         window.open(href, '_blank', 'noopener')
     } else {
         // Открываем скользящий чат без перезагрузки страницы
+        console.log('openChat: Opening sliding chat with chatId:', chatId, 'userId:', userId)
         const { openSlidingChat } = useSlidingChatGlobal()
         openSlidingChat(chatId, userId)
     }
