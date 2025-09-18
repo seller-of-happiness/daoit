@@ -414,25 +414,33 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Создаёт личный диалог с выбранным сотрудником и показывает уведомление
+        // Создаёт или возвращает существующий личный диалог с выбранным сотрудником
         async createDirectChat(employeeId: string): Promise<IChat> {
             try {
-                const res = await axios.post(`${BASE_URL}/api/chat/chat/create-dialog/`, {
+                const res = await axios.post(`${BASE_URL}/api/chat/chat/dialog/`, {
                     user_id: employeeId,
                 })
-                const newChat = res.data.chat
+                const chat = res.data.chat || res.data
 
-                this.chats.unshift(newChat)
+                // Проверяем, есть ли чат уже в списке
+                const existingChatIndex = this.chats.findIndex(c => c.id === chat.id)
+                if (existingChatIndex === -1) {
+                    // Если чата нет в списке, добавляем его
+                    this.chats.unshift(chat)
+                    
+                    useFeedbackStore().showToast({
+                        type: 'success',
+                        title: 'Успешно',
+                        message: 'Диалог открыт',
+                        time: 3000,
+                    })
+                } else {
+                    // Если чат уже есть, обновляем его данные
+                    this.chats.splice(existingChatIndex, 1, chat)
+                }
+
                 this.searchResults = null
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Успешно',
-                    message: 'Новый диалог создан',
-                    time: 3000,
-                })
-
-                return newChat
+                return chat
             } catch (error) {
                 logger.error('chat_createDirectChat_error', {
                     file: 'chatStore',
@@ -449,31 +457,9 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Находит или создает диалог с пользователем
+        // Находит или создает диалог с пользователем (теперь делегирует логику на сервер)
         async findOrCreateDirectChat(userId: string): Promise<IChat> {
-            const currentUser = useCurrentUser()
-            const currentUserId = currentUser.id.value
-
-            if (!currentUserId) {
-                throw new Error('Текущий пользователь не определен')
-            }
-
-            const existingDialog = this.chats.find((chat) => {
-                if (
-                    (chat.type !== 'direct' && chat.type !== 'dialog') ||
-                    chat.members.length !== 2
-                ) {
-                    return false
-                }
-
-                const memberIds = chat.members.map((m) => m.user_uuid || m.user)
-                return memberIds.includes(currentUserId) && memberIds.includes(userId)
-            })
-
-            if (existingDialog) {
-                return existingDialog
-            }
-
+            // Теперь просто используем createDirectChat, который сам решает создавать или возвращать существующий
             return await this.createDirectChat(userId)
         },
 
