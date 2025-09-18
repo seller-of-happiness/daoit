@@ -109,10 +109,10 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
 
     const createNewDialog = async (employee: IEmployee) => {
         try {
-            const newChat = await chatStore.createDirectChat(employee.id)
-            await chatStore.openChat(newChat)
+            const chat = await chatStore.createDirectChat(employee.id)
+            await chatStore.openChat(chat)
             if (isMobile.value) mobileView.value = 'chat'
-            options.onChatOpen?.(newChat)
+            options.onChatOpen?.(chat)
         } catch (error) {
             // Ошибка создания диалога
         }
