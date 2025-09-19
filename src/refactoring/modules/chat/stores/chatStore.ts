@@ -315,6 +315,8 @@ export const useChatStore = defineStore('chatStore', {
                 const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
                 if (chatIndex !== -1) {
                     this.chats.splice(chatIndex, 1, updatedChat)
+                    // Сортируем чаты после обновления
+                    this.sortChatsByLastMessage()
                 }
 
                 // Обновляем текущий чат, если это он
@@ -353,6 +355,8 @@ export const useChatStore = defineStore('chatStore', {
                 const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
                 if (chatIndex !== -1) {
                     this.chats.splice(chatIndex, 1, updatedChat)
+                    // Сортируем чаты после обновления
+                    this.sortChatsByLastMessage()
                 }
 
                 // Обновляем текущий чат, если это он
@@ -1118,6 +1122,8 @@ export const useChatStore = defineStore('chatStore', {
                 const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
                 if (chatIndex !== -1) {
                     this.chats.splice(chatIndex, 1, updatedChat)
+                    // Сортируем чаты после обновления
+                    this.sortChatsByLastMessage()
                 }
 
                 // Обновляем текущий чат, если это он
