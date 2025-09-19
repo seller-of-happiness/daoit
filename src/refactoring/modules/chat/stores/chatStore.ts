@@ -21,7 +21,6 @@ import axios from 'axios'
 import { defineStore } from 'pinia'
 import { BASE_URL } from '@/refactoring/environment/environment'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
-import { logger } from '@/refactoring/utils/eventLogger'
 import type {
     IChat,
     IChatStoreState,
@@ -215,11 +214,6 @@ export const useChatStore = defineStore('chatStore', {
                 // Подписываемся на единый канал пользователя для получения уведомлений о всех чатах
                 this.subscribeToUserChannel()
             } catch (error) {
-                logger.error('chat_fetchChats_error', {
-                    file: 'chatStore',
-                    function: 'fetchChats',
-                    condition: String(error),
-                })
 
                 // Устанавливаем пустой массив при ошибке
                 this.chats = []
@@ -264,11 +258,6 @@ export const useChatStore = defineStore('chatStore', {
                 })
                 return chat
             } catch (error) {
-                logger.error('chat_createChat_error', {
-                    file: 'chatStore',
-                    function: 'createChat',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -285,11 +274,6 @@ export const useChatStore = defineStore('chatStore', {
                 const res = await axios.get(`${BASE_URL}/api/chat/chat/${chatId}/`)
                 return (res.data?.results ?? res.data) as IChat
             } catch (error) {
-                logger.error('chat_fetchChat_error', {
-                    file: 'chatStore',
-                    function: 'fetchChat',
-                    condition: String(error),
-                })
                 throw error
             }
         },
@@ -320,11 +304,6 @@ export const useChatStore = defineStore('chatStore', {
 
                 return updatedChat
             } catch (error) {
-                logger.error('chat_updateChat_error', {
-                    file: 'chatStore',
-                    function: 'updateChat',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -361,11 +340,6 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
-                logger.error('chat_removeMember_error', {
-                    file: 'chatStore',
-                    function: 'removeMemberFromChat',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -397,11 +371,6 @@ export const useChatStore = defineStore('chatStore', {
                 this.searchResults = res.data
                 return res.data
             } catch (error) {
-                logger.error('chat_searchChats_error', {
-                    file: 'chatStore',
-                    function: 'searchChats',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -442,11 +411,6 @@ export const useChatStore = defineStore('chatStore', {
                 this.searchResults = null
                 return chat
             } catch (error) {
-                logger.error('chat_createDirectChat_error', {
-                    file: 'chatStore',
-                    function: 'createDirectChat',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -839,11 +803,6 @@ export const useChatStore = defineStore('chatStore', {
                 this.messages.length = 0
                 this.messages.push(...sortedMessages)
             } catch (error) {
-                logger.error('chat_fetchMessages_error', {
-                    file: 'chatStore',
-                    function: 'fetchMessages',
-                    condition: String(error),
-                })
 
                 // При ошибке 404 или другой ошибке - очищаем сообщения
                 this.messages.length = 0
@@ -885,11 +844,6 @@ export const useChatStore = defineStore('chatStore', {
 
                 return msg
             } catch (error) {
-                logger.error('chat_sendMessage_error', {
-                    file: 'chatStore',
-                    function: 'sendMessage',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -926,11 +880,6 @@ export const useChatStore = defineStore('chatStore', {
 
                 return updatedMessage
             } catch (error) {
-                logger.error('chat_updateMessage_error', {
-                    file: 'chatStore',
-                    function: 'updateMessage',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -956,11 +905,6 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
-                logger.error('chat_deleteMessage_error', {
-                    file: 'chatStore',
-                    function: 'deleteMessage',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -979,11 +923,6 @@ export const useChatStore = defineStore('chatStore', {
                 )
                 return res.data?.results ?? res.data
             } catch (error) {
-                logger.error('chat_fetchMessageReaders_error', {
-                    file: 'chatStore',
-                    function: 'fetchMessageReaders',
-                    condition: String(error),
-                })
                 return []
             }
         },
@@ -1017,11 +956,6 @@ export const useChatStore = defineStore('chatStore', {
                 )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
-                logger.error('chat_addReaction_error', {
-                    file: 'chatStore',
-                    function: 'addReaction',
-                    condition: String(error),
-                })
                 // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
                 throw error
@@ -1038,11 +972,6 @@ export const useChatStore = defineStore('chatStore', {
                 )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
             } catch (error) {
-                logger.error('chat_removeReaction_error', {
-                    file: 'chatStore',
-                    function: 'removeReaction',
-                    condition: String(error),
-                })
                 // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
                 throw error
@@ -1114,11 +1043,6 @@ export const useChatStore = defineStore('chatStore', {
                     this.invitations = []
                 }
             } catch (error) {
-                logger.error('chat_fetchInvitations_error', {
-                    file: 'chatStore',
-                    function: 'fetchInvitations',
-                    condition: String(error),
-                })
                 // При ошибке устанавливаем пустой массив
                 this.invitations = []
             }
@@ -1151,11 +1075,6 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
-                logger.error('chat_inviteUsers_error', {
-                    file: 'chatStore',
-                    function: 'inviteUsersToChat',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -1184,11 +1103,6 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
-                logger.error('chat_acceptInvitation_error', {
-                    file: 'chatStore',
-                    function: 'acceptInvitation',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -1215,11 +1129,6 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
-                logger.error('chat_declineInvitation_error', {
-                    file: 'chatStore',
-                    function: 'declineInvitation',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -1242,11 +1151,6 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
-                logger.error('chat_removeInvitation_error', {
-                    file: 'chatStore',
-                    function: 'removeInvitation',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -1285,11 +1189,6 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
-                logger.error('chat_uploadAttachment_error', {
-                    file: 'chatStore',
-                    function: 'uploadAttachment',
-                    condition: String(error),
-                })
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
