@@ -47,6 +47,26 @@ function compareMessagesAscending(a: IMessage, b: IMessage): number {
     return aId - bId
 }
 
+// Упорядочивание чатов по времени последнего сообщения (сначала новые)
+function compareChatsByLastMessage(a: IChat, b: IChat): number {
+    // Получаем время последнего сообщения или время создания чата
+    const getLastActivityTime = (chat: IChat): number => {
+        if (chat.last_message?.created_at) {
+            return Date.parse(chat.last_message.created_at)
+        }
+        if (chat.created_at) {
+            return Date.parse(chat.created_at)
+        }
+        return 0
+    }
+
+    const aTime = getLastActivityTime(a)
+    const bTime = getLastActivityTime(b)
+
+    // Сортируем по убыванию (новые сверху)
+    return bTime - aTime
+}
+
 // Глобальный экземпляр для управления непрочитанными сообщениями в заголовке
 const globalUnreadMessages = useUnreadMessages()
 
@@ -82,6 +102,11 @@ export const useChatStore = defineStore('chatStore', {
         getCurrentUserUuid(): string | null {
             const userStore = useUserStore()
             return userStore.user?.uuid || userStore.user?.id?.toString() || null
+        },
+
+        // Сортирует чаты по времени последнего сообщения
+        sortChatsByLastMessage(): void {
+            this.chats.sort(compareChatsByLastMessage)
         },
 
         // Подписывается на единый канал пользователя для получения уведомлений о всех чатах
@@ -200,7 +225,7 @@ export const useChatStore = defineStore('chatStore', {
 
                 // Проверяем что получили массив
                 if (Array.isArray(chatsData)) {
-                    this.chats = chatsData
+                    this.chats = chatsData.sort(compareChatsByLastMessage)
                 } else {
                     this.chats = []
                 }
@@ -250,6 +275,8 @@ export const useChatStore = defineStore('chatStore', {
                 })
                 const chat = (res.data?.results ?? res.data) as IChat
                 this.chats.unshift(chat)
+                // Сортируем чаты после создания нового чата
+                this.sortChatsByLastMessage()
                 useFeedbackStore().showToast({
                     type: 'success',
                     title: 'Создано',
@@ -407,6 +434,9 @@ export const useChatStore = defineStore('chatStore', {
                     // Если чат уже есть, обновляем его данные
                     this.chats.splice(existingChatIndex, 1, chat)
                 }
+                
+                // Сортируем чаты после создания/обновления диалога
+                this.sortChatsByLastMessage()
 
                 this.searchResults = null
                 return chat
@@ -459,6 +489,9 @@ export const useChatStore = defineStore('chatStore', {
                         this.chats = updatedChats
                     }
                 })
+                
+                // Сортируем чаты после обновления счетчиков
+                this.sortChatsByLastMessage()
             } catch (error) {
                 // API может возвращать 404 если не реализован - инициализируем счетчики нулями
 
@@ -521,6 +554,9 @@ export const useChatStore = defineStore('chatStore', {
                 }
             }
 
+            // Сортируем чаты после получения нового сообщения, чтобы чат с новым сообщением поднялся наверх
+            this.sortChatsByLastMessage()
+
             // Для чужих сообщений воспроизводим звук
             if (!isFromCurrentUser) {
                 // Воспроизводим звук для всех чужих сообщений (и в активном, и в неактивном чате)
@@ -535,6 +571,8 @@ export const useChatStore = defineStore('chatStore', {
             const chatIndex = this.chats.findIndex((c) => c.id === chat.id)
             if (chatIndex !== -1) {
                 this.chats.splice(chatIndex, 1, chat)
+                // Сортируем чаты после обновления
+                this.sortChatsByLastMessage()
             }
 
             // Обновляем текущий чат, если это он
@@ -839,6 +877,9 @@ export const useChatStore = defineStore('chatStore', {
                             last_message_id: msg.id,
                         }
                         this.chats.splice(chatIndex, 1, updatedChat)
+                        
+                        // Сортируем чаты после отправки сообщения, чтобы текущий чат поднялся наверх
+                        this.sortChatsByLastMessage()
                     }
                 }
 
@@ -1093,7 +1134,7 @@ export const useChatStore = defineStore('chatStore', {
                 // Удаляем приглашение из списка
                 this.invitations = this.invitations.filter(inv => inv.id !== invitationId)
 
-                // Обновляем список чатов после принятия приглашения
+                // Обновляем список чатов после принятия приглашения (чаты будут автоматически отсортированы в fetchChats)
                 await this.fetchChats()
 
                 useFeedbackStore().showToast({
@@ -1214,7 +1255,7 @@ export const useChatStore = defineStore('chatStore', {
             return userStore.user?.uuid || userStore.user?.id?.toString() || null
         },
 
-        // Фильтрованные чаты по типу
+        // Фильтрованные чаты по типу (уже отсортированы по времени последнего сообщения)
         chatsByType: (state) => (type: string) => {
             if (type === 'all') return state.chats
             if (type === 'direct')
@@ -1224,10 +1265,10 @@ export const useChatStore = defineStore('chatStore', {
             return state.chats.filter((chat) => chat.type === type)
         },
 
-        // Непрочитанные чаты
+        // Непрочитанные чаты (уже отсортированы по времени последнего сообщения)
         unreadChats: (state) => state.chats.filter((chat) => (chat.unread_count || 0) > 0),
 
-        // Активные чаты (с недавней активностью)
+        // Активные чаты (с недавней активностью, уже отсортированы по времени последнего сообщения)
         activeChats: (state) => state.chats.filter((chat) => chat.last_message_id),
     },
 })
