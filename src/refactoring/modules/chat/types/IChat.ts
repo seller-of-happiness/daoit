@@ -21,9 +21,14 @@ export interface MediaQueryMethods {
 }
 
 export interface IChatMember {
-    user: string
-    user_uuid?: string
-    user_name: string
+    user: {
+        id: string
+        first_name: string
+        last_name: string
+        middle_name?: string
+        phone_number?: string
+        birth_date?: string
+    }
     is_admin: boolean
     joined_at: string
 }
@@ -34,9 +39,17 @@ export interface IChat {
     title: string
     description: string
     icon: string | null
-    owner: string
     members: IChatMember[]
-    created_at: string
+    invites: IChatInvitation[]
+    created_by: {
+        id: string
+        first_name: string
+        last_name: string
+        middle_name?: string
+        phone_number?: string
+        birth_date?: string
+    }
+    created_at?: string
     unread_count?: number
     last_message_id?: number
     last_read_message_id?: number
