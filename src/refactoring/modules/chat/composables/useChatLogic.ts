@@ -121,7 +121,15 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     // Удалена функция joinPublicChat - используйте приглашения
 
     const sendMessage = async (content: string) => {
-        await chatStore.sendMessage(content)
+        console.log('[CHAT LOGIC DEBUG] sendMessage called with content:', content)
+        
+        try {
+            await chatStore.sendMessage(content)
+            console.log('[CHAT LOGIC DEBUG] sendMessage completed successfully')
+        } catch (error) {
+            console.error('[CHAT LOGIC DEBUG] sendMessage failed with error:', error)
+            throw error
+        }
     }
 
     const uploadFile = async (file: File) => {
@@ -160,22 +168,42 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         reactionId: number,
         prevReactionId: number | null,
     ) => {
-        // Если пользователь кликает на ту же реакцию - удаляем её
-        if (prevReactionId && prevReactionId === reactionId) {
-            await chatStore.clearMyReactions(messageId)
-            return
-        }
+        console.log('[CHAT LOGIC DEBUG] changeReaction called with:', { messageId, reactionId, prevReactionId })
+        
+        try {
+            // Если пользователь кликает на ту же реакцию - удаляем её
+            if (prevReactionId && prevReactionId === reactionId) {
+                console.log('[CHAT LOGIC DEBUG] Same reaction clicked, clearing reactions...')
+                await chatStore.clearMyReactions(messageId)
+                return
+            }
 
-        // Если у пользователя уже есть реакция - используем эксклюзивную установку
-        if (prevReactionId !== null) {
-            await chatStore.setExclusiveReaction(messageId, reactionId)
-        } else {
-            await chatStore.addReaction(messageId, reactionId)
+            // Если у пользователя уже есть реакция - используем эксклюзивную установку
+            if (prevReactionId !== null) {
+                console.log('[CHAT LOGIC DEBUG] User has existing reaction, setting exclusive reaction...')
+                await chatStore.setExclusiveReaction(messageId, reactionId)
+            } else {
+                console.log('[CHAT LOGIC DEBUG] User has no existing reaction, adding new reaction...')
+                await chatStore.addReaction(messageId, reactionId)
+            }
+            
+            console.log('[CHAT LOGIC DEBUG] changeReaction completed successfully')
+        } catch (error) {
+            console.error('[CHAT LOGIC DEBUG] changeReaction failed with error:', error)
+            throw error
         }
     }
 
     const removeMyReaction = async (messageId: number, prevReactionId: number | null) => {
-        await chatStore.clearMyReactions(messageId)
+        console.log('[CHAT LOGIC DEBUG] removeMyReaction called with:', { messageId, prevReactionId })
+        
+        try {
+            await chatStore.clearMyReactions(messageId)
+            console.log('[CHAT LOGIC DEBUG] removeMyReaction completed successfully')
+        } catch (error) {
+            console.error('[CHAT LOGIC DEBUG] removeMyReaction failed with error:', error)
+            throw error
+        }
     }
 
     // Инициализация
