@@ -26,6 +26,7 @@
                 :mobile-view="mobileView"
                 @back-to-list="mobileView = 'list'"
                 @invite-users="showInviteDialog = true"
+                @manage-chat="showManageDialog = true"
             />
 
             <!-- Область сообщений -->
@@ -78,13 +79,20 @@
             @invite-users="inviteUsers"
         />
 
+        <!-- Диалог управления чатом -->
+        <ChatMembersManagement
+            v-model:visible="showManageDialog"
+            :chat="chatStore.currentChat"
+            @chat-updated="onChatUpdated"
+        />
+
         <!-- Баннер активации звука (как в Битрикс24/Telegram) -->
         <SoundActivationBanner />
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useChatLogic } from '@/refactoring/modules/chat/composables/useChatLogic'
 import { usePhotoSwipe } from '@/refactoring/modules/chat/composables/usePhotoSwipe'
 import 'photoswipe/style.css'
@@ -95,6 +103,7 @@ import ChatInput from './ChatInput.vue'
 import MessageItem from './MessageItem.vue'
 import ChatCreateDialog from './ChatCreateDialog.vue'
 import InviteUsersDialog from './InviteUsersDialog.vue'
+import ChatMembersManagement from './ChatMembersManagement.vue'
 import SoundActivationBanner from './SoundActivationBanner.vue'
 
 import type { IChat } from '@/refactoring/modules/chat/types/IChat'
@@ -120,6 +129,7 @@ usePhotoSwipe({
 // Состояние компонента
 const showCreate = ref(false)
 const showInviteDialog = ref(false)
+const showManageDialog = ref(false)
 
 // Извлекаем нужные переменные из композабла
 const {
@@ -140,6 +150,8 @@ const {
     inviteUsersToChat,
     changeReaction,
     removeMyReaction,
+    acceptInvitation,
+    declineInvitation,
     initialize,
     cleanup,
 } = chatLogic
@@ -177,9 +189,22 @@ const createChat = async (payload: {
     title: string
     description: string
     icon: File | null
+    addMembersImmediately: boolean
 }) => {
-    await createChatBase(payload)
-    showCreate.value = false
+    try {
+        const result = await createChatBase(payload)
+        showCreate.value = false
+
+        // Если нужно сразу пригласить участников, открываем диалог приглашения
+        if (payload.addMembersImmediately) {
+            // Небольшая задержка чтобы чат успел загрузиться
+            setTimeout(() => {
+                showInviteDialog.value = true
+            }, 300)
+        }
+    } catch (error) {
+        // Ошибка обрабатывается в композабле
+    }
 }
 
 const inviteUsers = async (userIds: string[]) => {
@@ -187,24 +212,17 @@ const inviteUsers = async (userIds: string[]) => {
     showInviteDialog.value = false
 }
 
-const acceptInvitation = async (invitation: any) => {
-    try {
-        if (invitation.id) {
-            await chatStore.acceptInvitation(invitation.id)
-        }
-        } catch (error) {
-            // Ошибка при принятии приглашения
-        }
-}
+const onChatUpdated = (updatedChat: IChat) => {
+    // Обновляем текущий чат в сторе
+    if (chatStore.currentChat?.id === updatedChat.id) {
+        chatStore.currentChat = updatedChat
+    }
 
-const declineInvitation = async (invitation: any) => {
-    try {
-        if (invitation.id) {
-            await chatStore.declineInvitation(invitation.id)
-        }
-        } catch (error) {
-            // Ошибка при отклонении приглашения
-        }
+    // Обновляем чат в списке чатов
+    const chatIndex = chatStore.chats.findIndex((chat) => chat.id === updatedChat.id)
+    if (chatIndex !== -1) {
+        chatStore.chats.splice(chatIndex, 1, updatedChat)
+    }
 }
 
 // Хуки жизненного цикла

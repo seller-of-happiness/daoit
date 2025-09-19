@@ -109,7 +109,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
 
     const createNewDialog = async (employee: IEmployee) => {
         try {
-            const chat = await chatStore.createDirectChat(employee.id)
+            const chat = await chatStore.createDialog(employee.id)
             await chatStore.openChat(chat)
             if (isMobile.value) mobileView.value = 'chat'
             options.onChatOpen?.(chat)
@@ -117,8 +117,6 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
             // Ошибка создания диалога
         }
     }
-
-    // Удалена функция joinPublicChat - используйте приглашения
 
     const sendMessage = async (content: string) => {
         await chatStore.sendMessage(content)
@@ -133,16 +131,41 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         }
     }
 
+    // Создание чата с поддержкой новых типов
     const createChat = async (payload: {
         type: 'group' | 'channel'
         title: string
-        description: string
-        icon: File | null
+        description?: string
+        icon?: File | null
+        addMembersImmediately?: boolean
     }) => {
-        const chat = await chatStore.createChat(payload)
+        let chat: IChat
+
+        // Используем соответствующий метод в зависимости от типа
+        if (payload.type === 'group') {
+            chat = await chatStore.createGroup({
+                title: payload.title,
+                description: payload.description,
+                icon: payload.icon,
+            })
+        } else if (payload.type === 'channel') {
+            chat = await chatStore.createChannel({
+                title: payload.title,
+                description: payload.description,
+                icon: payload.icon,
+            })
+        } else {
+            throw new Error(`Unsupported chat type: ${payload.type}`)
+        }
+
         await chatStore.openChat(chat)
         options.onChatOpen?.(chat)
-        return chat
+
+        // Возвращаем объект с чатом и флагом для немедленного добавления участников
+        return {
+            chat,
+            shouldInviteMembers: payload.addMembersImmediately || false,
+        }
     }
 
     const addMembersToChat = async (userIds: string[]) => {
@@ -157,6 +180,34 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
 
     // Для обратной совместимости
     const inviteUsersToChat = addMembersToChat
+
+    // Управление участниками чата
+    const removeMemberFromChat = async (userId: string) => {
+        if (!chatStore.currentChat) return
+
+        try {
+            await chatStore.removeMemberFromChat(chatStore.currentChat.id, userId)
+        } catch (error) {
+            // Ошибка удаления участника
+        }
+    }
+
+    // Обновление информации о чате
+    const updateChatInfo = async (payload: {
+        title?: string
+        description?: string
+        icon?: File | null
+    }) => {
+        if (!chatStore.currentChat) return
+
+        try {
+            const updatedChat = await chatStore.updateChat(chatStore.currentChat.id, payload)
+            return updatedChat
+        } catch (error) {
+            // Ошибка обновления чата
+            throw error
+        }
+    }
 
     const changeReaction = async (
         messageId: number,
@@ -179,6 +230,23 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
 
     const removeMyReaction = async (messageId: number, prevReactionId: number | null) => {
         await chatStore.clearMyReactions(messageId)
+    }
+
+    // Управление приглашениями
+    const acceptInvitation = async (invitationId: number) => {
+        try {
+            await chatStore.acceptInvitation(invitationId)
+        } catch (error) {
+            // Ошибка принятия приглашения
+        }
+    }
+
+    const declineInvitation = async (invitationId: number) => {
+        try {
+            await chatStore.declineInvitation(invitationId)
+        } catch (error) {
+            // Ошибка отклонения приглашения
+        }
     }
 
     // Инициализация
@@ -207,9 +275,9 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
             // Попытка найти чат для открытия
             try {
                 if (options.userId) {
-                    chatToOpen = await chatStore.findOrCreateDirectChat(options.userId)
+                    chatToOpen = await chatStore.createDialog(options.userId)
                 } else if (options.initialUserId) {
-                    chatToOpen = await chatStore.findOrCreateDirectChat(options.initialUserId)
+                    chatToOpen = await chatStore.createDialog(options.initialUserId)
                 } else if (options.initialChatId) {
                     // Ищем чат по ID в загруженном списке
                     chatToOpen = chatStore.chats.find((c) => c.id === options.initialChatId) || null
@@ -239,7 +307,11 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         chatStore.currentChat = null
 
                         // Попытаемся открыть первый доступный чат ТОЛЬКО если не был передан конкретный пользователь
-                        if (!options.userId && !options.initialUserId && chatStore.chats.length > 0) {
+                        if (
+                            !options.userId &&
+                            !options.initialUserId &&
+                            chatStore.chats.length > 0
+                        ) {
                             try {
                                 const firstChat = chatStore.chats[0]
                                 await chatStore.openChat(firstChat)
@@ -250,7 +322,11 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                             }
                         }
                     }
-                } else if (!options.userId && !options.initialUserId && chatStore.chats.length > 0) {
+                } else if (
+                    !options.userId &&
+                    !options.initialUserId &&
+                    chatStore.chats.length > 0
+                ) {
                     // Если нет конкретного чата для открытия, но есть чаты - открываем первый
                     // ТОЛЬКО если не был передан конкретный пользователь
                     try {
@@ -264,14 +340,14 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                 }
             } catch (error) {
                 // Ошибка при инициализации чата
-                
-                // Если была ошибка при создании чата с конкретным пользователем, 
+
+                // Если была ошибка при создании чата с конкретным пользователем,
                 // НЕ откатываемся к localStorage чату
                 if (options.userId || options.initialUserId) {
                     // Очищаем текущий чат, чтобы показать пустое состояние
                     chatStore.currentChat = null
                 }
-                
+
                 // Не прерываем инициализацию из-за ошибок чата
             }
 
@@ -362,8 +438,12 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         createChat,
         addMembersToChat,
         inviteUsersToChat,
+        removeMemberFromChat,
+        updateChatInfo,
         changeReaction,
         removeMyReaction,
+        acceptInvitation,
+        declineInvitation,
 
         // Жизненный цикл
         initialize,

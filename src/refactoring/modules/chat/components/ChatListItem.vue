@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { generateChatInitials, withBase } from '@/refactoring/modules/chat/utils/chatHelpers'
+import { generateChatInitialsForChat, withBase } from '@/refactoring/modules/chat/utils/chatHelpers'
 import type { IChat } from '@/refactoring/modules/chat/types/IChat'
 import { useCurrentUser, isMyMessage } from '@/refactoring/modules/chat/composables/useCurrentUser'
 import { useChatTitle } from '@/refactoring/modules/chat/composables/useChatTitle'
@@ -54,15 +54,13 @@ defineEmits<Emits>()
 
 const { id: currentUserId, name: currentUserName } = useCurrentUser()
 
-// Определяем название и иконку чата
+// Определяем название и иконку чата с использованием обновленного композабла
 const currentChatRef = computed(() => props.chat)
 const { chatTitle, chatIcon } = useChatTitle(currentChatRef)
 
-// Функция для добавления базового URL
-
-// Получение инициалов для иконки
+// Получение инициалов для иконки с учетом новой структуры
 const chatInitials = computed(() => {
-    return generateChatInitials(chatTitle.value)
+    return generateChatInitialsForChat(props.chat, currentUserId.value)
 })
 
 // Количество непрочитанных сообщений

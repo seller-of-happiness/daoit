@@ -8,6 +8,7 @@
  * - Работа с реакциями: загрузка типов, добавление/удаление, эксклюзивная постановка
  * - Поиск чатов и создание новых (группы/каналы/личные диалоги)
  * - Управление приглашениями в чаты
+ * - Управление участниками чатов (добавление/удаление)
  *
  * Особенности:
  * - Сообщения упорядочиваются по времени (старые → новые)
@@ -17,6 +18,7 @@
  * - Debounced-поиск с отображением серверных результатов
  * - Унифицированная обработка серверных ответов (поддержка data.results и плоского ответа)
  * - Управление глобальной индикацией загрузки и показом уведомлений
+ * - Отдельные эндпоинты для создания диалогов, групп и каналов
  */
 import axios from 'axios'
 import { defineStore } from 'pinia'
@@ -261,25 +263,63 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Создаёт групповой/канальный чат. Возвращает созданный объект и добавляет его в начало списка
-        async createChat(payload: {
-            type: 'group' | 'channel'
+        // Создаёт диалог с пользователем. Возвращает существующий если уже есть
+        async createDialog(userId: string): Promise<IChat> {
+            try {
+                const res = await axios.post(`${BASE_URL}/api/chat/chat/dialog/`, {
+                    user_id: userId,
+                })
+
+                // В зависимости от ответа API может вернуть объект chat или напрямую данные чата
+                const chat = res.data.chat || res.data
+
+                // Проверяем, есть ли чат уже в списке
+                const existingChatIndex = this.chats.findIndex((c) => c.id === chat.id)
+                if (existingChatIndex === -1) {
+                    // Если чата нет в списке, добавляем его
+                    this.chats.unshift(chat)
+                    // Пересортируем список
+                    this.chats = sortChatsByLastMessage(this.chats)
+
+                    useFeedbackStore().showToast({
+                        type: 'success',
+                        title: 'Успешно',
+                        message: 'Диалог открыт',
+                        time: 3000,
+                    })
+                } else {
+                    // Если чат уже есть, обновляем его данные
+                    this.chats.splice(existingChatIndex, 1, chat)
+                    // Пересортируем список
+                    this.chats = sortChatsByLastMessage(this.chats)
+                }
+
+                this.searchResults = null
+                return chat
+            } catch (error) {
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось создать диалог',
+                    time: 7000,
+                })
+                throw error
+            }
+        },
+
+        // Создаёт групповой чат. Возвращает созданный объект и добавляет его в начало списка
+        async createGroup(payload: {
             title: string
             description?: string
             icon?: File | null
         }): Promise<IChat> {
             try {
-                // Используем отдельные endpoints для групп и каналов
-                const endpoint = payload.type === 'group' 
-                    ? `${BASE_URL}/api/chat/chat/group/`
-                    : `${BASE_URL}/api/chat/chat/channel/`
-
                 const form = new FormData()
                 form.append('title', payload.title || '')
                 if (payload.description) form.append('description', payload.description)
                 if (payload.icon) form.append('icon', payload.icon)
 
-                const res = await axios.post(endpoint, form, {
+                const res = await axios.post(`${BASE_URL}/api/chat/chat/group/`, form, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 })
                 const chat = (res.data?.results ?? res.data) as IChat
@@ -291,7 +331,7 @@ export const useChatStore = defineStore('chatStore', {
                 useFeedbackStore().showToast({
                     type: 'success',
                     title: 'Создано',
-                    message: 'Чат успешно создан',
+                    message: 'Группа успешно создана',
                     time: 3000,
                 })
                 return chat
@@ -299,10 +339,65 @@ export const useChatStore = defineStore('chatStore', {
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
-                    message: 'Не удалось создать чат',
+                    message: 'Не удалось создать группу',
                     time: 7000,
                 })
                 throw error
+            }
+        },
+
+        // Создаёт канал. Возвращает созданный объект и добавляет его в начало списка
+        async createChannel(payload: {
+            title: string
+            description?: string
+            icon?: File | null
+        }): Promise<IChat> {
+            try {
+                const form = new FormData()
+                form.append('title', payload.title || '')
+                if (payload.description) form.append('description', payload.description)
+                if (payload.icon) form.append('icon', payload.icon)
+
+                const res = await axios.post(`${BASE_URL}/api/chat/chat/channel/`, form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                })
+                const chat = (res.data?.results ?? res.data) as IChat
+
+                // Добавляем новый чат и пересортируем список
+                this.chats.unshift(chat)
+                this.chats = sortChatsByLastMessage(this.chats)
+
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Создано',
+                    message: 'Канал успешно создан',
+                    time: 3000,
+                })
+                return chat
+            } catch (error) {
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось создать канал',
+                    time: 7000,
+                })
+                throw error
+            }
+        },
+
+        // Объединенный метод создания чата (для совместимости с существующим кодом)
+        async createChat(payload: {
+            type: 'group' | 'channel'
+            title: string
+            description?: string
+            icon?: File | null
+        }): Promise<IChat> {
+            if (payload.type === 'group') {
+                return await this.createGroup(payload)
+            } else if (payload.type === 'channel') {
+                return await this.createChannel(payload)
+            } else {
+                throw new Error(`Unsupported chat type: ${payload.type}`)
             }
         },
 
@@ -319,7 +414,23 @@ export const useChatStore = defineStore('chatStore', {
         // Обновляет информацию о чате
         async updateChat(chatId: number, payload: Partial<IChat>): Promise<IChat> {
             try {
-                const res = await axios.put(`${BASE_URL}/api/chat/chat/${chatId}/`, payload)
+                const form = new FormData()
+
+                // Добавляем только обновляемые поля
+                if (payload.title !== undefined) form.append('title', payload.title)
+                if (payload.description !== undefined)
+                    form.append('description', payload.description)
+                if (payload.icon !== undefined) {
+                    if (payload.icon === null) {
+                        form.append('icon', '')
+                    } else if (payload.icon instanceof File) {
+                        form.append('icon', payload.icon)
+                    }
+                }
+
+                const res = await axios.put(`${BASE_URL}/api/chat/chat/${chatId}/`, form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                })
                 const updatedChat = (res.data?.results ?? res.data) as IChat
 
                 // Обновляем чат в списке
@@ -354,7 +465,7 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Добавляет участников в чат
+        // Добавляет участников в чат (отправляет приглашения)
         async addMembersToChat(chatId: number, userIds: string[]): Promise<void> {
             try {
                 await axios.post(`${BASE_URL}/api/chat/chat/${chatId}/add-member/`, {
@@ -378,14 +489,14 @@ export const useChatStore = defineStore('chatStore', {
                 useFeedbackStore().showToast({
                     type: 'success',
                     title: 'Успешно',
-                    message: 'Участники добавлены в чат',
+                    message: 'Приглашения отправлены',
                     time: 3000,
                 })
             } catch (error) {
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
-                    message: 'Не удалось добавить участников',
+                    message: 'Не удалось пригласить участников',
                     time: 7000,
                 })
                 throw error
@@ -395,7 +506,9 @@ export const useChatStore = defineStore('chatStore', {
         // Удаляет участника из чата
         async removeMemberFromChat(chatId: number, userId: string): Promise<void> {
             try {
-                await axios.delete(`${BASE_URL}/api/chat/chat/${chatId}/remove-member/?user_id=${userId}`)
+                await axios.delete(
+                    `${BASE_URL}/api/chat/chat/${chatId}/remove-member/?user_id=${userId}`,
+                )
 
                 // Обновляем информацию о чате после удаления участника
                 const updatedChat = await this.fetchChat(chatId)
@@ -463,50 +576,12 @@ export const useChatStore = defineStore('chatStore', {
 
         // Создаёт или возвращает существующий личный диалог с выбранным сотрудником
         async createDirectChat(employeeId: string): Promise<IChat> {
-            try {
-                const res = await axios.post(`${BASE_URL}/api/chat/chat/dialog/`, {
-                    user_id: employeeId,
-                })
-                const chat = res.data.chat || res.data
-
-                // Проверяем, есть ли чат уже в списке
-                const existingChatIndex = this.chats.findIndex((c) => c.id === chat.id)
-                if (existingChatIndex === -1) {
-                    // Если чата нет в списке, добавляем его
-                    this.chats.unshift(chat)
-                    // Пересортируем список
-                    this.chats = sortChatsByLastMessage(this.chats)
-
-                    useFeedbackStore().showToast({
-                        type: 'success',
-                        title: 'Успешно',
-                        message: 'Диалог открыт',
-                        time: 3000,
-                    })
-                } else {
-                    // Если чат уже есть, обновляем его данные
-                    this.chats.splice(existingChatIndex, 1, chat)
-                    // Пересортируем список
-                    this.chats = sortChatsByLastMessage(this.chats)
-                }
-
-                this.searchResults = null
-                return chat
-            } catch (error) {
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось создать диалог',
-                    time: 7000,
-                })
-                throw error
-            }
+            return await this.createDialog(employeeId)
         },
 
-        // Находит или создает диалог с пользователем (теперь делегирует логику на сервер)
+        // Находит или создает диалог с пользователем
         async findOrCreateDirectChat(userId: string): Promise<IChat> {
-            // Теперь просто используем createDirectChat, который сам решает создавать или возвращать существующий
-            return await this.createDirectChat(userId)
+            return await this.createDialog(userId)
         },
 
         // Получает счетчики непрочитанных сообщений для всех чатов
@@ -1177,43 +1252,9 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Приглашает участников в чат
+        // Приглашает участников в чат (для обратной совместимости)
         async inviteUsersToChat(chatId: number, userIds: string[]): Promise<void> {
-            try {
-                await axios.post(`${BASE_URL}/api/chat/invite/`, {
-                    chat_id: chatId,
-                    user_ids: userIds,
-                })
-
-                // Обновляем информацию о чате после приглашения
-                const updatedChat = await this.fetchChat(chatId)
-                const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
-                if (chatIndex !== -1) {
-                    this.chats.splice(chatIndex, 1, updatedChat)
-                    // Пересортируем список после обновления
-                    this.chats = sortChatsByLastMessage(this.chats)
-                }
-
-                // Обновляем текущий чат, если это он
-                if (this.currentChat?.id === chatId) {
-                    this.currentChat = updatedChat
-                }
-
-                useFeedbackStore().showToast({
-                    type: 'success',
-                    title: 'Успешно',
-                    message: `Пользователи приглашены в чат`,
-                    time: 3000,
-                })
-            } catch (error) {
-                useFeedbackStore().showToast({
-                    type: 'error',
-                    title: 'Ошибка',
-                    message: 'Не удалось пригласить пользователей',
-                    time: 7000,
-                })
-                throw error
-            }
+            return await this.addMembersToChat(chatId, userIds)
         },
 
         // Принимает приглашение в чат

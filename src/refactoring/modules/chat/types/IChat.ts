@@ -1,12 +1,16 @@
 export type ChatType = 'direct' | 'dialog' | 'group' | 'channel'
 
-// Типы для пользователя
+// Типы для пользователя (обновлено под новый API)
 export interface IUser {
-    id: string | number
+    id: string
+    first_name: string
+    last_name: string
+    middle_name?: string
+    phone_number?: string
+    birth_date?: string | null
+    // Дополнительные поля для совместимости со старой системой
     uuid?: string
     full_name?: string
-    first_name?: string
-    last_name?: string
     user_name?: string
     username?: string
     email?: string
@@ -20,40 +24,42 @@ export interface MediaQueryMethods {
     removeListener?(listener: () => void): void
 }
 
+// Обновленная структура участника чата
 export interface IChatMember {
-    user: {
-        id: string
-        first_name: string
-        last_name: string
-        middle_name?: string
-        phone_number?: string
-        birth_date?: string
-    }
+    user: IUser // Теперь полный объект пользователя, а не просто ID
     is_admin: boolean
     joined_at: string
+    // Поля для обратной совместимости (будем заполнять из user)
+    user_uuid?: string
+    user_name?: string
 }
 
+// Структура приглашения в чат
+export interface IChatInvite {
+    id: number
+    invited_user: IUser
+    is_accepted: boolean
+}
+
+// Обновленная структура чата
 export interface IChat {
     id: number
     type: ChatType
     title: string
     description: string
     icon: string | null
-    members: IChatMember[]
-    invites: IChatInvitation[]
-    created_by: {
-        id: string
-        first_name: string
-        last_name: string
-        middle_name?: string
-        phone_number?: string
-        birth_date?: string
-    }
+    members: IChatMember[] // Теперь с полными объектами пользователей
+    invites: IChatInvite[] // Новое поле - список приглашений
+    created_by: IUser // Новое поле - создатель чата
+
+    // Поля для совместимости и дополнительной функциональности
+    owner?: string // Может быть заполнено из created_by.id
     created_at?: string
     unread_count?: number
     last_message_id?: number
     last_read_message_id?: number
     last_message?: IMessage
+    last_activity_time?: string
 }
 
 export interface IEmployee {
@@ -118,25 +124,12 @@ export interface IReactionType {
     icon: string | null
 }
 
+// Обновленный интерфейс приглашений (глобальные приглашения)
 export interface IChatInvitation {
     id: number | null
     chat: IChat
-    created_by: {
-        id: string
-        first_name: string
-        last_name: string
-        middle_name?: string
-        phone_number?: string
-        birth_date?: string | null
-    }
-    invited_user?: {
-        id: string
-        first_name: string
-        last_name: string
-        middle_name?: string
-        phone_number?: string
-        birth_date?: string | null
-    }
+    created_by: IUser
+    invited_user?: IUser
     is_accepted: boolean
     created_at?: string
 }
@@ -149,10 +142,8 @@ export interface IChatStoreState {
     isSending: boolean
     searchResults: ISearchResults | null
     isSearching: boolean
-    // Флаги для предотвращения дублирования инициализации
     isInitialized: boolean
     isInitializing: boolean
-    // Приглашения в чаты
     invitations: IChatInvitation[]
 }
 
@@ -197,7 +188,6 @@ declare global {
     }
 }
 
-
 // Фильтры чатов
 export type ChatFilterType = 'all' | 'direct' | 'dialog' | 'group' | 'channel'
 
@@ -208,3 +198,77 @@ export interface ChatFilter {
 
 // Мобильные состояния
 export type MobileViewType = 'list' | 'chat'
+
+// Утилитарные функции для работы с новой структурой
+export class ChatAdapter {
+    /**
+     * Конвертирует новую структуру чата в формат, совместимый со старым кодом
+     */
+    static adaptChat(chat: IChat): IChat {
+        return {
+            ...chat,
+            owner: chat.created_by?.id || chat.owner,
+            // Добавляем поля для обратной совместимости в members
+            members:
+                chat.members?.map((member) => ({
+                    ...member,
+                    user_uuid: member.user?.id,
+                    user_name: ChatAdapter.getFullUserName(member.user),
+                    // Сохраняем старые поля для совместимости
+                    user: member.user?.id || (member as any).user,
+                })) || [],
+        }
+    }
+
+    /**
+     * Получает полное имя пользователя
+     */
+    static getFullUserName(user: IUser): string {
+        if (!user) return 'Неизвестный пользователь'
+
+        // Если есть готовое полное имя
+        if (user.full_name) return user.full_name
+
+        // Составляем из частей
+        const parts = [user.first_name, user.middle_name, user.last_name].filter(Boolean)
+
+        return parts.length > 0
+            ? parts.join(' ')
+            : user.user_name || user.username || user.email || 'Неизвестный пользователь'
+    }
+
+    /**
+     * Получает отображаемое имя пользователя для чата
+     */
+    static getChatDisplayName(user: IUser): string {
+        // Для чата обычно используем Имя + Фамилия
+        const firstName = user.first_name?.trim()
+        const lastName = user.last_name?.trim()
+
+        if (firstName && lastName) {
+            return `${firstName} ${lastName}`
+        }
+
+        return ChatAdapter.getFullUserName(user)
+    }
+
+    /**
+     * Проверяет, является ли пользователь администратором чата
+     */
+    static isUserAdmin(chat: IChat, userId: string): boolean {
+        return (
+            chat.members?.some((member) => member.user?.id === userId && member.is_admin) || false
+        )
+    }
+
+    /**
+     * Получает собеседника в диалоге
+     */
+    static getDialogCompanion(chat: IChat, currentUserId: string): IChatMember | null {
+        if (chat.type !== 'dialog' && chat.type !== 'direct') {
+            return null
+        }
+
+        return chat.members?.find((member) => member.user?.id !== currentUserId) || null
+    }
+}

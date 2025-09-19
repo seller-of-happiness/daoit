@@ -14,14 +14,19 @@
                 {{ chatInitials }}
             </div>
 
-            <div class="font-semibold text-lg truncate">
-                {{ chatName }}
+            <div class="flex-1 min-w-0">
+                <div class="font-semibold text-lg truncate">
+                    {{ chatName }}
+                </div>
+                <div v-if="chatSubtitle" class="text-sm text-surface-500 truncate">
+                    {{ chatSubtitle }}
+                </div>
             </div>
         </template>
 
         <div v-else class="font-semibold text-lg truncate">Выберите чат</div>
 
-        <div class="ml-auto flex items-center gap-3">
+        <div class="ml-auto flex items-center gap-2">
             <!-- Дополнительные кнопки (слот для кастомизации) -->
             <slot name="extra-buttons" />
 
@@ -37,6 +42,18 @@
                 @click="toggleSound"
             />
 
+            <!-- Кнопка управления чатом для групп и каналов -->
+            <Button
+                v-if="canManageChat"
+                icon="pi pi-cog"
+                severity="secondary"
+                text
+                rounded
+                size="small"
+                v-tooltip.bottom="'Управление чатом'"
+                @click="$emit('manage-chat')"
+            />
+
             <!-- Кнопка приглашения пользователей для групп и каналов -->
             <Button
                 v-if="canInviteUsers"
@@ -45,12 +62,15 @@
                 text
                 rounded
                 size="small"
-                class="ml-auto mr-2"
                 v-tooltip.bottom="'Пригласить пользователей'"
                 @click="$emit('invite-users')"
             />
 
-            <span class="text-sm text-surface-500"> Участников: {{ memberCount }} </span>
+            <!-- Счетчик участников -->
+            <div v-if="showMemberCount" class="text-sm text-surface-500 px-2">
+                <i class="pi pi-users mr-1"></i>
+                {{ memberCount }}
+            </div>
 
             <!-- Индикатор статуса соединения -->
             <div
@@ -65,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { generateChatInitials, withBase } from '@/refactoring/modules/chat/utils/chatHelpers'
 import { useCurrentUser } from '@/refactoring/modules/chat/composables/useCurrentUser'
 import { useCentrifugeStore } from '@/refactoring/modules/centrifuge/stores/centrifugeStore'
@@ -82,6 +102,7 @@ interface Props {
 interface Emits {
     (e: 'back-to-list'): void
     (e: 'invite-users'): void
+    (e: 'manage-chat'): void
 }
 
 const props = defineProps<Props>()
@@ -100,26 +121,6 @@ const {
     toggleSound,
 } = useSound()
 
-// Получение собеседника для личных диалогов
-const directChatCompanion = computed(() => {
-    if (props.currentChat?.type !== 'direct' && props.currentChat?.type !== 'dialog') return null
-
-    // Добавляем проверку на существование участников
-    const members = props.currentChat.members
-    if (!members || !Array.isArray(members)) return null
-
-    return (
-        members.find((member) => {
-            if (!member) return false // Проверка на существование участника
-
-            // Проверяем и по user, и по user_uuid, приводя к строке для сравнения
-            const memberUserId = String(member.user || member.user_uuid || '')
-            const currentUserIdStr = String(currentUserId || '')
-            return memberUserId !== currentUserIdStr && memberUserId !== ''
-        }) || null
-    )
-})
-
 // Используем композабл для определения названия и иконки
 const currentChatRef = computed(() => props.currentChat)
 const { chatTitle: chatName, chatIcon } = useChatTitle(currentChatRef)
@@ -129,15 +130,35 @@ const chatInitials = computed(() => {
     return generateChatInitials(chatName.value)
 })
 
+// Подзаголовок чата
+const chatSubtitle = computed(() => {
+    if (!props.currentChat) return ''
+
+    const chat = props.currentChat
+
+    // Для личных диалогов не показываем подзаголовок
+    if (chat.type === 'direct' || chat.type === 'dialog') {
+        return ''
+    }
+
+    // Для групп и каналов показываем описание если есть
+    return chat.description || ''
+})
+
 // Безопасное получение количества участников
 const memberCount = computed(() => {
     if (!props.currentChat) return 0
 
-    // Добавляем проверки на существование и является ли массивом
     const members = props.currentChat.members
     if (!members || !Array.isArray(members)) return 0
 
     return members.length
+})
+
+// Показывать ли счетчик участников
+const showMemberCount = computed(() => {
+    if (!props.currentChat) return false
+    return props.currentChat.type === 'group' || props.currentChat.type === 'channel'
 })
 
 // Определяем, можно ли приглашать пользователей
@@ -145,7 +166,33 @@ const canInviteUsers = computed(() => {
     if (!props.currentChat) return false
 
     // Приглашать можно только в группы и каналы
-    return props.currentChat.type === 'group' || props.currentChat.type === 'channel'
+    if (props.currentChat.type !== 'group' && props.currentChat.type !== 'channel') {
+        return false
+    }
+
+    // Проверяем, является ли текущий пользователь администратором
+    const currentMember = props.currentChat.members?.find(
+        (member) => member.user.id === currentUserId.value,
+    )
+
+    return currentMember?.is_admin || false
+})
+
+// Определяем, можно ли управлять чатом
+const canManageChat = computed(() => {
+    if (!props.currentChat) return false
+
+    // Управлять можно только группами и каналами
+    if (props.currentChat.type !== 'group' && props.currentChat.type !== 'channel') {
+        return false
+    }
+
+    // Проверяем, является ли текущий пользователь администратором
+    const currentMember = props.currentChat.members?.find(
+        (member) => member.user.id === currentUserId.value,
+    )
+
+    return currentMember?.is_admin || false
 })
 
 // Статус соединения веб-сокета
@@ -188,24 +235,31 @@ const connectionStatusText = computed(() => {
             return 'Соединение потеряно'
     }
 })
-
-// Вспомогательные функции
-function getChatTitleByType(type: string, id: number): string {
-    switch (type) {
-        case 'direct':
-        case 'dialog':
-            return `Диалог #${id}`
-        case 'group':
-            return `Группа #${id}`
-        case 'channel':
-            return `Канал #${id}`
-        default:
-            return `Чат #${id}`
-    }
-}
 </script>
 
 <style lang="scss" scoped>
+.chat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.chat-icon-initials {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--p-primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
 .connection-status {
     display: flex;
     align-items: center;
@@ -273,6 +327,16 @@ function getChatTitleByType(type: string, id: number): string {
     51%,
     100% {
         opacity: 0;
+    }
+}
+
+// Адаптивные стили
+@media (max-width: 768px) {
+    .chat-icon,
+    .chat-icon-initials {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
     }
 }
 </style>

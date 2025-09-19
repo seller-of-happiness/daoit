@@ -10,11 +10,38 @@
         @update:visible="$emit('update:visible', $event)"
     >
         <div class="space-y-4">
+            <!-- Информация о чате -->
+            <div v-if="props.chat" class="chat-info-section">
+                <div class="flex items-center gap-3 p-3 bg-surface-50 rounded-lg">
+                    <img
+                        v-if="props.chat.icon"
+                        :src="withBase(props.chat.icon)"
+                        alt="icon"
+                        class="chat-icon-small"
+                    />
+                    <div v-else class="chat-icon-initials-small">
+                        {{ getChatInitials() }}
+                    </div>
+                    <div>
+                        <div class="font-semibold">{{ chatTitle }}</div>
+                        <div class="text-sm text-surface-600">
+                            {{ getReadableChatType(props.chat.type) }} •
+                            {{ currentMemberCount }} участников
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Поиск пользователей -->
             <div>
                 <div class="label">
                     Поиск пользователей
-                    <span v-if="searchQuery.trim() && !isSearching && filteredAvailableUsers.length > 0" class="result-count">
+                    <span
+                        v-if="
+                            searchQuery.trim() && !isSearching && filteredAvailableUsers.length > 0
+                        "
+                        class="result-count"
+                    >
                         (найдено: {{ filteredAvailableUsers.length }})
                     </span>
                 </div>
@@ -85,6 +112,31 @@
                 </div>
             </div>
 
+            <!-- Текущие участники чата (для справки) -->
+            <div v-if="currentMembers.length > 0" class="current-members-section">
+                <div class="label">Текущие участники ({{ currentMembers.length }})</div>
+                <div class="members-list">
+                    <div
+                        v-for="member in currentMembers.slice(0, 5)"
+                        :key="member.user.id"
+                        class="member-chip"
+                    >
+                        <div class="member-avatar">
+                            <i class="pi pi-user"></i>
+                        </div>
+                        <span class="member-name">{{ getMemberDisplayName(member) }}</span>
+                        <i
+                            v-if="member.is_admin"
+                            class="pi pi-crown admin-icon"
+                            title="Администратор"
+                        ></i>
+                    </div>
+                    <div v-if="currentMembers.length > 5" class="text-sm text-surface-500">
+                        и ещё {{ currentMembers.length - 5 }} участников...
+                    </div>
+                </div>
+            </div>
+
             <!-- Выбранные пользователи -->
             <div v-if="selectedUsers.length > 0" class="selected-users">
                 <div class="label">Выбранные пользователи ({{ selectedUsers.length }})</div>
@@ -122,7 +174,13 @@ import { computed, ref, watch } from 'vue'
 import { debounce } from 'lodash-es'
 import { useChatStore } from '@/refactoring/modules/chat/stores/chatStore'
 import { useApiStore } from '@/refactoring/modules/apiStore/stores/apiStore'
-import type { IChat, IEmployee } from '@/refactoring/modules/chat/types/IChat'
+import {
+    generateChatInitials,
+    withBase,
+    getReadableChatType,
+} from '@/refactoring/modules/chat/utils/chatHelpers'
+import { ChatAdapter } from '@/refactoring/modules/chat/types/IChat'
+import type { IChat, IEmployee, IChatMember } from '@/refactoring/modules/chat/types/IChat'
 
 interface Props {
     visible: boolean
@@ -154,25 +212,43 @@ const chatTitle = computed(() => {
     return props.chat.title || `Чат #${props.chat.id}`
 })
 
+// Получаем текущих участников чата
+const currentMembers = computed<IChatMember[]>(() => {
+    if (!props.chat || !props.chat.members) return []
+    return props.chat.members
+})
+
+// Количество текущих участников
+const currentMemberCount = computed(() => {
+    return currentMembers.value.length
+})
+
 // Проверка, выбран ли пользователь
 const isUserSelected = (user: IEmployee) => {
     return selectedUsers.value.some((selected) => selected.id === user.id)
 }
 
-// Фильтруем пользователей, которые уже есть в чате
+// Фильтруем пользователей, которые уже есть в чате (используем новую структуру)
 const filteredAvailableUsers = computed(() => {
     if (!props.chat || !props.chat.members) return availableUsers.value
 
-    // Получаем список ID участников чата (поддерживаем разные форматы)
-    const existingMemberIds = props.chat.members.map((member) => 
-        member.user_uuid || member.user || String(member.user)
-    )
-    
+    // Получаем список ID участников чата из новой структуры
+    const existingMemberIds = props.chat.members.map((member) => member.user.id)
+
     // Исключаем пользователей, которые уже есть в чате
-    return availableUsers.value.filter((user) => 
-        !existingMemberIds.includes(user.id) && !existingMemberIds.includes(String(user.id))
-    )
+    return availableUsers.value.filter((user) => !existingMemberIds.includes(user.id))
 })
+
+// Получаем инициалы чата
+const getChatInitials = () => {
+    if (!props.chat) return ''
+    return generateChatInitials(props.chat.title)
+}
+
+// Получаем отображаемое имя участника
+const getMemberDisplayName = (member: IChatMember): string => {
+    return ChatAdapter.getChatDisplayName(member.user)
+}
 
 // Обработчики событий
 const toggleUserSelection = (user: IEmployee) => {
@@ -194,34 +270,40 @@ const removeUserFromSelection = (user: IEmployee) => {
 // Функция поиска по локальным данным сотрудников
 const searchLocalEmployees = (query: string): IEmployee[] => {
     if (!query.trim()) return []
-    
+
     const searchTerm = query.toLowerCase().trim()
-    
+
     // Преобразуем сотрудников из хранилища API в формат IEmployee для чата
     return apiStore.employees
-        .filter(employee => {
+        .filter((employee) => {
             // Формируем полное имя для поиска
-            const fullName = `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.toLowerCase()
+            const fullName =
+                `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.toLowerCase()
             const email = employee.email?.toLowerCase() || ''
             const position = employee.position?.name?.toLowerCase() || ''
             const department = employee.department?.name?.toLowerCase() || ''
-            
+
             // Поиск по имени, электронной почте, должности или отделению
-            return fullName.includes(searchTerm) ||
-                   email.includes(searchTerm) ||
-                   position.includes(searchTerm) ||
-                   department.includes(searchTerm)
+            return (
+                fullName.includes(searchTerm) ||
+                email.includes(searchTerm) ||
+                position.includes(searchTerm) ||
+                department.includes(searchTerm)
+            )
         })
-        .map(employee => ({
+        .map((employee) => ({
             id: employee.id,
-            full_name: `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.trim(),
+            full_name:
+                `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.trim(),
             email: employee.email,
-            department: employee.department ? {
-                id: employee.department.id,
-                name: employee.department.name
-            } : null,
+            department: employee.department
+                ? {
+                      id: employee.department.id,
+                      name: employee.department.name,
+                  }
+                : null,
             position: employee.position?.name || null,
-            can_create_dialog: true // Предполагаем что все сотрудники могут создавать диалоги
+            can_create_dialog: true, // Предполагаем что все сотрудники могут создавать диалоги
         }))
         .slice(0, 50) // Ограничиваем количество результатов для производительности
 }
@@ -239,13 +321,13 @@ const debouncedSearch = debounce(async (query: string) => {
         if (apiStore.employees.length === 0) {
             await apiStore.fetchAllEmployees()
         }
-        
+
         // Используем локальный поиск вместо запроса к серверу
         availableUsers.value = searchLocalEmployees(query)
     } catch (error) {
         // Ошибка поиска пользователей
         availableUsers.value = []
-        
+
         // Если локальный поиск не удался, можно использовать резервный серверный поиск
         try {
             const results = await chatStore.searchChats(query)
@@ -311,6 +393,75 @@ watch(
 </script>
 
 <style scoped>
+.chat-info-section {
+    margin-bottom: 1rem;
+}
+
+.chat-icon-small {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.chat-icon-initials-small {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 6px;
+    background-color: var(--surface-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--surface-600);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.current-members-section {
+    border-top: 1px solid var(--surface-border);
+    padding-top: 1rem;
+}
+
+.members-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.member-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--surface-100);
+    border: 1px solid var(--surface-border);
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+}
+
+.member-avatar {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background-color: var(--surface-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--surface-600);
+    font-size: 0.625rem;
+}
+
+.member-name {
+    font-weight: 500;
+}
+
+.admin-icon {
+    color: var(--yellow-500);
+    font-size: 0.75rem;
+}
+
 .user-item {
     display: flex;
     align-items: center;
@@ -451,5 +602,4 @@ watch(
     color: var(--text-color-secondary);
     font-weight: normal;
 }
-
 </style>
