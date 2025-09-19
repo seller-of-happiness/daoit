@@ -269,13 +269,17 @@ export const useChatStore = defineStore('chatStore', {
             icon?: File | null
         }): Promise<IChat> {
             try {
+                // Используем отдельные endpoints для групп и каналов
+                const endpoint = payload.type === 'group' 
+                    ? `${BASE_URL}/api/chat/chat/group/`
+                    : `${BASE_URL}/api/chat/chat/channel/`
+
                 const form = new FormData()
-                form.append('type', payload.type)
                 form.append('title', payload.title || '')
                 if (payload.description) form.append('description', payload.description)
                 if (payload.icon) form.append('icon', payload.icon)
 
-                const res = await axios.post(`${BASE_URL}/api/chat/chat/`, form, {
+                const res = await axios.post(endpoint, form, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 })
                 const chat = (res.data?.results ?? res.data) as IChat
@@ -315,7 +319,7 @@ export const useChatStore = defineStore('chatStore', {
         // Обновляет информацию о чате
         async updateChat(chatId: number, payload: Partial<IChat>): Promise<IChat> {
             try {
-                const res = await axios.patch(`${BASE_URL}/api/chat/chat/${chatId}/`, payload)
+                const res = await axios.put(`${BASE_URL}/api/chat/chat/${chatId}/`, payload)
                 const updatedChat = (res.data?.results ?? res.data) as IChat
 
                 // Обновляем чат в списке
@@ -350,12 +354,48 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Удаляет участника из чата
-        async removeMemberFromChat(chatId: number, memberId: string): Promise<void> {
+        // Добавляет участников в чат
+        async addMembersToChat(chatId: number, userIds: string[]): Promise<void> {
             try {
-                await axios.delete(`${BASE_URL}/api/chat/chat/${chatId}/remove-member/`, {
-                    data: { member_id: memberId },
+                await axios.post(`${BASE_URL}/api/chat/chat/${chatId}/add-member/`, {
+                    user_ids: userIds,
                 })
+
+                // Обновляем информацию о чате после добавления участников
+                const updatedChat = await this.fetchChat(chatId)
+                const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
+                if (chatIndex !== -1) {
+                    this.chats.splice(chatIndex, 1, updatedChat)
+                    // Пересортируем список после обновления
+                    this.chats = sortChatsByLastMessage(this.chats)
+                }
+
+                // Обновляем текущий чат, если это он
+                if (this.currentChat?.id === chatId) {
+                    this.currentChat = updatedChat
+                }
+
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Успешно',
+                    message: 'Участники добавлены в чат',
+                    time: 3000,
+                })
+            } catch (error) {
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось добавить участников',
+                    time: 7000,
+                })
+                throw error
+            }
+        },
+
+        // Удаляет участника из чата
+        async removeMemberFromChat(chatId: number, userId: string): Promise<void> {
+            try {
+                await axios.delete(`${BASE_URL}/api/chat/chat/${chatId}/remove-member/?user_id=${userId}`)
 
                 // Обновляем информацию о чате после удаления участника
                 const updatedChat = await this.fetchChat(chatId)

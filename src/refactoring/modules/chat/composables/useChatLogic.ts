@@ -145,15 +145,18 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         return chat
     }
 
-    const inviteUsersToChat = async (userIds: string[]) => {
+    const addMembersToChat = async (userIds: string[]) => {
         if (!chatStore.currentChat) return
 
         try {
-            await chatStore.inviteUsersToChat(chatStore.currentChat.id, userIds)
+            await chatStore.addMembersToChat(chatStore.currentChat.id, userIds)
         } catch (error) {
-            // Ошибка приглашения пользователей
+            // Ошибка добавления участников
         }
     }
+
+    // Для обратной совместимости
+    const inviteUsersToChat = addMembersToChat
 
     const changeReaction = async (
         messageId: number,
@@ -357,6 +360,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         sendMessage,
         uploadFile,
         createChat,
+        addMembersToChat,
         inviteUsersToChat,
         changeReaction,
         removeMyReaction,
