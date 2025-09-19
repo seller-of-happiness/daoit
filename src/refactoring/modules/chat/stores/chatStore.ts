@@ -47,24 +47,45 @@ function compareMessagesAscending(a: IMessage, b: IMessage): number {
     return aId - bId
 }
 
+// Безопасное парсинг даты с проверкой валидности
+function safeDateParse(dateString: string): number {
+    if (!dateString) return 0
+    
+    const timestamp = Date.parse(dateString)
+    if (isNaN(timestamp)) {
+        console.warn(`[CHAT SORT] Invalid date format: ${dateString}`)
+        return 0
+    }
+    
+    return timestamp
+}
+
 // Упорядочивание чатов по времени последнего сообщения (сначала новые)
 function compareChatsByLastMessage(a: IChat, b: IChat): number {
     // Получаем время последнего сообщения или время создания чата
     const getLastActivityTime = (chat: IChat): number => {
         if (chat.last_message?.created_at) {
-            return Date.parse(chat.last_message.created_at)
+            const time = safeDateParse(chat.last_message.created_at)
+            console.log(`[CHAT SORT] Chat ${chat.id} (${chat.title}) - last_message time: ${chat.last_message.created_at} -> ${time} (${new Date(time).toLocaleString()})`)
+            return time
         }
         if (chat.created_at) {
-            return Date.parse(chat.created_at)
+            const time = safeDateParse(chat.created_at)
+            console.log(`[CHAT SORT] Chat ${chat.id} (${chat.title}) - created_at time: ${chat.created_at} -> ${time} (${new Date(time).toLocaleString()})`)
+            return time
         }
+        console.log(`[CHAT SORT] Chat ${chat.id} (${chat.title}) - no time found, returning 0`)
         return 0
     }
 
     const aTime = getLastActivityTime(a)
     const bTime = getLastActivityTime(b)
+    
+    const result = bTime - aTime
+    console.log(`[CHAT SORT] Comparing chats: ${a.id} (${aTime}) vs ${b.id} (${bTime}) = ${result} | ${a.title} vs ${b.title}`)
 
     // Сортируем по убыванию (новые сверху)
-    return bTime - aTime
+    return result
 }
 
 // Глобальный экземпляр для управления непрочитанными сообщениями в заголовке
@@ -106,7 +127,22 @@ export const useChatStore = defineStore('chatStore', {
 
         // Сортирует чаты по времени последнего сообщения
         sortChatsByLastMessage(): void {
+            console.log(`[CHAT SORT] Sorting ${this.chats.length} chats by last message time`)
+            console.log('[CHAT SORT] Chats before sorting:', this.chats.map(chat => ({
+                id: chat.id,
+                title: chat.title,
+                last_message_at: chat.last_message?.created_at,
+                created_at: chat.created_at
+            })))
+            
             this.chats.sort(compareChatsByLastMessage)
+            
+            console.log('[CHAT SORT] Chats after sorting:', this.chats.map(chat => ({
+                id: chat.id,
+                title: chat.title,
+                last_message_at: chat.last_message?.created_at,
+                created_at: chat.created_at
+            })))
         },
 
         // Подписывается на единый канал пользователя для получения уведомлений о всех чатах
@@ -225,8 +261,19 @@ export const useChatStore = defineStore('chatStore', {
 
                 // Проверяем что получили массив
                 if (Array.isArray(chatsData)) {
+                    console.log(`[CHAT SORT] Loading ${chatsData.length} chats from API:`, chatsData.map(chat => ({
+                        id: chat.id,
+                        title: chat.title,
+                        last_message: chat.last_message ? {
+                            id: chat.last_message.id,
+                            created_at: chat.last_message.created_at,
+                            content: chat.last_message.content?.substring(0, 30) + '...'
+                        } : null,
+                        created_at: chat.created_at
+                    })))
                     this.chats = chatsData.sort(compareChatsByLastMessage)
                 } else {
+                    console.log('[CHAT SORT] No chats data received or invalid format')
                     this.chats = []
                 }
 
@@ -518,6 +565,13 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обрабатывает новое сообщение из WebSocket
         handleNewMessage(message: IMessage, chatId: number): void {
+            console.log(`[CHAT SORT] Handling new message from chat ${chatId}:`, {
+                messageId: message.id,
+                content: message.content?.substring(0, 50) + '...',
+                created_at: message.created_at,
+                author: message.author
+            })
+            
             const currentUserInfo = useCurrentUser(this.currentChat)
             const isFromCurrentUser = isMyMessage(
                 message,
@@ -525,6 +579,8 @@ export const useChatStore = defineStore('chatStore', {
                 String(currentUserInfo.name.value ?? ''),
             )
             const isCurrentChat = this.currentChat?.id === chatId
+
+            console.log(`[CHAT SORT] Message details: isFromCurrentUser=${isFromCurrentUser}, isCurrentChat=${isCurrentChat}`)
 
             // Если это текущий чат - добавляем сообщение в список
             if (isCurrentChat) {
@@ -542,6 +598,7 @@ export const useChatStore = defineStore('chatStore', {
             } else {
                 // Если это другой чат - увеличиваем счетчик непрочитанных
                 const chatIndex = this.chats.findIndex((c) => c.id === chatId)
+                console.log(`[CHAT SORT] Updating chat at index ${chatIndex}`)
                 if (chatIndex !== -1) {
                     const oldCount = this.chats[chatIndex].unread_count || 0
                     const updatedChats = [...this.chats]
@@ -551,6 +608,7 @@ export const useChatStore = defineStore('chatStore', {
                         last_message_id: message.id,
                         last_message: message,
                     }
+                    console.log(`[CHAT SORT] Updated chat ${chatId} with last_message:`, message.created_at)
                     this.chats = updatedChats
                     
                     // Обновляем счетчик в заголовке после изменения счетчиков чатов
@@ -558,6 +616,7 @@ export const useChatStore = defineStore('chatStore', {
                 }
             }
 
+            console.log(`[CHAT SORT] About to sort chats after new message`)
             // Сортируем чаты после получения нового сообщения, чтобы чат с новым сообщением поднялся наверх
             this.sortChatsByLastMessage()
 
