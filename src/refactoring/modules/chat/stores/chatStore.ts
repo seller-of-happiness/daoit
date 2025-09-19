@@ -11,16 +11,13 @@
  *
  * Особенности:
  * - Сообщения упорядочиваются по времени (старые → новые)
+ * - Чаты сортируются по времени последнего сообщения (новые → старые)
  * - Восстановление последнего выбранного чата через localStorage
  * - Realtime-подписка через центрифуго на единый канал chats:user#user_uuid
  * - Debounced-поиск с отображением серверных результатов
  * - Унифицированная обработка серверных ответов (поддержка data.results и плоского ответа)
  * - Управление глобальной индикацией загрузки и показом уведомлений
  */
-
-// Тест консоли - эта запись должна появиться при загрузке модуля
-console.log('[CHAT STORE INIT] Chat store module loaded successfully. Console logging is working.')
-console.log('[CHAT STORE INIT] Current timestamp:', new Date().toISOString())
 import axios from 'axios'
 import { defineStore } from 'pinia'
 import { BASE_URL } from '@/refactoring/environment/environment'
@@ -51,40 +48,31 @@ function compareMessagesAscending(a: IMessage, b: IMessage): number {
     return aId - bId
 }
 
-// Безопасное парсинг даты с проверкой валидности
-function safeDateParse(dateString: string): number {
-    if (!dateString) return 0
-    
-    const timestamp = Date.parse(dateString)
-    if (isNaN(timestamp)) {
-        return 0
-    }
-    
-    return timestamp
-}
+// Сортировка чатов по времени последнего сообщения (новые сверху)
+function sortChatsByLastMessage(chats: IChat[]): IChat[] {
+    return [...chats].sort((a, b) => {
+        // Сначала пытаемся сравнить по времени последнего сообщения
+        const aLastMessage = a.last_message
+        const bLastMessage = b.last_message
 
-// Упорядочивание чатов по времени последнего сообщения (сначала новые)
-function compareChatsByLastMessage(a: IChat, b: IChat): number {
-    // Получаем время последней активности (сообщения или реакции) или время создания чата
-    const getLastActivityTime = (chat: IChat): number => {
-        // Приоритет: время последней активности (реакции) > время последнего сообщения > время создания
-        if (chat.last_activity_time) {
-            return safeDateParse(chat.last_activity_time)
+        if (aLastMessage && bLastMessage) {
+            const aTime = Date.parse(aLastMessage.created_at)
+            const bTime = Date.parse(bLastMessage.created_at)
+            if (!isNaN(aTime) && !isNaN(bTime)) {
+                return bTime - aTime // Новые сверху
+            }
         }
-        if (chat.last_message?.created_at) {
-            return safeDateParse(chat.last_message.created_at)
-        }
-        if (chat.created_at) {
-            return safeDateParse(chat.created_at)
-        }
-        return 0
-    }
 
-    const aTime = getLastActivityTime(a)
-    const bTime = getLastActivityTime(b)
-    
-    // Сортируем по убыванию (новые сверху)
-    return bTime - aTime
+        // Если у одного есть последнее сообщение, а у другого нет
+        if (aLastMessage && !bLastMessage) return -1
+        if (!aLastMessage && bLastMessage) return 1
+
+        // Если у обоих нет последних сообщений, сортируем по времени создания чата
+        const aCreated = a.created_at ? Date.parse(a.created_at) : 0
+        const bCreated = b.created_at ? Date.parse(b.created_at) : 0
+
+        return bCreated - aCreated // Новые сверху
+    })
 }
 
 // Глобальный экземпляр для управления непрочитанными сообщениями в заголовке
@@ -124,65 +112,40 @@ export const useChatStore = defineStore('chatStore', {
             return userStore.user?.uuid || userStore.user?.id?.toString() || null
         },
 
-        // Сортирует чаты по времени последнего сообщения
-        sortChatsByLastMessage(): void {
-            // Создаем новый отсортированный массив для обеспечения реактивности Vue
-            this.chats = [...this.chats].sort(compareChatsByLastMessage)
-        },
-
         // Подписывается на единый канал пользователя для получения уведомлений о всех чатах
         // Используется новая система: один канал chats:user#${userUuid} вместо подписки на каждый чат отдельно
         subscribeToUserChannel(): void {
-            console.log('[WEBSOCKET DEBUG] subscribeToUserChannel called')
-            
             const centrifuge = useCentrifugeStore()
             const userUuid = this.getCurrentUserUuid()
 
-            console.log('[WEBSOCKET DEBUG] User UUID for subscription:', userUuid)
-
             if (!userUuid) {
-                console.error('[WEBSOCKET DEBUG] No user UUID available for subscription')
                 return
             }
 
             const channelName = `chats:user#${userUuid}`
-            console.log('[WEBSOCKET DEBUG] Subscribing to channel:', channelName)
 
             centrifuge.subscribe(channelName, (data: any) => {
-                console.log('[WEBSOCKET DEBUG] Received data on channel', channelName, ':', data)
                 this.handleCentrifugoMessage(data)
             })
-            
-            console.log('[WEBSOCKET DEBUG] Subscription to user channel completed')
         },
-
 
         // Обрабатывает сообщения из центрифуго
         handleCentrifugoMessage(data: any): void {
-            console.log('[WEBSOCKET DEBUG] Received centrifugo message:', data)
-            
             const eventType = data?.event_type || data?.event || data?.type
-            console.log('[WEBSOCKET DEBUG] Event type:', eventType)
 
             switch (eventType) {
                 case 'message':
                 case 'new_message':
-                    console.log('[WEBSOCKET DEBUG] Processing new message event')
                     // Проверяем структуру данных из центрифуго
                     const messageData = data?.data?.message || data.message || data.object || data
                     const chatId = data?.data?.chat_id || data.chat_id
-                    
-                    console.log('[WEBSOCKET DEBUG] Message data:', { messageData, chatId })
-                    
+
                     if (messageData && chatId) {
                         this.handleNewMessage(messageData, chatId)
-                    } else {
-                        console.warn('[WEBSOCKET DEBUG] Invalid message data structure:', data)
                     }
                     break
 
                 case 'chat_updated':
-                    console.log('[WEBSOCKET DEBUG] Processing chat updated event')
                     const chatData = data?.data?.chat || data.chat || data.object || data
                     this.handleChatUpdated(chatData)
                     break
@@ -192,33 +155,28 @@ export const useChatStore = defineStore('chatStore', {
                 case 'new_reaction':
                 case 'reaction_update':
                 case 'reaction_changed':
-                    console.log('[WEBSOCKET DEBUG] Processing reaction event:', eventType)
                     this.handleReactionUpdate(data)
                     break
 
                 case 'member_added':
                 case 'member_removed':
-                    console.log('[WEBSOCKET DEBUG] Processing membership update event')
                     this.handleMembershipUpdate(data)
                     break
 
                 case 'new_invite':
-                    console.log('[WEBSOCKET DEBUG] Processing new invitation event')
                     // Обрабатываем новое приглашение в чат
                     this.handleNewInvitation(data)
                     break
 
                 default:
-                    console.log('[WEBSOCKET DEBUG] Processing fallback event, data:', data)
                     // Fallback: если нет event_type, но есть id и content - считаем новым сообщением
                     if (data?.id && data?.content !== undefined) {
-                        console.log('[WEBSOCKET DEBUG] Fallback: treating as new message')
                         this.handleNewMessage(data, data.chat_id)
-                    } else if (data?.message_id && (data?.reaction_type_id || data?.reaction_type)) {
-                        console.log('[WEBSOCKET DEBUG] Fallback: treating as reaction update')
+                    } else if (
+                        data?.message_id &&
+                        (data?.reaction_type_id || data?.reaction_type)
+                    ) {
                         this.handleReactionUpdate(data)
-                    } else {
-                        console.warn('[WEBSOCKET DEBUG] Unknown event type or invalid data structure:', data)
                     }
                     break
             }
@@ -235,10 +193,10 @@ export const useChatStore = defineStore('chatStore', {
 
             try {
                 await this.fetchChats()
-                
+
                 // Загружаем приглашения после загрузки чатов
                 await this.fetchInvitations()
-                
+
                 this.isInitialized = true
             } catch (error) {
                 // Не устанавливаем isInitialized в true при ошибке,
@@ -272,7 +230,8 @@ export const useChatStore = defineStore('chatStore', {
 
                 // Проверяем что получили массив
                 if (Array.isArray(chatsData)) {
-                    this.chats = chatsData.sort(compareChatsByLastMessage)
+                    // Сортируем чаты по времени последнего сообщения
+                    this.chats = sortChatsByLastMessage(chatsData)
                 } else {
                     this.chats = []
                 }
@@ -286,7 +245,6 @@ export const useChatStore = defineStore('chatStore', {
                 // Подписываемся на единый канал пользователя для получения уведомлений о всех чатах
                 this.subscribeToUserChannel()
             } catch (error) {
-
                 // Устанавливаем пустой массив при ошибке
                 this.chats = []
 
@@ -321,9 +279,11 @@ export const useChatStore = defineStore('chatStore', {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 })
                 const chat = (res.data?.results ?? res.data) as IChat
+
+                // Добавляем новый чат и пересортируем список
                 this.chats.unshift(chat)
-                // Сортируем чаты после создания нового чата
-                this.sortChatsByLastMessage()
+                this.chats = sortChatsByLastMessage(this.chats)
+
                 useFeedbackStore().showToast({
                     type: 'success',
                     title: 'Создано',
@@ -362,8 +322,8 @@ export const useChatStore = defineStore('chatStore', {
                 const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
                 if (chatIndex !== -1) {
                     this.chats.splice(chatIndex, 1, updatedChat)
-                    // Сортируем чаты после обновления
-                    this.sortChatsByLastMessage()
+                    // Пересортируем список после обновления
+                    this.chats = sortChatsByLastMessage(this.chats)
                 }
 
                 // Обновляем текущий чат, если это он
@@ -402,8 +362,8 @@ export const useChatStore = defineStore('chatStore', {
                 const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
                 if (chatIndex !== -1) {
                     this.chats.splice(chatIndex, 1, updatedChat)
-                    // Сортируем чаты после обновления
-                    this.sortChatsByLastMessage()
+                    // Пересортируем список после обновления
+                    this.chats = sortChatsByLastMessage(this.chats)
                 }
 
                 // Обновляем текущий чат, если это он
@@ -470,11 +430,13 @@ export const useChatStore = defineStore('chatStore', {
                 const chat = res.data.chat || res.data
 
                 // Проверяем, есть ли чат уже в списке
-                const existingChatIndex = this.chats.findIndex(c => c.id === chat.id)
+                const existingChatIndex = this.chats.findIndex((c) => c.id === chat.id)
                 if (existingChatIndex === -1) {
                     // Если чата нет в списке, добавляем его
                     this.chats.unshift(chat)
-                    
+                    // Пересортируем список
+                    this.chats = sortChatsByLastMessage(this.chats)
+
                     useFeedbackStore().showToast({
                         type: 'success',
                         title: 'Успешно',
@@ -484,10 +446,9 @@ export const useChatStore = defineStore('chatStore', {
                 } else {
                     // Если чат уже есть, обновляем его данные
                     this.chats.splice(existingChatIndex, 1, chat)
+                    // Пересортируем список
+                    this.chats = sortChatsByLastMessage(this.chats)
                 }
-                
-                // Сортируем чаты после создания/обновления диалога
-                this.sortChatsByLastMessage()
 
                 this.searchResults = null
                 return chat
@@ -540,9 +501,6 @@ export const useChatStore = defineStore('chatStore', {
                         this.chats = updatedChats
                     }
                 })
-                
-                // Сортируем чаты после обновления счетчиков
-                this.sortChatsByLastMessage()
             } catch (error) {
                 // API может возвращать 404 если не реализован - инициализируем счетчики нулями
 
@@ -557,8 +515,11 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обновляет счетчик непрочитанных сообщений в заголовке страницы
         updateTitleUnreadCount(): void {
-            const totalUnread = this.chats.reduce((total, chat) => total + (chat.unread_count || 0), 0)
-            
+            const totalUnread = this.chats.reduce(
+                (total, chat) => total + (chat.unread_count || 0),
+                0,
+            )
+
             // Устанавливаем счетчик через специальный метод
             globalUnreadMessages.setUnreadCount(totalUnread)
         },
@@ -573,36 +534,6 @@ export const useChatStore = defineStore('chatStore', {
             )
             const isCurrentChat = this.currentChat?.id === chatId
 
-            // Обновляем информацию о последнем сообщении в чате ВСЕГДА (для активного и неактивного чата)
-            const chatIndex = this.chats.findIndex((c) => c.id === chatId)
-            if (chatIndex !== -1) {
-                const updatedChats = [...this.chats]
-                const currentChat = updatedChats[chatIndex]
-                
-                if (isCurrentChat) {
-                    // Для текущего чата - обновляем последнее сообщение без изменения счетчика непрочитанных
-                    updatedChats[chatIndex] = {
-                        ...currentChat,
-                        last_message_id: message.id,
-                        last_message: message,
-                    }
-                } else {
-                    // Для других чатов - увеличиваем счетчик непрочитанных и обновляем последнее сообщение
-                    const oldCount = currentChat.unread_count || 0
-                    updatedChats[chatIndex] = {
-                        ...currentChat,
-                        unread_count: oldCount + 1,
-                        last_message_id: message.id,
-                        last_message: message,
-                    }
-                }
-                
-                this.chats = updatedChats
-                
-                // Обновляем счетчик в заголовке после изменения счетчиков чатов
-                this.updateTitleUnreadCount()
-            }
-
             // Если это текущий чат - добавляем сообщение в список
             if (isCurrentChat) {
                 // Проверяем что сообщение еще не добавлено
@@ -616,10 +547,43 @@ export const useChatStore = defineStore('chatStore', {
                 setTimeout(() => {
                     this.markChatAsRead(chatId, message.id)
                 }, 500)
+            } else {
+                // Если это другой чат - увеличиваем счетчик непрочитанных
+                const chatIndex = this.chats.findIndex((c) => c.id === chatId)
+                if (chatIndex !== -1) {
+                    const oldCount = this.chats[chatIndex].unread_count || 0
+                    const updatedChats = [...this.chats]
+                    updatedChats[chatIndex] = {
+                        ...updatedChats[chatIndex],
+                        unread_count: oldCount + 1,
+                        last_message_id: message.id,
+                        last_message: message,
+                    }
+                    this.chats = updatedChats
+
+                    // Пересортируем чаты после получения нового сообщения
+                    this.chats = sortChatsByLastMessage(this.chats)
+
+                    // Обновляем счетчик в заголовке после изменения счетчиков чатов
+                    this.updateTitleUnreadCount()
+                }
             }
 
-            // ВАЖНО: Сортируем чаты после получения нового сообщения, чтобы чат с новым сообщением поднялся наверх
-            this.sortChatsByLastMessage()
+            // Обновляем информацию о последнем сообщении в текущем чате тоже
+            if (isCurrentChat && this.currentChat) {
+                const chatIndex = this.chats.findIndex((c) => c.id === this.currentChat!.id)
+                if (chatIndex !== -1) {
+                    const updatedChat = {
+                        ...this.chats[chatIndex],
+                        last_message: message,
+                        last_message_id: message.id,
+                    }
+                    this.chats.splice(chatIndex, 1, updatedChat)
+
+                    // Пересортируем чаты после обновления последнего сообщения
+                    this.chats = sortChatsByLastMessage(this.chats)
+                }
+            }
 
             // Для чужих сообщений воспроизводим звук
             if (!isFromCurrentUser) {
@@ -635,8 +599,8 @@ export const useChatStore = defineStore('chatStore', {
             const chatIndex = this.chats.findIndex((c) => c.id === chat.id)
             if (chatIndex !== -1) {
                 this.chats.splice(chatIndex, 1, chat)
-                // Сортируем чаты после обновления
-                this.sortChatsByLastMessage()
+                // Пересортируем список после обновления
+                this.chats = sortChatsByLastMessage(this.chats)
             }
 
             // Обновляем текущий чат, если это он
@@ -652,64 +616,60 @@ export const useChatStore = defineStore('chatStore', {
             const chatId = reactionData?.chat_id || data?.chat_id
             const messageId = reactionData?.message_id || data?.message_id
             const eventType = data?.event_type || data?.event || data?.type
-            
+
             // Новый формат: данные реакции находятся в поле reaction
             const reactionInfo = reactionData?.reaction || reactionData
-            const reactionTypeId = reactionInfo?.reaction_type_id || reactionData?.reaction_type_id || reactionData?.reaction_type || data?.reaction_type_id || data?.reaction_type
-            const userId = reactionInfo?.user_id || reactionData?.user_id || reactionData?.user || data?.user_id || data?.user
+            const reactionTypeId =
+                reactionInfo?.reaction_type_id ||
+                reactionData?.reaction_type_id ||
+                reactionData?.reaction_type ||
+                data?.reaction_type_id ||
+                data?.reaction_type
+            const userId =
+                reactionInfo?.user_id ||
+                reactionData?.user_id ||
+                reactionData?.user ||
+                data?.user_id ||
+                data?.user
             const userName = reactionInfo?.user_name || reactionData?.user_name || data?.user_name
             const userAvatar = reactionInfo?.avatar || reactionData?.avatar || data?.avatar
-            
+
             if (!chatId || !messageId) {
                 return
             }
-            
-            // Обновляем время последней активности чата при реакциях
-            const chatIndex = this.chats.findIndex((c) => c.id === chatId)
-            if (chatIndex !== -1) {
-                const updatedChats = [...this.chats]
-                const currentChat = updatedChats[chatIndex]
-                
-                // Если есть последнее сообщение, обновляем его время для правильной сортировки
-                // Реакции должны поднимать чат наверх, но не изменять само сообщение
-                if (currentChat.last_message) {
-                    updatedChats[chatIndex] = {
-                        ...currentChat,
-                        // Добавляем метку времени реакции для корректной сортировки
-                        last_activity_time: new Date().toISOString(),
-                    }
-                    this.chats = updatedChats
-                }
-            }
-            
+
             // Если это текущий чат, обновляем локально
             if (this.currentChat && chatId === this.currentChat.id) {
                 const success = this.updateMessageReactionLocally(
-                    messageId, 
-                    reactionTypeId, 
-                    userId, 
-                    eventType, 
-                    userName, 
-                    userAvatar
+                    messageId,
+                    reactionTypeId,
+                    userId,
+                    eventType,
+                    userName,
+                    userAvatar,
                 )
-                
+
                 if (success) {
                     // Принудительно обновляем реактивность, создавая новый массив сообщений
-                    this.messages = this.messages.map(msg => ({ ...msg }))
+                    this.messages = this.messages.map((msg) => ({ ...msg }))
                 } else {
                     // Если локальное обновление не удалось, перезагружаем сообщения
                     this.fetchMessages(this.currentChat.id).catch(() => {})
                 }
             }
-
-            // ВАЖНО: Сортируем чаты после обновления реакции, чтобы чат с новой активностью поднялся наверх
-            this.sortChatsByLastMessage()
         },
 
         // Локальное обновление реакции в сообщении
-        updateMessageReactionLocally(messageId: number, reactionTypeId: number, userId: string, eventType: string, userName?: string, userAvatar?: string | null): boolean {
+        updateMessageReactionLocally(
+            messageId: number,
+            reactionTypeId: number,
+            userId: string,
+            eventType: string,
+            userName?: string,
+            userAvatar?: string | null,
+        ): boolean {
             try {
-                const messageIndex = this.messages.findIndex(m => m.id === messageId)
+                const messageIndex = this.messages.findIndex((m) => m.id === messageId)
                 if (messageIndex === -1) {
                     return false
                 }
@@ -726,7 +686,7 @@ export const useChatStore = defineStore('chatStore', {
                         const reactionUserId = String(r.user || r.user_id || '')
                         return reactionUserId !== String(userId)
                     })
-                    
+
                     // Добавляем новую реакцию с полными данными пользователя
                     const newReaction = {
                         id: Date.now(), // Временный ID
@@ -736,42 +696,41 @@ export const useChatStore = defineStore('chatStore', {
                         user_id: userId,
                         user_name: userName,
                         avatar: userAvatar,
-                        created_at: new Date().toISOString()
+                        created_at: new Date().toISOString(),
                     }
                     filteredReactions.push(newReaction)
-                    
+
                     // Создаем новое сообщение с обновленными реакциями и временной меткой обновления
                     const updatedMessage = {
                         ...message,
                         reactions: filteredReactions,
                         message_reactions: filteredReactions,
                         // Добавляем временную метку последнего обновления для принудительного перерендера
-                        reaction_updated_at: new Date().toISOString()
+                        reaction_updated_at: new Date().toISOString(),
                     }
 
                     // Заменяем сообщение в массиве
                     this.messages.splice(messageIndex, 1, updatedMessage)
-                    
                 } else if (eventType === 'reaction_removed') {
                     // Удаляем все реакции этого пользователя
                     const filteredReactions = newReactions.filter((r: any) => {
                         const reactionUserId = String(r.user || r.user_id || '')
                         return reactionUserId !== String(userId)
                     })
-                    
+
                     // Создаем новое сообщение с обновленными реакциями и временной меткой обновления
                     const updatedMessage = {
                         ...message,
                         reactions: filteredReactions,
                         message_reactions: filteredReactions,
                         // Добавляем временную метку последнего обновления для принудительного перерендера
-                        reaction_updated_at: new Date().toISOString()
+                        reaction_updated_at: new Date().toISOString(),
                     }
 
                     // Заменяем сообщение в массиве
                     this.messages.splice(messageIndex, 1, updatedMessage)
                 }
-                
+
                 return true
             } catch (error) {
                 return false
@@ -789,7 +748,7 @@ export const useChatStore = defineStore('chatStore', {
             try {
                 // Извлекаем данные приглашения из WebSocket сообщения
                 const invitationData = data?.data || data
-                
+
                 if (!invitationData?.chat || !invitationData?.created_by) {
                     return
                 }
@@ -803,16 +762,20 @@ export const useChatStore = defineStore('chatStore', {
                     id: invitationData.id,
                     chat: invitationData.chat,
                     created_by: invitationData.created_by,
-                    invited_user: invitationData.invited_user || (currentUser ? {
-                        id: currentUser.uuid || currentUser.id?.toString() || '',
-                        first_name: currentUser.first_name || '',
-                        last_name: currentUser.last_name || '',
-                        middle_name: currentUser.middle_name || '',
-                        phone_number: currentUser.phone_number || '',
-                        birth_date: currentUser.birth_date || null,
-                    } : undefined),
+                    invited_user:
+                        invitationData.invited_user ||
+                        (currentUser
+                            ? {
+                                  id: currentUser.uuid || currentUser.id?.toString() || '',
+                                  first_name: currentUser.first_name || '',
+                                  last_name: currentUser.last_name || '',
+                                  middle_name: currentUser.middle_name || '',
+                                  phone_number: currentUser.phone_number || '',
+                                  birth_date: currentUser.birth_date || null,
+                              }
+                            : undefined),
                     is_accepted: invitationData.is_accepted || false,
-                    created_at: new Date().toISOString()
+                    created_at: new Date().toISOString(),
                 }
 
                 // Проверяем, что приглашение для текущего пользователя
@@ -822,8 +785,9 @@ export const useChatStore = defineStore('chatStore', {
 
                 // Добавляем приглашение в список, если его еще нет
                 const existingIndex = this.invitations.findIndex(
-                    inv => inv.chat.id === invitation.chat.id && 
-                           inv.invited_user?.id === invitation.invited_user?.id
+                    (inv) =>
+                        inv.chat.id === invitation.chat.id &&
+                        inv.invited_user?.id === invitation.invited_user?.id,
                 )
 
                 if (existingIndex !== -1) {
@@ -860,7 +824,7 @@ export const useChatStore = defineStore('chatStore', {
                         ...(lastMessageId && { last_read_message_id: lastMessageId }),
                     }
                     this.chats = updatedChats
-                    
+
                     // Обновляем счетчик в заголовке после изменения счетчиков чатов
                     this.updateTitleUnreadCount()
                 }
@@ -926,7 +890,6 @@ export const useChatStore = defineStore('chatStore', {
                 this.messages.length = 0
                 this.messages.push(...sortedMessages)
             } catch (error) {
-
                 // При ошибке 404 или другой ошибке - очищаем сообщения
                 this.messages.length = 0
 
@@ -936,45 +899,25 @@ export const useChatStore = defineStore('chatStore', {
 
         // Отправляет текстовое сообщение в текущий чат
         async sendMessage(content: string): Promise<IMessage> {
-            console.log('[CHAT DEBUG] sendMessage called with:', { content, currentChatId: this.currentChat?.id })
-            
-            if (!this.currentChat) {
-                console.error('[CHAT DEBUG] sendMessage failed: no current chat selected')
-                throw new Error('Нет выбранного чата')
-            }
-            
+            if (!this.currentChat) throw new Error('Нет выбранного чата')
             this.isSending = true
-            console.log('[CHAT DEBUG] Setting isSending to true, starting message send...')
-            
             try {
-                console.log('[CHAT DEBUG] Making POST request to:', `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/`)
-                console.log('[CHAT DEBUG] Request payload:', { content })
-                
                 const res = await axios.post(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/`,
                     { content },
                 )
-                
-                console.log('[CHAT DEBUG] Message sent successfully, response:', res.data)
                 const msg = res.data as IMessage
 
                 // Добавляем сообщение сразу, если оно еще не пришло через WebSocket
                 const exists = this.messages.some((m) => m.id === msg.id)
-                console.log('[CHAT DEBUG] Message exists in local messages:', exists)
-                
                 if (!exists) {
-                    console.log('[CHAT DEBUG] Adding message to local messages array')
                     this.messages.push(msg)
                     this.messages.sort(compareMessagesAscending)
-                } else {
-                    console.log('[CHAT DEBUG] Message already exists in local messages, skipping add')
                 }
 
-                // Обновляем последнее сообщение в текущем чате
+                // Обновляем последнее сообщение в текущем чате и поднимаем чат в топ
                 if (this.currentChat) {
                     const chatIndex = this.chats.findIndex((c) => c.id === this.currentChat!.id)
-                    console.log('[CHAT DEBUG] Updating chat at index:', chatIndex)
-                    
                     if (chatIndex !== -1) {
                         const updatedChat = {
                             ...this.chats[chatIndex],
@@ -982,24 +925,14 @@ export const useChatStore = defineStore('chatStore', {
                             last_message_id: msg.id,
                         }
                         this.chats.splice(chatIndex, 1, updatedChat)
-                        
-                        console.log('[CHAT DEBUG] Chat updated with new last message, sorting chats...')
-                        // Сортируем чаты после отправки сообщения, чтобы текущий чат поднялся наверх
-                        this.sortChatsByLastMessage()
+
+                        // Пересортируем чаты чтобы отправленное сообщение подняло чат в топ
+                        this.chats = sortChatsByLastMessage(this.chats)
                     }
                 }
 
-                console.log('[CHAT DEBUG] sendMessage completed successfully')
                 return msg
-            } catch (error: any) {
-                console.error('[CHAT DEBUG] sendMessage failed with error:', error)
-                console.error('[CHAT DEBUG] Error details:', {
-                    message: error?.message,
-                    status: error?.response?.status,
-                    statusText: error?.response?.statusText,
-                    data: error?.response?.data
-                })
-                
+            } catch (error) {
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -1008,7 +941,6 @@ export const useChatStore = defineStore('chatStore', {
                 })
                 throw error
             } finally {
-                console.log('[CHAT DEBUG] Setting isSending to false')
                 this.isSending = false
             }
         },
@@ -1103,39 +1035,17 @@ export const useChatStore = defineStore('chatStore', {
 
         // Добавляет реакцию на сообщение
         async addReaction(messageId: number, reactionId: number): Promise<void> {
-            console.log('[REACTION DEBUG] addReaction called with:', { messageId, reactionId, currentChatId: this.currentChat?.id })
-            
-            if (!this.currentChat) {
-                console.error('[REACTION DEBUG] addReaction failed: no current chat selected')
-                return
-            }
-            
+            if (!this.currentChat) return
             try {
-                const url = `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`
-                const payload = { reaction_type_id: reactionId }
-                
-                console.log('[REACTION DEBUG] Making POST request to:', url)
-                console.log('[REACTION DEBUG] Request payload:', payload)
-                
-                await axios.post(url, payload)
-                
-                console.log('[REACTION DEBUG] Reaction added successfully')
+                await axios.post(
+                    `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
+                    {
+                        reaction_type_id: reactionId,
+                    },
+                )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
-                
-                console.log('[REACTION DEBUG] Sorting chats after adding reaction...')
-                // Сортируем чаты после добавления реакции, чтобы текущий чат поднялся наверх
-                this.sortChatsByLastMessage()
-            } catch (error: any) {
-                console.error('[REACTION DEBUG] addReaction failed with error:', error)
-                console.error('[REACTION DEBUG] Error details:', {
-                    message: error?.message,
-                    status: error?.response?.status,
-                    statusText: error?.response?.statusText,
-                    data: error?.response?.data
-                })
-                
+            } catch (error) {
                 // При ошибке все же перезагружаем для корректного состояния
-                console.log('[REACTION DEBUG] Reloading messages due to error...')
                 await this.fetchMessages(this.currentChat.id)
                 throw error
             }
@@ -1143,37 +1053,15 @@ export const useChatStore = defineStore('chatStore', {
 
         // Удаляет реакцию с сообщения
         async removeReaction(messageId: number): Promise<void> {
-            console.log('[REACTION DEBUG] removeReaction called with:', { messageId, currentChatId: this.currentChat?.id })
-            
-            if (!this.currentChat) {
-                console.error('[REACTION DEBUG] removeReaction failed: no current chat selected')
-                return
-            }
-            
+            if (!this.currentChat) return
             try {
-                const url = `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`
-                
-                console.log('[REACTION DEBUG] Making DELETE request to:', url)
                 // ✅ Параметры не передаем - API автоматически удалит реакцию текущего пользователя
-                await axios.delete(url)
-                
-                console.log('[REACTION DEBUG] Reaction removed successfully')
+                await axios.delete(
+                    `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
+                )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
-                
-                console.log('[REACTION DEBUG] Sorting chats after removing reaction...')
-                // Сортируем чаты после удаления реакции, чтобы текущий чат поднялся наверх
-                this.sortChatsByLastMessage()
-            } catch (error: any) {
-                console.error('[REACTION DEBUG] removeReaction failed with error:', error)
-                console.error('[REACTION DEBUG] Error details:', {
-                    message: error?.message,
-                    status: error?.response?.status,
-                    statusText: error?.response?.statusText,
-                    data: error?.response?.data
-                })
-                
+            } catch (error) {
                 // При ошибке все же перезагружаем для корректного состояния
-                console.log('[REACTION DEBUG] Reloading messages due to error...')
                 await this.fetchMessages(this.currentChat.id)
                 throw error
             }
@@ -1181,66 +1069,29 @@ export const useChatStore = defineStore('chatStore', {
 
         // Устанавливает эксклюзивную реакцию (удаляет старую и добавляет новую)
         async setExclusiveReaction(messageId: number, reactionId: number): Promise<void> {
-            console.log('[REACTION DEBUG] setExclusiveReaction called with:', { messageId, reactionId, currentChatId: this.currentChat?.id })
-            
-            if (!this.currentChat) {
-                console.error('[REACTION DEBUG] setExclusiveReaction failed: no current chat selected')
-                return
-            }
-            
+            if (!this.currentChat) return
             try {
-                console.log('[REACTION DEBUG] Clearing existing reactions first...')
                 // Сначала удаляем все мои реакции
                 await this.clearMyReactions(messageId)
-                
-                console.log('[REACTION DEBUG] Adding new reaction...')
                 // Затем добавляем новую
                 await this.addReaction(messageId, reactionId)
-                
-                console.log('[REACTION DEBUG] setExclusiveReaction completed successfully')
-                // Сортируем чаты после изменения реакции, чтобы текущий чат поднялся наверх
-                // Примечание: addReaction уже вызывает sortChatsByLastMessage(), но делаем еще раз для надежности
-                this.sortChatsByLastMessage()
             } catch (error) {
-                console.error('[REACTION DEBUG] setExclusiveReaction failed with error:', error)
                 throw error
             }
         },
 
         // Очищает все мои реакции с сообщения
         async clearMyReactions(messageId: number): Promise<void> {
-            console.log('[REACTION DEBUG] clearMyReactions called with:', { messageId, currentChatId: this.currentChat?.id })
-            
-            if (!this.currentChat) {
-                console.error('[REACTION DEBUG] clearMyReactions failed: no current chat selected')
-                return
-            }
-            
+            if (!this.currentChat) return
             try {
-                const url = `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`
-                
-                console.log('[REACTION DEBUG] Making DELETE request to clear reactions:', url)
                 // ✅ Используем тот же DELETE эндпоинт без параметров
-                await axios.delete(url)
-                
-                console.log('[REACTION DEBUG] Reactions cleared successfully')
+                await axios.delete(
+                    `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
+                )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
-                
-                console.log('[REACTION DEBUG] Sorting chats after clearing reactions...')
-                // Сортируем чаты после очистки реакций, чтобы текущий чат поднялся наверх
-                this.sortChatsByLastMessage()
             } catch (error) {
-                console.warn('[REACTION DEBUG] clearMyReactions failed (might be expected if no reactions exist):', error)
-                console.warn('[REACTION DEBUG] Error details:', {
-                    message: (error as any)?.message,
-                    status: (error as any)?.response?.status,
-                    statusText: (error as any)?.response?.statusText,
-                    data: (error as any)?.response?.data
-                })
-                
                 // Игнорируем ошибки при очистке (возможно реакции уже нет)
                 // При ошибке все же перезагружаем для корректного состояния
-                console.log('[REACTION DEBUG] Reloading messages due to error...')
                 await this.fetchMessages(this.currentChat.id)
             }
         },
@@ -1252,15 +1103,15 @@ export const useChatStore = defineStore('chatStore', {
             try {
                 const res = await axios.get(`${BASE_URL}/api/chat/invite/`)
                 const invitationsData = res.data?.results ?? res.data
-                
+
                 // Проверяем что получили массив и сохраняем в состояние
                 if (Array.isArray(invitationsData)) {
                     // Получаем данные текущего пользователя
                     const userStore = useUserStore()
                     const currentUser = userStore.user
-                    
+
                     // Дополняем каждое приглашение полем invited_user если его нет
-                    this.invitations = invitationsData.map(invitation => {
+                    this.invitations = invitationsData.map((invitation) => {
                         // Если invited_user отсутствует, добавляем данные текущего пользователя
                         if (!invitation.invited_user && currentUser) {
                             return {
@@ -1272,7 +1123,7 @@ export const useChatStore = defineStore('chatStore', {
                                     middle_name: currentUser.middle_name || '',
                                     phone_number: currentUser.phone_number || '',
                                     birth_date: currentUser.birth_date || null,
-                                }
+                                },
                             }
                         }
                         return invitation
@@ -1299,8 +1150,8 @@ export const useChatStore = defineStore('chatStore', {
                 const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
                 if (chatIndex !== -1) {
                     this.chats.splice(chatIndex, 1, updatedChat)
-                    // Сортируем чаты после обновления
-                    this.sortChatsByLastMessage()
+                    // Пересортируем список после обновления
+                    this.chats = sortChatsByLastMessage(this.chats)
                 }
 
                 // Обновляем текущий чат, если это он
@@ -1331,9 +1182,9 @@ export const useChatStore = defineStore('chatStore', {
                 await axios.post(`${BASE_URL}/api/chat/invite/${invitationId}/accept/`)
 
                 // Удаляем приглашение из списка
-                this.invitations = this.invitations.filter(inv => inv.id !== invitationId)
+                this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
 
-                // Обновляем список чатов после принятия приглашения (чаты будут автоматически отсортированы в fetchChats)
+                // Обновляем список чатов после принятия приглашения
                 await this.fetchChats()
 
                 useFeedbackStore().showToast({
@@ -1360,7 +1211,7 @@ export const useChatStore = defineStore('chatStore', {
                 await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/decline/`)
 
                 // Удаляем приглашение из списка
-                this.invitations = this.invitations.filter(inv => inv.id !== invitationId)
+                this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
 
                 useFeedbackStore().showToast({
                     type: 'info',
@@ -1454,20 +1305,25 @@ export const useChatStore = defineStore('chatStore', {
             return userStore.user?.uuid || userStore.user?.id?.toString() || null
         },
 
-        // Фильтрованные чаты по типу (уже отсортированы по времени последнего сообщения)
+        // Фильтрованные чаты по типу (с сохранением сортировки)
         chatsByType: (state) => (type: string) => {
-            if (type === 'all') return state.chats
-            if (type === 'direct')
-                return state.chats.filter(
-                    (chat) => chat.type === 'direct' || chat.type === 'dialog',
-                )
-            return state.chats.filter((chat) => chat.type === type)
+            const filteredChats = (() => {
+                if (type === 'all') return state.chats
+                if (type === 'direct')
+                    return state.chats.filter(
+                        (chat) => chat.type === 'direct' || chat.type === 'dialog',
+                    )
+                return state.chats.filter((chat) => chat.type === type)
+            })()
+
+            // Возвращаем отфильтрованные чаты в том же порядке (уже отсортированные)
+            return filteredChats
         },
 
-        // Непрочитанные чаты (уже отсортированы по времени последнего сообщения)
+        // Непрочитанные чаты (с сохранением сортировки)
         unreadChats: (state) => state.chats.filter((chat) => (chat.unread_count || 0) > 0),
 
-        // Активные чаты (с недавней активностью, уже отсортированы по времени последнего сообщения)
+        // Активные чаты (с недавней активностью, с сохранением сортировки)
         activeChats: (state) => state.chats.filter((chat) => chat.last_message_id),
     },
 })

@@ -43,6 +43,7 @@
     @include chat-item-base;
     
     &--active {
+      background: var(--p-content-hover-background);
         &::before {
             content: '';
             position: absolute;
