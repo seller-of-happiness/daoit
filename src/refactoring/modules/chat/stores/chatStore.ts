@@ -428,7 +428,7 @@ export const useChatStore = defineStore('chatStore', {
                     }
                 }
 
-                const res = await axios.put(`${BASE_URL}/api/chat/chat/${chatId}/`, form, {
+                const res = await axios.patch(`${BASE_URL}/api/chat/chat/${chatId}/`, form, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 })
                 const updatedChat = (res.data?.results ?? res.data) as IChat

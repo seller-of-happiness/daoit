@@ -1,0 +1,71 @@
+# Тестирование Chat API endpoints
+# Этот файл содержит примеры запросов для всех реализованных endpoints
+
+### 1. Создание диалога
+POST {{base_url}}/api/chat/chat/dialog/
+Content-Type: application/json
+
+{
+  "user_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+}
+
+### 2. Создание группы
+POST {{base_url}}/api/chat/chat/group/
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="title"
+
+Тестовая группа
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+Описание тестовой группы
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3. Создание канала
+POST {{base_url}}/api/chat/chat/channel/
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="title"
+
+Тестовый канал
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+Описание тестового канала
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 4. Добавление участников в чат
+POST {{base_url}}/api/chat/chat/1/add-member/
+Content-Type: application/json
+
+{
+  "user_ids": [
+    "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  ]
+}
+
+### 5. Удаление участника из чата
+DELETE {{base_url}}/api/chat/chat/1/remove-member/?user_id=3fa85f64-5717-4562-b3fc-2c963f66afa6
+
+### 6. Обновление информации о чате
+PATCH {{base_url}}/api/chat/chat/1/
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="title"
+
+Обновленное название
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+Обновленное описание
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 7. Получение списка чатов
+GET {{base_url}}/api/chat/chat/
+
+### 8. Получение конкретного чата
+GET {{base_url}}/api/chat/chat/1/

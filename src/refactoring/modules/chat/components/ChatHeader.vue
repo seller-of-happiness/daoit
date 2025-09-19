@@ -92,6 +92,7 @@ import { useCentrifugeStore } from '@/refactoring/modules/centrifuge/stores/cent
 import { useSound } from '@/refactoring/modules/chat/composables/useSound'
 import { useChatTitle } from '@/refactoring/modules/chat/composables/useChatTitle'
 import type { IChat, MobileViewType } from '@/refactoring/modules/chat/types/IChat'
+import { ChatAdapter } from '@/refactoring/modules/chat/types/IChat'
 
 interface Props {
     currentChat: IChat | null
@@ -163,19 +164,15 @@ const showMemberCount = computed(() => {
 
 // Определяем, можно ли приглашать пользователей
 const canInviteUsers = computed(() => {
-    if (!props.currentChat) return false
+    if (!props.currentChat || !currentUserId.value) return false
 
     // Приглашать можно только в группы и каналы
     if (props.currentChat.type !== 'group' && props.currentChat.type !== 'channel') {
         return false
     }
 
-    // Проверяем, является ли текущий пользователь администратором
-    const currentMember = props.currentChat.members?.find(
-        (member) => member.user.id === currentUserId.value,
-    )
-
-    return currentMember?.is_admin || false
+    // Используем адаптер из типов для проверки администратора
+    return ChatAdapter.isUserAdmin(props.currentChat, currentUserId.value)
 })
 
 // Определяем, можно ли управлять чатом

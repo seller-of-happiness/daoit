@@ -331,6 +331,7 @@ import { useCurrentUser } from '@/refactoring/modules/chat/composables/useCurren
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import InviteUsersDialog from './InviteUsersDialog.vue'
 import type { IChat, IChatMember, IChatInvitation } from '@/refactoring/modules/chat/types/IChat'
+import { ChatAdapter } from '@/refactoring/modules/chat/types/IChat'
 
 interface Props {
     visible: boolean
@@ -430,12 +431,8 @@ const filteredMembers = computed(() => {
 const canManageMembers = computed(() => {
     if (!props.chat || !currentUserId.value) return false
 
-    // Проверяем, является ли текущий пользователь администратором
-    const currentMember = props.chat.members?.find(
-        (member) => member.user.id === currentUserId.value,
-    )
-
-    return currentMember?.is_admin || false
+    // Используем адаптер из типов для проверки администратора
+    return ChatAdapter.isUserAdmin(props.chat, currentUserId.value)
 })
 
 const canEditChat = computed(() => {
