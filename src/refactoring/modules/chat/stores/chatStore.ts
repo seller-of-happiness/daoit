@@ -17,6 +17,10 @@
  * - Унифицированная обработка серверных ответов (поддержка data.results и плоского ответа)
  * - Управление глобальной индикацией загрузки и показом уведомлений
  */
+
+// Тест консоли - эта запись должна появиться при загрузке модуля
+console.log('[CHAT STORE INIT] Chat store module loaded successfully. Console logging is working.')
+console.log('[CHAT STORE INIT] Current timestamp:', new Date().toISOString())
 import axios from 'axios'
 import { defineStore } from 'pinia'
 import { BASE_URL } from '@/refactoring/environment/environment'
@@ -148,38 +152,56 @@ export const useChatStore = defineStore('chatStore', {
         // Подписывается на единый канал пользователя для получения уведомлений о всех чатах
         // Используется новая система: один канал chats:user#${userUuid} вместо подписки на каждый чат отдельно
         subscribeToUserChannel(): void {
+            console.log('[WEBSOCKET DEBUG] subscribeToUserChannel called')
+            
             const centrifuge = useCentrifugeStore()
             const userUuid = this.getCurrentUserUuid()
 
+            console.log('[WEBSOCKET DEBUG] User UUID for subscription:', userUuid)
+
             if (!userUuid) {
+                console.error('[WEBSOCKET DEBUG] No user UUID available for subscription')
                 return
             }
 
             const channelName = `chats:user#${userUuid}`
+            console.log('[WEBSOCKET DEBUG] Subscribing to channel:', channelName)
 
             centrifuge.subscribe(channelName, (data: any) => {
+                console.log('[WEBSOCKET DEBUG] Received data on channel', channelName, ':', data)
                 this.handleCentrifugoMessage(data)
             })
+            
+            console.log('[WEBSOCKET DEBUG] Subscription to user channel completed')
         },
 
 
         // Обрабатывает сообщения из центрифуго
         handleCentrifugoMessage(data: any): void {
+            console.log('[WEBSOCKET DEBUG] Received centrifugo message:', data)
+            
             const eventType = data?.event_type || data?.event || data?.type
+            console.log('[WEBSOCKET DEBUG] Event type:', eventType)
 
             switch (eventType) {
                 case 'message':
                 case 'new_message':
+                    console.log('[WEBSOCKET DEBUG] Processing new message event')
                     // Проверяем структуру данных из центрифуго
                     const messageData = data?.data?.message || data.message || data.object || data
                     const chatId = data?.data?.chat_id || data.chat_id
                     
+                    console.log('[WEBSOCKET DEBUG] Message data:', { messageData, chatId })
+                    
                     if (messageData && chatId) {
                         this.handleNewMessage(messageData, chatId)
+                    } else {
+                        console.warn('[WEBSOCKET DEBUG] Invalid message data structure:', data)
                     }
                     break
 
                 case 'chat_updated':
+                    console.log('[WEBSOCKET DEBUG] Processing chat updated event')
                     const chatData = data?.data?.chat || data.chat || data.object || data
                     this.handleChatUpdated(chatData)
                     break
@@ -189,25 +211,33 @@ export const useChatStore = defineStore('chatStore', {
                 case 'new_reaction':
                 case 'reaction_update':
                 case 'reaction_changed':
+                    console.log('[WEBSOCKET DEBUG] Processing reaction event:', eventType)
                     this.handleReactionUpdate(data)
                     break
 
                 case 'member_added':
                 case 'member_removed':
+                    console.log('[WEBSOCKET DEBUG] Processing membership update event')
                     this.handleMembershipUpdate(data)
                     break
 
                 case 'new_invite':
+                    console.log('[WEBSOCKET DEBUG] Processing new invitation event')
                     // Обрабатываем новое приглашение в чат
                     this.handleNewInvitation(data)
                     break
 
                 default:
+                    console.log('[WEBSOCKET DEBUG] Processing fallback event, data:', data)
                     // Fallback: если нет event_type, но есть id и content - считаем новым сообщением
                     if (data?.id && data?.content !== undefined) {
+                        console.log('[WEBSOCKET DEBUG] Fallback: treating as new message')
                         this.handleNewMessage(data, data.chat_id)
                     } else if (data?.message_id && (data?.reaction_type_id || data?.reaction_type)) {
+                        console.log('[WEBSOCKET DEBUG] Fallback: treating as reaction update')
                         this.handleReactionUpdate(data)
+                    } else {
+                        console.warn('[WEBSOCKET DEBUG] Unknown event type or invalid data structure:', data)
                     }
                     break
             }
@@ -917,25 +947,45 @@ export const useChatStore = defineStore('chatStore', {
 
         // Отправляет текстовое сообщение в текущий чат
         async sendMessage(content: string): Promise<IMessage> {
-            if (!this.currentChat) throw new Error('Нет выбранного чата')
+            console.log('[CHAT DEBUG] sendMessage called with:', { content, currentChatId: this.currentChat?.id })
+            
+            if (!this.currentChat) {
+                console.error('[CHAT DEBUG] sendMessage failed: no current chat selected')
+                throw new Error('Нет выбранного чата')
+            }
+            
             this.isSending = true
+            console.log('[CHAT DEBUG] Setting isSending to true, starting message send...')
+            
             try {
+                console.log('[CHAT DEBUG] Making POST request to:', `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/`)
+                console.log('[CHAT DEBUG] Request payload:', { content })
+                
                 const res = await axios.post(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/`,
                     { content },
                 )
+                
+                console.log('[CHAT DEBUG] Message sent successfully, response:', res.data)
                 const msg = res.data as IMessage
 
                 // Добавляем сообщение сразу, если оно еще не пришло через WebSocket
                 const exists = this.messages.some((m) => m.id === msg.id)
+                console.log('[CHAT DEBUG] Message exists in local messages:', exists)
+                
                 if (!exists) {
+                    console.log('[CHAT DEBUG] Adding message to local messages array')
                     this.messages.push(msg)
                     this.messages.sort(compareMessagesAscending)
+                } else {
+                    console.log('[CHAT DEBUG] Message already exists in local messages, skipping add')
                 }
 
                 // Обновляем последнее сообщение в текущем чате
                 if (this.currentChat) {
                     const chatIndex = this.chats.findIndex((c) => c.id === this.currentChat!.id)
+                    console.log('[CHAT DEBUG] Updating chat at index:', chatIndex)
+                    
                     if (chatIndex !== -1) {
                         const updatedChat = {
                             ...this.chats[chatIndex],
@@ -944,13 +994,23 @@ export const useChatStore = defineStore('chatStore', {
                         }
                         this.chats.splice(chatIndex, 1, updatedChat)
                         
+                        console.log('[CHAT DEBUG] Chat updated with new last message, sorting chats...')
                         // Сортируем чаты после отправки сообщения, чтобы текущий чат поднялся наверх
                         this.sortChatsByLastMessage()
                     }
                 }
 
+                console.log('[CHAT DEBUG] sendMessage completed successfully')
                 return msg
             } catch (error) {
+                console.error('[CHAT DEBUG] sendMessage failed with error:', error)
+                console.error('[CHAT DEBUG] Error details:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data
+                })
+                
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -959,6 +1019,7 @@ export const useChatStore = defineStore('chatStore', {
                 })
                 throw error
             } finally {
+                console.log('[CHAT DEBUG] Setting isSending to false')
                 this.isSending = false
             }
         },
@@ -1053,20 +1114,39 @@ export const useChatStore = defineStore('chatStore', {
 
         // Добавляет реакцию на сообщение
         async addReaction(messageId: number, reactionId: number): Promise<void> {
-            if (!this.currentChat) return
+            console.log('[REACTION DEBUG] addReaction called with:', { messageId, reactionId, currentChatId: this.currentChat?.id })
+            
+            if (!this.currentChat) {
+                console.error('[REACTION DEBUG] addReaction failed: no current chat selected')
+                return
+            }
+            
             try {
-                await axios.post(
-                    `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
-                    {
-                        reaction_type_id: reactionId,
-                    },
-                )
+                const url = `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`
+                const payload = { reaction_type_id: reactionId }
+                
+                console.log('[REACTION DEBUG] Making POST request to:', url)
+                console.log('[REACTION DEBUG] Request payload:', payload)
+                
+                await axios.post(url, payload)
+                
+                console.log('[REACTION DEBUG] Reaction added successfully')
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
                 
+                console.log('[REACTION DEBUG] Sorting chats after adding reaction...')
                 // Сортируем чаты после добавления реакции, чтобы текущий чат поднялся наверх
                 this.sortChatsByLastMessage()
             } catch (error) {
+                console.error('[REACTION DEBUG] addReaction failed with error:', error)
+                console.error('[REACTION DEBUG] Error details:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data
+                })
+                
                 // При ошибке все же перезагружаем для корректного состояния
+                console.log('[REACTION DEBUG] Reloading messages due to error...')
                 await this.fetchMessages(this.currentChat.id)
                 throw error
             }
@@ -1074,18 +1154,37 @@ export const useChatStore = defineStore('chatStore', {
 
         // Удаляет реакцию с сообщения
         async removeReaction(messageId: number): Promise<void> {
-            if (!this.currentChat) return
+            console.log('[REACTION DEBUG] removeReaction called with:', { messageId, currentChatId: this.currentChat?.id })
+            
+            if (!this.currentChat) {
+                console.error('[REACTION DEBUG] removeReaction failed: no current chat selected')
+                return
+            }
+            
             try {
+                const url = `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`
+                
+                console.log('[REACTION DEBUG] Making DELETE request to:', url)
                 // ✅ Параметры не передаем - API автоматически удалит реакцию текущего пользователя
-                await axios.delete(
-                    `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
-                )
+                await axios.delete(url)
+                
+                console.log('[REACTION DEBUG] Reaction removed successfully')
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
                 
+                console.log('[REACTION DEBUG] Sorting chats after removing reaction...')
                 // Сортируем чаты после удаления реакции, чтобы текущий чат поднялся наверх
                 this.sortChatsByLastMessage()
             } catch (error) {
+                console.error('[REACTION DEBUG] removeReaction failed with error:', error)
+                console.error('[REACTION DEBUG] Error details:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data
+                })
+                
                 // При ошибке все же перезагружаем для корректного состояния
+                console.log('[REACTION DEBUG] Reloading messages due to error...')
                 await this.fetchMessages(this.currentChat.id)
                 throw error
             }
@@ -1093,36 +1192,66 @@ export const useChatStore = defineStore('chatStore', {
 
         // Устанавливает эксклюзивную реакцию (удаляет старую и добавляет новую)
         async setExclusiveReaction(messageId: number, reactionId: number): Promise<void> {
-            if (!this.currentChat) return
+            console.log('[REACTION DEBUG] setExclusiveReaction called with:', { messageId, reactionId, currentChatId: this.currentChat?.id })
+            
+            if (!this.currentChat) {
+                console.error('[REACTION DEBUG] setExclusiveReaction failed: no current chat selected')
+                return
+            }
+            
             try {
+                console.log('[REACTION DEBUG] Clearing existing reactions first...')
                 // Сначала удаляем все мои реакции
                 await this.clearMyReactions(messageId)
+                
+                console.log('[REACTION DEBUG] Adding new reaction...')
                 // Затем добавляем новую
                 await this.addReaction(messageId, reactionId)
                 
+                console.log('[REACTION DEBUG] setExclusiveReaction completed successfully')
                 // Сортируем чаты после изменения реакции, чтобы текущий чат поднялся наверх
                 // Примечание: addReaction уже вызывает sortChatsByLastMessage(), но делаем еще раз для надежности
                 this.sortChatsByLastMessage()
             } catch (error) {
+                console.error('[REACTION DEBUG] setExclusiveReaction failed with error:', error)
                 throw error
             }
         },
 
         // Очищает все мои реакции с сообщения
         async clearMyReactions(messageId: number): Promise<void> {
-            if (!this.currentChat) return
+            console.log('[REACTION DEBUG] clearMyReactions called with:', { messageId, currentChatId: this.currentChat?.id })
+            
+            if (!this.currentChat) {
+                console.error('[REACTION DEBUG] clearMyReactions failed: no current chat selected')
+                return
+            }
+            
             try {
+                const url = `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`
+                
+                console.log('[REACTION DEBUG] Making DELETE request to clear reactions:', url)
                 // ✅ Используем тот же DELETE эндпоинт без параметров
-                await axios.delete(
-                    `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
-                )
+                await axios.delete(url)
+                
+                console.log('[REACTION DEBUG] Reactions cleared successfully')
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
                 
+                console.log('[REACTION DEBUG] Sorting chats after clearing reactions...')
                 // Сортируем чаты после очистки реакций, чтобы текущий чат поднялся наверх
                 this.sortChatsByLastMessage()
             } catch (error) {
+                console.warn('[REACTION DEBUG] clearMyReactions failed (might be expected if no reactions exist):', error)
+                console.warn('[REACTION DEBUG] Error details:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data
+                })
+                
                 // Игнорируем ошибки при очистке (возможно реакции уже нет)
                 // При ошибке все же перезагружаем для корректного состояния
+                console.log('[REACTION DEBUG] Reloading messages due to error...')
                 await this.fetchMessages(this.currentChat.id)
             }
         },
