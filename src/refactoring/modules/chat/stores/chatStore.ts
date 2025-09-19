@@ -619,6 +619,9 @@ export const useChatStore = defineStore('chatStore', {
                     this.fetchMessages(this.currentChat.id).catch(() => {})
                 }
             }
+
+            // Сортируем чаты после обновления реакции, чтобы чат с новой активностью поднялся наверх
+            this.sortChatsByLastMessage()
         },
 
         // Локальное обновление реакции в сообщении
@@ -996,6 +999,9 @@ export const useChatStore = defineStore('chatStore', {
                     },
                 )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
+                
+                // Сортируем чаты после добавления реакции, чтобы текущий чат поднялся наверх
+                this.sortChatsByLastMessage()
             } catch (error) {
                 // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
@@ -1012,6 +1018,9 @@ export const useChatStore = defineStore('chatStore', {
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
                 )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
+                
+                // Сортируем чаты после удаления реакции, чтобы текущий чат поднялся наверх
+                this.sortChatsByLastMessage()
             } catch (error) {
                 // При ошибке все же перезагружаем для корректного состояния
                 await this.fetchMessages(this.currentChat.id)
@@ -1027,6 +1036,10 @@ export const useChatStore = defineStore('chatStore', {
                 await this.clearMyReactions(messageId)
                 // Затем добавляем новую
                 await this.addReaction(messageId, reactionId)
+                
+                // Сортируем чаты после изменения реакции, чтобы текущий чат поднялся наверх
+                // Примечание: addReaction уже вызывает sortChatsByLastMessage(), но делаем еще раз для надежности
+                this.sortChatsByLastMessage()
             } catch (error) {
                 throw error
             }
@@ -1041,6 +1054,9 @@ export const useChatStore = defineStore('chatStore', {
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
                 )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
+                
+                // Сортируем чаты после очистки реакций, чтобы текущий чат поднялся наверх
+                this.sortChatsByLastMessage()
             } catch (error) {
                 // Игнорируем ошибки при очистке (возможно реакции уже нет)
                 // При ошибке все же перезагружаем для корректного состояния
