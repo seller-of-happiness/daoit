@@ -41,6 +41,7 @@ export interface IChat {
     last_message_id?: number
     last_read_message_id?: number
     last_message?: IMessage
+    last_activity_time?: string // Время последней активности (сообщения или реакции)
 }
 
 export interface IEmployee {
