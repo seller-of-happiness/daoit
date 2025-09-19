@@ -65,8 +65,12 @@ function safeDateParse(dateString: string): number {
 
 // Упорядочивание чатов по времени последнего сообщения (сначала новые)
 function compareChatsByLastMessage(a: IChat, b: IChat): number {
-    // Получаем время последнего сообщения или время создания чата
+    // Получаем время последней активности (сообщения или реакции) или время создания чата
     const getLastActivityTime = (chat: IChat): number => {
+        // Приоритет: время последней активности (реакции) > время последнего сообщения > время создания
+        if (chat.last_activity_time) {
+            return safeDateParse(chat.last_activity_time)
+        }
         if (chat.last_message?.created_at) {
             return safeDateParse(chat.last_message.created_at)
         }
@@ -569,6 +573,36 @@ export const useChatStore = defineStore('chatStore', {
             )
             const isCurrentChat = this.currentChat?.id === chatId
 
+            // Обновляем информацию о последнем сообщении в чате ВСЕГДА (для активного и неактивного чата)
+            const chatIndex = this.chats.findIndex((c) => c.id === chatId)
+            if (chatIndex !== -1) {
+                const updatedChats = [...this.chats]
+                const currentChat = updatedChats[chatIndex]
+                
+                if (isCurrentChat) {
+                    // Для текущего чата - обновляем последнее сообщение без изменения счетчика непрочитанных
+                    updatedChats[chatIndex] = {
+                        ...currentChat,
+                        last_message_id: message.id,
+                        last_message: message,
+                    }
+                } else {
+                    // Для других чатов - увеличиваем счетчик непрочитанных и обновляем последнее сообщение
+                    const oldCount = currentChat.unread_count || 0
+                    updatedChats[chatIndex] = {
+                        ...currentChat,
+                        unread_count: oldCount + 1,
+                        last_message_id: message.id,
+                        last_message: message,
+                    }
+                }
+                
+                this.chats = updatedChats
+                
+                // Обновляем счетчик в заголовке после изменения счетчиков чатов
+                this.updateTitleUnreadCount()
+            }
+
             // Если это текущий чат - добавляем сообщение в список
             if (isCurrentChat) {
                 // Проверяем что сообщение еще не добавлено
@@ -582,26 +616,9 @@ export const useChatStore = defineStore('chatStore', {
                 setTimeout(() => {
                     this.markChatAsRead(chatId, message.id)
                 }, 500)
-            } else {
-                // Если это другой чат - увеличиваем счетчик непрочитанных
-                const chatIndex = this.chats.findIndex((c) => c.id === chatId)
-                if (chatIndex !== -1) {
-                    const oldCount = this.chats[chatIndex].unread_count || 0
-                    const updatedChats = [...this.chats]
-                    updatedChats[chatIndex] = {
-                        ...updatedChats[chatIndex],
-                        unread_count: oldCount + 1,
-                        last_message_id: message.id,
-                        last_message: message,
-                    }
-                    this.chats = updatedChats
-                    
-                    // Обновляем счетчик в заголовке после изменения счетчиков чатов
-                    this.updateTitleUnreadCount()
-                }
             }
 
-            // Сортируем чаты после получения нового сообщения, чтобы чат с новым сообщением поднялся наверх
+            // ВАЖНО: Сортируем чаты после получения нового сообщения, чтобы чат с новым сообщением поднялся наверх
             this.sortChatsByLastMessage()
 
             // Для чужих сообщений воспроизводим звук
@@ -647,6 +664,24 @@ export const useChatStore = defineStore('chatStore', {
                 return
             }
             
+            // Обновляем время последней активности чата при реакциях
+            const chatIndex = this.chats.findIndex((c) => c.id === chatId)
+            if (chatIndex !== -1) {
+                const updatedChats = [...this.chats]
+                const currentChat = updatedChats[chatIndex]
+                
+                // Если есть последнее сообщение, обновляем его время для правильной сортировки
+                // Реакции должны поднимать чат наверх, но не изменять само сообщение
+                if (currentChat.last_message) {
+                    updatedChats[chatIndex] = {
+                        ...currentChat,
+                        // Добавляем метку времени реакции для корректной сортировки
+                        last_activity_time: new Date().toISOString(),
+                    }
+                    this.chats = updatedChats
+                }
+            }
+            
             // Если это текущий чат, обновляем локально
             if (this.currentChat && chatId === this.currentChat.id) {
                 const success = this.updateMessageReactionLocally(
@@ -667,7 +702,7 @@ export const useChatStore = defineStore('chatStore', {
                 }
             }
 
-            // Сортируем чаты после обновления реакции, чтобы чат с новой активностью поднялся наверх
+            // ВАЖНО: Сортируем чаты после обновления реакции, чтобы чат с новой активностью поднялся наверх
             this.sortChatsByLastMessage()
         },
 
@@ -956,13 +991,13 @@ export const useChatStore = defineStore('chatStore', {
 
                 console.log('[CHAT DEBUG] sendMessage completed successfully')
                 return msg
-            } catch (error) {
+            } catch (error: any) {
                 console.error('[CHAT DEBUG] sendMessage failed with error:', error)
                 console.error('[CHAT DEBUG] Error details:', {
-                    message: error.message,
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    data: error.response?.data
+                    message: error?.message,
+                    status: error?.response?.status,
+                    statusText: error?.response?.statusText,
+                    data: error?.response?.data
                 })
                 
                 useFeedbackStore().showToast({
@@ -1090,13 +1125,13 @@ export const useChatStore = defineStore('chatStore', {
                 console.log('[REACTION DEBUG] Sorting chats after adding reaction...')
                 // Сортируем чаты после добавления реакции, чтобы текущий чат поднялся наверх
                 this.sortChatsByLastMessage()
-            } catch (error) {
+            } catch (error: any) {
                 console.error('[REACTION DEBUG] addReaction failed with error:', error)
                 console.error('[REACTION DEBUG] Error details:', {
-                    message: error.message,
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    data: error.response?.data
+                    message: error?.message,
+                    status: error?.response?.status,
+                    statusText: error?.response?.statusText,
+                    data: error?.response?.data
                 })
                 
                 // При ошибке все же перезагружаем для корректного состояния
@@ -1128,13 +1163,13 @@ export const useChatStore = defineStore('chatStore', {
                 console.log('[REACTION DEBUG] Sorting chats after removing reaction...')
                 // Сортируем чаты после удаления реакции, чтобы текущий чат поднялся наверх
                 this.sortChatsByLastMessage()
-            } catch (error) {
+            } catch (error: any) {
                 console.error('[REACTION DEBUG] removeReaction failed with error:', error)
                 console.error('[REACTION DEBUG] Error details:', {
-                    message: error.message,
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    data: error.response?.data
+                    message: error?.message,
+                    status: error?.response?.status,
+                    statusText: error?.response?.statusText,
+                    data: error?.response?.data
                 })
                 
                 // При ошибке все же перезагружаем для корректного состояния
@@ -1197,10 +1232,10 @@ export const useChatStore = defineStore('chatStore', {
             } catch (error) {
                 console.warn('[REACTION DEBUG] clearMyReactions failed (might be expected if no reactions exist):', error)
                 console.warn('[REACTION DEBUG] Error details:', {
-                    message: error.message,
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    data: error.response?.data
+                    message: (error as any)?.message,
+                    status: (error as any)?.response?.status,
+                    statusText: (error as any)?.response?.statusText,
+                    data: (error as any)?.response?.data
                 })
                 
                 // Игнорируем ошибки при очистке (возможно реакции уже нет)
