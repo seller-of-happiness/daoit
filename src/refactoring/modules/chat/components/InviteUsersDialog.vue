@@ -651,12 +651,10 @@ const focusSearch = () => {
 }
 
 /**
- * Подсвечивает совпадения поискового запроса в тексте label.
+ * Возвращает исходный текст без подсветки.
  */
 const highlightMatch = (label: string = '', q: string = '') => {
-    if (!q) return label
-    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    return label.replace(new RegExp(`(${safe})`, 'ig'), '<mark>$1</mark>')
+    return label
 }
 
 /**
@@ -830,13 +828,6 @@ onUnmounted(() => {
     opacity: 1;
 }
 
-/* Подсветка совпадений поиска */
-:deep(mark) {
-    background-color: var(--yellow-200);
-    color: var(--text-color);
-    padding: 0;
-    border-radius: 2px;
-}
 
 /* Стили для выбранных участников */
 .selected-users {
@@ -895,8 +886,4 @@ onUnmounted(() => {
     background: var(--surface-700);
 }
 
-:global(.dark) :deep(mark) {
-    background-color: var(--yellow-600);
-    color: var(--surface-0);
-}
 </style>
