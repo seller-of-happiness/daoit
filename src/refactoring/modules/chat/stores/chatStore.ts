@@ -94,6 +94,60 @@ if (typeof window !== 'undefined') {
     }
 }
 
+// Глобальные функции для отладки (доступны в console)
+if (typeof window !== 'undefined') {
+    (window as any).debugChatInvitations = () => {
+        const chatStore = useChatStore()
+        console.group('🔍 Диагностика системы приглашений')
+        console.log('1. Проверяем WebSocket подключение...')
+        chatStore.diagnoseWebSocketConnection()
+        
+        console.log('2. Текущие приглашения:', chatStore.invitations)
+        console.log('3. Количество приглашений:', chatStore.invitations.length)
+        
+        console.log('4. Обновляем список приглашений...')
+        chatStore.fetchInvitations().then(() => {
+            console.log('✅ Список приглашений обновлен:', chatStore.invitations)
+        }).catch(error => {
+            console.error('❌ Ошибка обновления приглашений:', error)
+        })
+        
+        console.log('💡 Для ручного тестирования WebSocket используйте:')
+        console.log('   debugChatInvitations() - эта функция')
+        console.log('   chatStore.diagnoseWebSocketConnection() - диагностика WebSocket')
+        console.log('   chatStore.fetchInvitations() - обновить список приглашений')
+        console.log('   chatStore.simulateInvitationEvent() - симулировать WebSocket событие приглашения')
+        console.log('   testInvitationFlow() - полный тест процесса приглашений')
+        console.groupEnd()
+    }
+    
+    // Функция для полного тестирования процесса приглашений
+    (window as any).testInvitationFlow = async () => {
+        const chatStore = useChatStore()
+        console.group('🧪 Тестирование процесса приглашений')
+        
+        try {
+            console.log('1. Исходное состояние приглашений:', chatStore.invitations.length)
+            
+            console.log('2. Симулируем WebSocket событие...')
+            chatStore.simulateInvitationEvent()
+            
+            console.log('3. Состояние после симуляции:', chatStore.invitations.length)
+            
+            console.log('4. Обновляем с сервера...')
+            await chatStore.fetchInvitations()
+            
+            console.log('5. Финальное состояние:', chatStore.invitations.length)
+            
+            console.log('✅ Тест завершен')
+        } catch (error) {
+            console.error('❌ Ошибка тестирования:', error)
+        }
+        
+        console.groupEnd()
+    }
+}
+
 export const useChatStore = defineStore('chatStore', {
     state: (): IChatStoreState => ({
         chats: [],
@@ -143,6 +197,11 @@ export const useChatStore = defineStore('chatStore', {
         // Обрабатывает сообщения из центрифуго
         handleCentrifugoMessage(data: any): void {
             const eventType = data?.event_type || data?.event || data?.type
+            console.log('[ChatStore] Обрабатываем WebSocket сообщение:', {
+                eventType,
+                data,
+                timestamp: new Date().toISOString()
+            })
 
             switch (eventType) {
                 case 'message':
@@ -505,6 +564,14 @@ export const useChatStore = defineStore('chatStore', {
                     user_ids: userIds,
                 })
                 console.log('[ChatStore] Ответ сервера на отправку приглашений:', response.data)
+                console.log('[ChatStore] HTTP статус ответа:', response.status)
+                console.log('[ChatStore] Заголовки ответа:', response.headers)
+                
+                // Проверяем, есть ли данные в ответе
+                if (!response.data || (typeof response.data === 'object' && Object.keys(response.data).length === 0)) {
+                    console.warn('[ChatStore] Сервер вернул пустой ответ на отправку приглашений')
+                    console.warn('[ChatStore] Это может означать, что приглашения не были созданы или WebSocket события не отправляются')
+                }
 
                 // Обновляем информацию о чате после добавления участников
                 const updatedChat = await this.fetchChat(chatId)
@@ -521,6 +588,20 @@ export const useChatStore = defineStore('chatStore', {
                 if (this.currentChat?.id === chatId) {
                     this.currentChat = updatedChat
                 }
+
+                // Обновляем список приглашений как fallback, если WebSocket события не приходят
+                // Делаем это с небольшой задержкой, чтобы дать серверу время создать приглашения
+                setTimeout(() => {
+                    console.log('[ChatStore] Обновляем список приглашений как fallback...')
+                    this.fetchInvitations().catch(error => {
+                        console.warn('[ChatStore] Не удалось обновить список приглашений:', error)
+                    })
+                }, 1000)
+                
+                // Запускаем диагностику WebSocket для выявления проблем
+                setTimeout(() => {
+                    this.diagnoseWebSocketConnection()
+                }, 2000)
 
                 useFeedbackStore().showToast({
                     type: 'success',
@@ -902,6 +983,91 @@ export const useChatStore = defineStore('chatStore', {
             // Перезагружаем список чатов для актуализации информации об участниках
             this.fetchChats()
         },
+
+        // Проверяет подключение к WebSocket и диагностирует проблемы
+        diagnoseWebSocketConnection(): void {
+            try {
+                const centrifuge = useCentrifugeStore()
+                const diagnostics = centrifuge.diagnostics ? centrifuge.diagnostics() : null
+                
+                console.group('[ChatStore] Диагностика WebSocket подключения')
+                console.log('Состояние Centrifuge:', diagnostics)
+                console.log('Текущее время:', new Date().toISOString())
+                
+                if (diagnostics) {
+                    console.log('Подписанные каналы:', Object.keys(diagnostics.subscriptions || {}))
+                    console.log('Подключено:', diagnostics.connected)
+                    console.log('Статус подключения:', diagnostics.state)
+                    
+                    // Проверяем подписку на канал пользователя
+                    const userUuid = this.getCurrentUserUuid()
+                    if (userUuid) {
+                        const channelName = `chats:user#${userUuid}`
+                        const isSubscribed = diagnostics.subscriptions?.[channelName]
+                        console.log(`Подписка на канал ${channelName}:`, isSubscribed ? 'АКТИВНА' : 'НЕ АКТИВНА')
+                        
+                        if (!isSubscribed) {
+                            console.warn('❌ Подписка на канал пользователя не активна!')
+                            console.warn('🔧 Попробуйте переподключиться к WebSocket')
+                            
+                            // Пытаемся переподписаться
+                            console.log('🔄 Попытка переподписки...')
+                            this.subscribeToUserChannel()
+                        }
+                    } else {
+                        console.warn('❌ Не удалось получить UUID пользователя!')
+                    }
+                } else {
+                    console.warn('❌ Centrifuge диагностика недоступна или не инициализирована!')
+                }
+                console.groupEnd()
+            } catch (error) {
+                console.error('[ChatStore] Ошибка диагностики WebSocket:', error)
+            }
+        }
+
+        // Симулирует WebSocket событие приглашения для тестирования
+        simulateInvitationEvent(chatId?: number, userName?: string): void {
+            console.log('[ChatStore] Симулируем WebSocket событие приглашения...')
+            
+            const userStore = useUserStore()
+            const currentUser = userStore.user
+            
+            const mockInvitationData = {
+                event_type: 'new_invite',
+                data: {
+                    id: Date.now(),
+                    chat: {
+                        id: chatId || this.currentChat?.id || 60,
+                        title: this.currentChat?.title || 'Тестовая группа',
+                        type: 'group',
+                        icon: null,
+                        description: 'Тестовое приглашение'
+                    },
+                    created_by: {
+                        id: 'test-user-id',
+                        first_name: userName || 'Тестовый',
+                        last_name: 'Пользователь',
+                        middle_name: '',
+                        phone_number: '+7999999999',
+                        birth_date: null
+                    },
+                    invited_user: {
+                        id: currentUser?.uuid || currentUser?.id?.toString() || 'current-user-id',
+                        first_name: currentUser?.first_name || 'Вы',
+                        last_name: currentUser?.last_name || '',
+                        middle_name: currentUser?.middle_name || '',
+                        phone_number: currentUser?.phone_number || '',
+                        birth_date: currentUser?.birth_date || null
+                    },
+                    is_accepted: false,
+                    created_at: new Date().toISOString()
+                }
+            }
+            
+            console.log('[ChatStore] Данные симулируемого приглашения:', mockInvitationData)
+            this.handleNewInvitation(mockInvitationData)
+        }
 
         // Обрабатывает новое приглашение в чат
         handleNewInvitation(data: any): void {
