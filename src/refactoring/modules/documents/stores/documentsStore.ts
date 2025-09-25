@@ -34,6 +34,12 @@ interface IExtendedDocumentsStoreState extends Omit<IDocumentsStoreState, 'bread
     // Сервисы
     _navigationService: NavigationService
     _apiService: DocumentsApiService
+    // Фильтры
+    currentFilters: {
+        created_by: string[]
+        types: number[]
+    }
+    isFiltersActive: boolean
 }
 
 import type { IListDocumentsResponse } from '@/refactoring/modules/documents/types/ApiTypes'
@@ -59,6 +65,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
         // Сервисы
         _navigationService: new NavigationService(),
         _apiService: new DocumentsApiService(),
+        // Фильтры
+        currentFilters: {
+            created_by: [],
+            types: []
+        },
+        isFiltersActive: false,
     }),
 
     getters: {
@@ -74,6 +86,16 @@ export const useDocumentsStore = defineStore('documentsStore', {
             state.currentPath === '/' && !state.currentFolderId,
 
         selectedCount: (state: IDocumentsStoreState): number => state.selectedItems.size,
+
+        activeFiltersCount: (state): number => {
+            return (state as IExtendedDocumentsStoreState).currentFilters.created_by.length + 
+                   (state as IExtendedDocumentsStoreState).currentFilters.types.length
+        },
+
+        hasActiveFilters: (state): boolean => {
+            const extState = state as IExtendedDocumentsStoreState
+            return extState.currentFilters.created_by.length > 0 || extState.currentFilters.types.length > 0
+        },
     },
 
     actions: {
@@ -117,26 +139,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
         _processApiResponse(data: IListDocumentsResponse, payload: IListDocumentsPayload): void {
             if (!data || typeof data !== 'object') return
 
-            // Обрабатываем новую структуру ответа с results
-            if (data.results) {
-                this.currentPath = data.results.path || this._getRequestPath(payload)
-                this.currentFolderId = payload.folder_id || this.currentFolderId
-                this.currentItems = data.results.items || []
+            this.currentPath = data.path || this._getRequestPath(payload)
+            this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
+            this.currentItems = data.items || []
 
-                // Обновляем breadcrumbs только если не в режиме поиска
-                if (!payload.search) {
-                    this._updateBreadcrumbsFromResults(data.results)
-                }
-            } else {
-                // Обратная совместимость с старым форматом
-                this.currentPath = data.path || this._getRequestPath(payload)
-                this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
-                this.currentItems = data.items || []
-
-                // Обновляем breadcrumbs только если не в режиме поиска
-                if (!payload.search) {
-                    this._updateBreadcrumbs(data)
-                }
+            // Обновляем breadcrumbs только если не в режиме поиска
+            if (!payload.search) {
+                this._updateBreadcrumbs(data)
             }
         },
 
@@ -162,25 +171,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         /**
-         * Обновляет breadcrumbs на основе новой структуры results
-         */
-        _updateBreadcrumbsFromResults(results: IListDocumentsResponse['results']): void {
-            // Кешируем путь текущей папки по её virtual_path
-            if (results.virtual_path && results.path) {
-                this._navigationService.cacheFolderPath(results.virtual_path, results.path)
-            }
-
-            // Обрабатываем virtual_path или name из results
-            const virtualPath = results.virtual_path || results.name || 'Документы'
-            this.breadcrumbs = this._navigationService.updateBreadcrumbsFromVirtualPath(
-                virtualPath, 
-                null, // parent_paths не предоставляется в новой структуре
-                results.path
-            )
-        },
-
-        /**
-         * Обновляет breadcrumbs на основе данных API (старый формат)
+         * Обновляет breadcrumbs на основе данных API
          */
         _updateBreadcrumbs(data: IListDocumentsResponse): void {
             // Кешируем путь текущей папки по её virtual_path
@@ -246,12 +237,32 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 this.isNavigating = true
                 this._lastRequestPath = requestKey
                 
-                const data = await this._apiService.fetchDocuments({
-                    ...payload,
-                    path: requestPath,
-                })
+                // Добавляем активные фильтры к payload если они есть
+                const requestPayload = { ...payload, path: requestPath }
+                if (this._shouldIncludeFilters()) {
+                    if (this.currentFilters.created_by.length > 0) {
+                        requestPayload.created_by = this.currentFilters.created_by
+                    }
+                    if (this.currentFilters.types.length > 0) {
+                        requestPayload.types = this.currentFilters.types
+                    }
+                }
+                
+                let data: IListDocumentsResponse
+                
+                // Используем GET API если есть фильтры, иначе обычный POST
+                if (this._shouldIncludeFilters()) {
+                    try {
+                        data = await this._apiService.fetchDocumentsWithFilters(requestPayload)
+                    } catch (error) {
+                        // Fallback на обычный метод если GET не работает
+                        data = await this._apiService.fetchDocuments(requestPayload)
+                    }
+                } else {
+                    data = await this._apiService.fetchDocuments(requestPayload)
+                }
 
-                this._processApiResponse(data, payload)
+                this._processApiResponse(data, requestPayload)
             } catch (error) {
                 logger.error('documents_fetch_error', {
                     file: 'documentsStore',
@@ -734,6 +745,56 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
 
+        /**
+         * Применяет фильтры документов
+         */
+        async applyFilters(filters: { created_by: string[], types: number[] }): Promise<void> {
+            this.currentFilters = { ...filters }
+            this.isFiltersActive = filters.created_by.length > 0 || filters.types.length > 0
+            
+            // Сбрасываем кэш для принудительного обновления с фильтрами
+            this._lastRequestPath = null
+            this._currentRequest = null
+            
+            const payload: IListDocumentsPayload = {
+                created_by: filters.created_by.length > 0 ? filters.created_by : undefined,
+                types: filters.types.length > 0 ? filters.types : undefined
+            }
+            
+            if (this.currentFolderId) {
+                payload.folder_id = this.currentFolderId
+            } else {
+                payload.path = this.currentPath
+            }
+
+            // Используем новый метод API для GET запроса с фильтрами
+            try {
+                const data = await this._apiService.fetchDocumentsWithFilters(payload)
+                this._processApiResponse(data, payload)
+            } catch (error) {
+                // Fallback на обычный метод
+                await this.fetchDocuments(payload)
+            }
+        },
+
+        /**
+         * Очищает все фильтры
+         */
+        async clearFilters(): Promise<void> {
+            this.currentFilters = { created_by: [], types: [] }
+            this.isFiltersActive = false
+            
+            // Обновляем список без фильтров
+            await this._refreshCurrentView()
+        },
+
+        /**
+         * Обновляет метод fetchDocuments для учета фильтров
+         */
+        _shouldIncludeFilters(): boolean {
+            return this.isFiltersActive && (this.currentFilters.created_by.length > 0 || this.currentFilters.types.length > 0)
+        },
+
         cleanup(): void {
             if (this._urlUpdateTimeout) {
                 clearTimeout(this._urlUpdateTimeout)
@@ -748,6 +809,10 @@ export const useDocumentsStore = defineStore('documentsStore', {
             // Очищаем состояние запросов
             this._lastRequestPath = null
             this._currentRequest = null
+
+            // Очищаем фильтры
+            this.currentFilters = { created_by: [], types: [] }
+            this.isFiltersActive = false
 
             this._navigationService.cleanup()
         },

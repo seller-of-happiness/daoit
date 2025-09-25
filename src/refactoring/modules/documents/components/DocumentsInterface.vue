@@ -6,6 +6,17 @@
                 <h3 class="page-title">Документы</h3>
                 <div class="toolbar-actions">
                     <Button
+                        icon="pi pi-filter"
+                        :label="
+                            documentsStore.hasActiveFilters
+                                ? `Фильтры (${documentsStore.activeFiltersCount})`
+                                : 'Фильтры'
+                        "
+                        :severity="documentsStore.hasActiveFilters ? 'primary' : 'secondary'"
+                        :outlined="!documentsStore.hasActiveFilters"
+                        @click="showFiltersDialog = true"
+                    />
+                    <Button
                         icon="pi pi-folder-plus"
                         label="Создать папку"
                         severity="secondary"
@@ -56,6 +67,28 @@
                         size="small"
                         text
                         @click="documentSearch.clearSearch"
+                    />
+                </div>
+
+                <!-- Индикатор активных фильтров -->
+                <div v-if="documentsStore.hasActiveFilters" class="filters-indicator">
+                    <i class="pi pi-filter text-primary"></i>
+                    <span class="filters-text">
+                        Применены фильтры ({{ documentsStore.activeFiltersCount }})
+                    </span>
+                    <Button
+                        label="Сбросить фильтры"
+                        severity="secondary"
+                        size="small"
+                        text
+                        @click="clearFilters"
+                    />
+                    <Button
+                        label="Изменить фильтры"
+                        severity="primary"
+                        size="small"
+                        text
+                        @click="showFiltersDialog = true"
                     />
                 </div>
             </div>
@@ -290,6 +323,15 @@
             @documentDeleted="onDocumentDeleted"
         />
 
+        <!-- Диалог фильтров -->
+        <DocumentFiltersDialog
+            v-model:visible="showFiltersDialog"
+            :document-types="documentsStore.documentTypes"
+            :initial-creators="documentsStore.currentFilters.created_by"
+            :initial-types="documentsStore.currentFilters.types"
+            @apply-filters="handleApplyFilters"
+        />
+
         <!-- Диалог подтверждения удаления -->
         <ConfirmDialog />
     </div>
@@ -301,6 +343,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDocumentsStore } from '@/refactoring/modules/documents/stores/documentsStore'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
+import { useApiStore } from '@/refactoring/modules/apiStore/stores/apiStore'
 import { useDocumentSearch } from '@/refactoring/modules/documents/composables/useDocumentSearch'
 import { useDocumentSort } from '@/refactoring/modules/documents/composables/useDocumentSort'
 import { useDocumentNavigation } from '@/refactoring/modules/documents/composables/useDocumentNavigation'
@@ -311,7 +354,6 @@ import {
     formatFileSize,
     formatDate,
     getDocumentIcon,
-    getCreatorDisplayName,
 } from '@/refactoring/modules/documents/utils/documentUtils'
 import { pathToArray, arrayToPath } from '@/refactoring/modules/documents/utils/pathUtils'
 import type {
@@ -323,6 +365,7 @@ import CreateFolderDialog from './CreateFolderDialog.vue'
 import CreateDocumentDialog from './CreateDocumentDialog.vue'
 import AddVersionDialog from './AddVersionDialog.vue'
 import EditDocumentDialog from './EditDocumentDialog.vue'
+import DocumentFiltersDialog from './DocumentFiltersDialog.vue'
 import { BASE_URL } from '@/refactoring/environment/environment'
 
 interface Props {
@@ -349,6 +392,7 @@ const showCreateDocumentDialog = ref(false)
 
 const showAddVersionDialog = ref(false)
 const showEditDocumentDialog = ref(false)
+const showFiltersDialog = ref(false)
 const selectedDocument = ref<IDocument | IDocumentDetailsResponse | null>(null)
 
 const onFolderCreated = async () => {
@@ -389,7 +433,6 @@ const onDocumentDeleted = async () => {
         await documentSort.refreshDocuments()
     }
 }
-
 
 const openAddVersionDialog = (document: IDocument) => {
     selectedDocument.value = document
@@ -497,6 +540,34 @@ const initializeFromUrl = async () => {
     }
 }
 
+// Обработчики фильтров
+const handleApplyFilters = async (filters: { created_by: string[]; types: number[] }) => {
+    try {
+        await documentsStore.applyFilters(filters)
+        showFiltersDialog.value = false
+    } catch (error) {
+        handleError(error, {
+            context: 'DocumentsInterface',
+            functionName: 'handleApplyFilters',
+            toastTitle: 'Ошибка',
+            toastMessage: 'Не удалось применить фильтры',
+        })
+    }
+}
+
+const clearFilters = async () => {
+    try {
+        await documentsStore.clearFilters()
+    } catch (error) {
+        handleError(error, {
+            context: 'DocumentsInterface',
+            functionName: 'clearFilters',
+            toastTitle: 'Ошибка',
+            toastMessage: 'Не удалось сбросить фильтры',
+        })
+    }
+}
+
 watch(
     () => props.path,
     async (newPath, oldPath) => {
@@ -526,6 +597,18 @@ watch(
 
 onMounted(async () => {
     await documentsStore.fetchDocumentTypes()
+
+    // Загружаем сотрудников для фильтров
+    try {
+        const apiStore = useApiStore()
+        if (apiStore.employees.length === 0) {
+            await apiStore.fetchAllEmployees()
+        }
+    } catch (error) {
+        // Не критично, просто фильтры по создателям не будут работать
+        console.warn('Не удалось загрузить список сотрудников для фильтров:', error)
+    }
+
     await initializeFromUrl()
 })
 
@@ -562,6 +645,14 @@ onUnmounted(() => {
 
 .search-text {
     @apply text-sm font-medium text-primary-700 dark:text-primary-300 flex-1;
+}
+
+.filters-indicator {
+    @apply flex items-center gap-3 p-3 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600;
+}
+
+.filters-text {
+    @apply text-sm font-medium text-surface-700 dark:text-surface-300 flex-1;
 }
 
 /* Основные стили */

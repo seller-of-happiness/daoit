@@ -20,12 +20,6 @@ export interface IDocumentFolder {
     size: null
     extension: ''
     items: (IDocumentFolder | IDocument)[]
-    created_by?: {
-        id: string
-        first_name: string
-        last_name: string
-        email?: string
-    } | null
 }
 
 export interface IDocument {
@@ -38,12 +32,7 @@ export interface IDocument {
     virtual_path: string
     is_dir?: false
     visibility: 'creator' | 'public' | 'private' | 'department'
-    created_by: string | {
-        id: string
-        first_name: string
-        last_name: string
-        email?: string
-    }
+    created_by: string
     created_at: string
     updated_at: string
     size: number | null
@@ -115,6 +104,8 @@ export interface IListDocumentsPayload {
     search?: string
     sort_by?: 'name' | 'size' | 'extension'
     sort_order?: 'ascending' | 'descending'
+    created_by?: string[] // Множественный выбор создателей
+    types?: number[] // Множественный выбор типов документов
 }
 
 export interface IDocumentDetailsResponse {
@@ -125,12 +116,7 @@ export interface IDocumentDetailsResponse {
     description?: string
     path?: string
     visibility: 'creator' | 'public' | 'private' | 'department'
-    created_by: string | {
-        id: string
-        first_name: string
-        last_name: string
-        email?: string
-    }
+    created_by: string
     created_at: string
     updated_at: string
     virtual_path: string

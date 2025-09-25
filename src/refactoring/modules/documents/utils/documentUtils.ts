@@ -173,23 +173,3 @@ export const getVisibilityLabel = (visibility?: string): string => {
     }
     return visibilityMap[visibility || ''] || visibility || '—'
 }
-
-/**
- * Получает полное имя создателя документа
- * @param createdBy - информация о создателе (строка или объект)
- * @returns полное имя или ID
- */
-export const getCreatorDisplayName = (createdBy: string | { id: string; first_name: string; last_name: string; email?: string } | undefined): string => {
-    if (!createdBy) return '—'
-    
-    if (typeof createdBy === 'string') {
-        return createdBy
-    }
-    
-    if (typeof createdBy === 'object') {
-        const fullName = `${createdBy.first_name} ${createdBy.last_name}`.trim()
-        return fullName || createdBy.id
-    }
-    
-    return '—'
-}

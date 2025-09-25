@@ -1,6 +1,6 @@
 /**
  * Сервис для работы с API документов
- * 
+ *
  * Отвечает за:
  * - HTTP запросы к API документов
  * - Обработку ответов API
@@ -65,9 +65,66 @@ export class DocumentsApiService {
             requestPayload.sort_order = payload.sort_order || 'ascending'
         }
 
+        // Добавляем фильтры если они есть
+        if (payload.created_by && payload.created_by.length > 0) {
+            requestPayload.created_by = payload.created_by
+        }
+
+        if (payload.types && payload.types.length > 0) {
+            requestPayload.types = payload.types
+        }
+
         const response = await axios.post<IListDocumentsResponse>(
-            `${BASE_URL}/api/documents/list/`, 
-            requestPayload
+            `${BASE_URL}/api/documents/list/`,
+            requestPayload,
+        )
+        return response.data
+    }
+
+    /**
+     * Получает список документов через GET с фильтрами
+     */
+    async fetchDocumentsWithFilters(
+        payload: IListDocumentsPayload = {},
+    ): Promise<IListDocumentsResponse> {
+        // Формируем URL параметры
+        const params = new URLSearchParams()
+
+        // Всегда добавляем path/folder_id, даже при наличии фильтров
+        const requestPath = this._getRequestPath(payload)
+        if (payload.folder_id) {
+            params.append('folder_id', payload.folder_id)
+        } else {
+            params.append('path', requestPath)
+        }
+
+        if (payload.parent_folder) {
+            params.append('parent_folder', payload.parent_folder)
+        }
+
+        // params.append('page', String(payload.page || 1))
+        // params.append('page_size', String(payload.page_size || 100))
+
+        if (payload.search) {
+            params.append('search', payload.search)
+        }
+
+        if (payload.sort_by) {
+            params.append('sort_by', payload.sort_by)
+            params.append('sort_order', payload.sort_order || 'ascending')
+        }
+
+        // Добавляем фильтры - объединяем через запятую
+        if (payload.created_by && payload.created_by.length > 0) {
+            params.append('created_by', payload.created_by.join(','))
+        }
+
+        if (payload.types && payload.types.length > 0) {
+            params.append('types', payload.types.map(String).join(','))
+        }
+
+        const response = await axios.get<IListDocumentsResponse>(
+            `${BASE_URL}/api/documents/document/?${params.toString()}`,
         )
         return response.data
     }
@@ -120,7 +177,7 @@ export class DocumentsApiService {
      */
     async deleteDocument(id: number): Promise<void> {
         const response = await axios.delete(`${BASE_URL}/api/documents/document/${id}/`)
-        
+
         if (response.status !== 204 && response.status !== 200) {
             throw new Error(`Unexpected response status: ${response.status}`)
         }
@@ -131,7 +188,7 @@ export class DocumentsApiService {
      */
     async deleteFolder(id: number): Promise<void> {
         const response = await axios.delete(`${BASE_URL}/api/documents/document-folder/${id}/`)
-        
+
         if (response.status !== 204 && response.status !== 200) {
             throw new Error(`Unexpected response status: ${response.status}`)
         }
@@ -140,22 +197,14 @@ export class DocumentsApiService {
     /**
      * Добавляет версию документа
      */
-    async addDocumentVersion(
-        documentId: number,
-        file: File,
-        description?: string,
-    ): Promise<void> {
+    async addDocumentVersion(documentId: number, file: File, description?: string): Promise<void> {
         const formData = new FormData()
         formData.append('file', file)
         if (description) formData.append('description', description)
 
-        await axios.post(
-            `${BASE_URL}/api/documents/document/${documentId}/versions/`,
-            formData,
-            {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            },
-        )
+        await axios.post(`${BASE_URL}/api/documents/document/${documentId}/versions/`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        })
     }
 
     /**
@@ -163,7 +212,7 @@ export class DocumentsApiService {
      */
     async fetchDocumentDetails(documentId: number): Promise<IDocumentDetailsApiResponse> {
         const response = await axios.get<IDocumentDetailsApiResponse>(
-            `${BASE_URL}/api/documents/document/${documentId}/`
+            `${BASE_URL}/api/documents/document/${documentId}/`,
         )
         return response.data
     }
@@ -173,7 +222,7 @@ export class DocumentsApiService {
      */
     async fetchDocumentVersions(documentId: number): Promise<any[]> {
         const response = await axios.get<IDocumentVersionsResponse>(
-            `${BASE_URL}/api/documents/document/${documentId}/versions/`
+            `${BASE_URL}/api/documents/document/${documentId}/versions/`,
         )
         // Handle both paginated response format and direct array format
         if (response.data?.results) {
