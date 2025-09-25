@@ -933,9 +933,9 @@ export const useChatStore = defineStore('chatStore', {
                 const invitationData = data?.data || data
                 console.log('[ChatStore] Данные приглашения из WebSocket:', invitationData)
 
-                if (!invitationData?.chat || !invitationData?.created_by || !invitationData?.id || typeof invitationData.id !== 'number') {
+                if (!invitationData?.chat || !invitationData?.created_by) {
                     console.log(
-                        '[ChatStore] Некорректные данные приглашения, пропускаем:',
+                        '[ChatStore] Некорректные данные приглашения (отсутствует chat или created_by), пропускаем:',
                         invitationData,
                     )
                     return
@@ -947,7 +947,7 @@ export const useChatStore = defineStore('chatStore', {
                 const currentUserUuid = this.getCurrentUserUuid()
 
                 const invitation: IChatInvitation = {
-                    id: invitationData.id,
+                    id: invitationData.id || Date.now(), // Используем временный ID если основной null
                     chat: invitationData.chat,
                     created_by: invitationData.created_by,
                     invited_user:
@@ -963,7 +963,7 @@ export const useChatStore = defineStore('chatStore', {
                               }
                             : undefined),
                     is_accepted: invitationData.is_accepted || false,
-                    created_at: new Date().toISOString(),
+                    created_at: invitationData.created_at || new Date().toISOString(),
                 }
 
                 console.log('[ChatStore] Сформированное приглашение:', invitation)
@@ -977,6 +977,7 @@ export const useChatStore = defineStore('chatStore', {
                 console.log('[ChatStore] Добавляем приглашение в список:', invitation)
 
                 // Добавляем приглашение в список, если его еще нет
+                // Проверяем дубликаты по chat.id и invited_user.id, так как id приглашения может быть временным
                 const existingIndex = this.invitations.findIndex(
                     (inv) =>
                         inv.chat.id === invitation.chat.id &&
