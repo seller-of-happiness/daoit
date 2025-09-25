@@ -60,16 +60,6 @@
                                 v-tooltip.left="'Снять выбор со всех'"
                             />
                         </div>
-                        <!-- Кнопка добавления для сотрудников (листьев дерева) -->
-                        <Button
-                            v-if="node.isLeaf"
-                            icon="pi pi-plus"
-                            class="p-button-rounded p-button-text p-button-sm employee-add-btn"
-                            @click="addEmployee(node, $event)"
-                            :disabled="isInviting || isUserSelected({ id: node.data?.id })"
-                            size="small"
-                            v-tooltip.left="'Добавить пользователя'"
-                        />
                     </div>
                 </template>
             </Tree>
@@ -153,7 +143,6 @@
  * - Отображает иерархическую структуру сотрудников по отделам и должностям сразу при открытии
  * - Реализует поиск по ФИО и отделам с дебаунсом (начинает работать после ввода 2 символов)
  * - Поддерживает множественный выбор сотрудников через чекбоксы
- * - Позволяет быстро добавлять сотрудников через кнопку "+" справа от имени
  * - Предоставляет кнопки для групповых операций (выбрать всех/снять выбор) для отделов и должностей
  * - Показывает список выбранных участников с возможностью удаления
  * - Автоматически фокусируется на поле поиска
@@ -467,30 +456,6 @@ const clearAllSelection = () => {
     selectedEmployees.value = []
 }
 
-/**
- * Добавляет сотрудника в список выбранных
- */
-function addEmployee(node: any, event: MouseEvent) {
-    event.stopPropagation()
-
-    if (!node.isLeaf || !node.data) return
-
-    const employee = node.data as IEmployee
-
-    // Проверяем, не добавлен ли уже этот сотрудник
-    if (selectedEmployees.value.find((emp) => emp.id === employee.id)) {
-        return
-    }
-
-    // Добавляем сотрудника в список выбранных
-    selectedEmployees.value.push(employee)
-
-    // Также выделяем соответствующий узел в дереве
-    selectedKeys.value = {
-        ...selectedKeys.value,
-        [node.key]: true,
-    }
-}
 
 /**
  * Удаляет пользователя из списка выбранных
@@ -834,15 +799,6 @@ onUnmounted(() => {
     align-items: center;
 }
 
-/* Стили для кнопки добавления сотрудника */
-.employee-add-btn {
-    margin-left: 8px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    min-width: 2rem !important;
-    height: 2rem !important;
-    padding: 0 !important;
-}
 
 /* Стили для кнопок групповых операций */
 .group-select-btn,
@@ -863,14 +819,12 @@ onUnmounted(() => {
 }
 
 /* Показываем кнопки при наведении на узел */
-:deep(.p-treenode-content:hover) .employee-add-btn,
 :deep(.p-treenode-content:hover) .group-select-btn,
 :deep(.p-treenode-content:hover) .group-deselect-btn {
     opacity: 1;
 }
 
 /* Всегда показываем кнопки при фокусе */
-.employee-add-btn:focus,
 .group-select-btn:focus,
 .group-deselect-btn:focus {
     opacity: 1;

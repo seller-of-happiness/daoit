@@ -203,16 +203,6 @@
                                         v-tooltip.left="'Снять выбор со всех'"
                                     />
                                 </div>
-                                <!-- Кнопка добавления для сотрудников (листьев дерева) -->
-                                <Button
-                                    v-if="node.isLeaf"
-                                    icon="pi pi-plus"
-                                    class="p-button-rounded p-button-text p-button-sm employee-add-btn"
-                                    @click="addEmployee(node, $event)"
-                                    :disabled="isSearching || isUserSelected({ id: node.data?.id })"
-                                    size="small"
-                                    v-tooltip.left="'Добавить пользователя'"
-                                />
                             </div>
                         </template>
                     </Tree>
@@ -666,40 +656,6 @@ function buildEmployeeTree(employeesList: IEmployee[]) {
 }
 
 // Функции для работы с выбором пользователей
-const addEmployee = (node: any, event: MouseEvent) => {
-    event.stopPropagation()
-
-    if (!node.isLeaf || !node.data) return
-
-    const employee = node.data as IEmployee
-
-    // Проверяем, не добавлен ли уже этот сотрудник
-    if (selectedUsers.value.find((emp) => emp.id === employee.id)) {
-        return
-    }
-
-    // Добавляем сотрудника в список выбранных
-    const userForSelection = {
-        id: employee.id,
-        full_name:
-            `${employee.last_name} ${employee.first_name} ${employee.middle_name || ''}`.trim(),
-        position: employee.position?.name || null,
-        department: employee.department
-            ? {
-                  id: employee.department.id,
-                  name: employee.department.name,
-              }
-            : null,
-    }
-
-    selectedUsers.value.push(userForSelection)
-
-    // Также выделяем соответствующий узел в дереве
-    selectedKeys.value = {
-        ...selectedKeys.value,
-        [node.key]: true,
-    }
-}
 
 const removeUserFromSelection = (user: { id: string }) => {
     const index = selectedUsers.value.findIndex((selected) => selected.id === user.id)
@@ -778,8 +734,23 @@ const handleNodeLabelClick = (node: any, event: MouseEvent) => {
         return
     }
 
-    // Для листьев (сотрудников) клик по label не делает ничего
-    // Добавление происходит только через кнопку "+"
+    // Для листьев (сотрудников) клик по label переключает выбор
+    if (node?.isLeaf && node?.data) {
+        event.stopPropagation()
+        const isSelected = selectedKeys.value[node.key]
+        if (isSelected) {
+            // Снимаем выбор
+            const newSelectedKeys = { ...selectedKeys.value }
+            delete newSelectedKeys[node.key]
+            selectedKeys.value = newSelectedKeys
+        } else {
+            // Добавляем в выбор
+            selectedKeys.value = {
+                ...selectedKeys.value,
+                [node.key]: true,
+            }
+        }
+    }
 }
 
 // Обработчики раскрытия/сворачивания узлов
@@ -1101,15 +1072,6 @@ onUnmounted(() => {
     align-items: center;
 }
 
-/* Стили для кнопки добавления сотрудника */
-.employee-add-btn {
-    margin-left: 8px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    min-width: 2rem !important;
-    height: 2rem !important;
-    padding: 0 !important;
-}
 
 /* Стили для кнопок групповых операций */
 .group-select-btn,
@@ -1130,14 +1092,12 @@ onUnmounted(() => {
 }
 
 /* Показываем кнопки при наведении на узел */
-:deep(.p-treenode-content:hover) .employee-add-btn,
 :deep(.p-treenode-content:hover) .group-select-btn,
 :deep(.p-treenode-content:hover) .group-deselect-btn {
     opacity: 1;
 }
 
 /* Всегда показываем кнопки при фокусе */
-.employee-add-btn:focus,
 .group-select-btn:focus,
 .group-deselect-btn:focus {
     opacity: 1;
@@ -1151,16 +1111,6 @@ onUnmounted(() => {
     border-radius: 2px;
 }
 
-/* Стили для кнопки добавления пользователя (старые стили для совместимости) */
-.user-add-btn {
-    margin-left: 8px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    min-width: 2rem !important;
-    height: 2rem !important;
-    padding: 0 !important;
-    flex-shrink: 0;
-}
 
 /* Стили для секции выбора участников */
 .member-selection-section {
@@ -1203,15 +1153,6 @@ onUnmounted(() => {
     background-color: var(--surface-100);
 }
 
-/* Показываем кнопку при наведении на элемент пользователя */
-.user-item:hover .user-add-btn {
-    opacity: 1;
-}
-
-/* Всегда показываем кнопку при фокусе */
-.user-add-btn:focus {
-    opacity: 1;
-}
 
 .user-item--selected {
     background-color: var(--primary-50);
