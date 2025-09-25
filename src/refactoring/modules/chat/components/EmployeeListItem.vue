@@ -15,8 +15,6 @@
                 </span>
             </div>
         </div>
-
-        <Button icon="pi pi-plus" size="small" severity="success" text rounded />
     </div>
 </template>
 

@@ -568,8 +568,23 @@ function handleNodeLabelClick(node: any, event: MouseEvent) {
         return
     }
 
-    // Для листьев (сотрудников) клик по label не делает ничего
-    // Добавление происходит только через кнопку "+"
+    // Для листьев (сотрудников) клик по label переключает выбор
+    if (node?.isLeaf && node?.data) {
+        event.stopPropagation()
+        const isSelected = selectedKeys.value[node.key]
+        if (isSelected) {
+            // Снимаем выбор
+            const newSelectedKeys = { ...selectedKeys.value }
+            delete newSelectedKeys[node.key]
+            selectedKeys.value = newSelectedKeys
+        } else {
+            // Добавляем в выбор
+            selectedKeys.value = {
+                ...selectedKeys.value,
+                [node.key]: true,
+            }
+        }
+    }
 }
 
 // Обработчики раскрытия/сворачивания узлов
