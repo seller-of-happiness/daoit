@@ -65,6 +65,18 @@
                 v-tooltip.bottom="'Пригласить пользователей'"
                 @click="$emit('invite-users')"
             />
+            
+            <!-- Кнопка диагностики WebSocket (только в dev режиме) -->
+            <Button
+                v-if="import.meta.env.DEV || showDebugTools"
+                icon="pi pi-cog"
+                severity="help"
+                text
+                rounded
+                size="small"
+                v-tooltip.bottom="'Диагностика WebSocket'"
+                @click="$emit('debug-websocket')"
+            />
 
             <!-- Счетчик участников -->
             <div 
@@ -102,12 +114,16 @@ interface Emits {
     (e: 'invite-users'): void
     (e: 'manage-chat'): void
     (e: 'show-members'): void
+    (e: 'debug-websocket'): void
 }
 
 const props = defineProps<Props>()
 defineEmits<Emits>()
 
 const { id: currentUserId } = useCurrentUser()
+
+// Показываем debug инструменты в dev режиме или при необходимости
+const showDebugTools = ref(false)
 
 
 // Используем композабл для звука
