@@ -37,23 +37,31 @@
                 class="flex-1 overflow-y-auto py-4 px-10 bg-surface-50 dark:bg-surface-900/40 flex flex-col gap-1"
             >
                 <template v-if="chatStore.currentChat">
-                    <template v-for="group in groupedMessages" :key="group.key">
-                        <div class="text-center text-sm text-surface-500 my-2 select-none">
-                            {{ group.label }}
-                        </div>
-                        <MessageItem
-                            v-for="message in group.items"
-                            :key="`${message.id}-${message.reaction_updated_at || message.updated_at || message.created_at}`"
-                            :message="message"
-                            :reaction-types="chatStore.reactionTypes"
-                            :current-user-id="currentUser.id.value"
-                            :current-user-name="currentUser.nameForChat.value"
-                            :chat-members="chatStore.currentChat?.members"
-                            @change-reaction="changeReaction"
-                            @remove-my-reaction="removeMyReaction"
-                            @edit-message="editMessage"
-                            @delete-message="deleteMessage"
-                        />
+                    <!-- Показываем скелетоны во время загрузки -->
+                    <template v-if="chatStore.isLoadingMessages">
+                        <MessagesSkeletonGroup :count="6" />
+                    </template>
+                    
+                    <!-- Показываем реальные сообщения после загрузки -->
+                    <template v-else>
+                        <template v-for="group in groupedMessages" :key="group.key">
+                            <div class="text-center text-sm text-surface-500 my-2 select-none">
+                                {{ group.label }}
+                            </div>
+                            <MessageItem
+                                v-for="message in group.items"
+                                :key="`${message.id}-${message.reaction_updated_at || message.updated_at || message.created_at}`"
+                                :message="message"
+                                :reaction-types="chatStore.reactionTypes"
+                                :current-user-id="currentUser.id.value"
+                                :current-user-name="currentUser.nameForChat.value"
+                                :chat-members="chatStore.currentChat?.members"
+                                @change-reaction="changeReaction"
+                                @remove-my-reaction="removeMyReaction"
+                                @edit-message="editMessage"
+                                @delete-message="deleteMessage"
+                            />
+                        </template>
                     </template>
                 </template>
                 <template v-else>
@@ -110,6 +118,7 @@ import ChatSidebar from './ChatSidebar.vue'
 import ChatHeader from './ChatHeader.vue'
 import ChatInput from './ChatInput.vue'
 import MessageItem from './MessageItem.vue'
+import MessagesSkeletonGroup from './MessagesSkeletonGroup.vue'
 import ChatCreateDialog from './ChatCreateDialog.vue'
 import InviteUsersDialog from './InviteUsersDialog.vue'
 import ChatMembersManagement from './ChatMembersManagement.vue'
