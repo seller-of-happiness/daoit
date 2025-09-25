@@ -1,10 +1,5 @@
 <template>
     <div class="messages-skeleton-group">
-        <!-- Заголовок даты -->
-        <div class="text-center text-sm text-surface-500 my-2 select-none">
-            <div class="skeleton-date"></div>
-        </div>
-
         <!-- Группа скелетонов сообщений -->
         <MessageSkeleton
             v-for="(skeleton, index) in skeletons"
@@ -33,31 +28,28 @@ const props = withDefaults(defineProps<Props>(), {
     count: 5,
 })
 
-// Генерируем случайную последовательность скелетонов сообщений
+// Генерируем фиксированную последовательность скелетонов сообщений, похожую на реальный чат
 const skeletons = computed<SkeletonMessage[]>(() => {
-    const result: SkeletonMessage[] = []
+    // Предопределенные паттерны для более реалистичного отображения
+    const patterns: SkeletonMessage[] = [
+        { type: 'theirs', linesCount: 1 },
+        { type: 'theirs', linesCount: 2 },
+        { type: 'mine', linesCount: 1 },
+        { type: 'theirs', linesCount: 1 },
+        { type: 'mine', linesCount: 2 },
+        { type: 'mine', linesCount: 1 },
+        { type: 'theirs', linesCount: 3 },
+        { type: 'mine', linesCount: 1 },
+    ]
 
-    for (let i = 0; i < props.count; i++) {
-        // Чередуем типы сообщений с небольшой случайностью
-        const isTheirs = Math.random() > 0.4 // 60% сообщений от собеседника
-        const linesCount = Math.floor(Math.random() * 3) + 1 // 1-3 строки
-
-        result.push({
-            type: isTheirs ? 'theirs' : 'mine',
-            linesCount,
-        })
-    }
-
-    return result
+    return patterns.slice(0, props.count)
 })
 </script>
 
 <style scoped lang="scss">
 @use '../styles/skeletons' as *;
 
-.skeleton-date {
-    @extend .skeleton-text;
-    width: 4rem;
-    margin: 0 auto;
+.messages-skeleton-group {
+    /* Стили группы скелетонов сообщений */
 }
 </style>
