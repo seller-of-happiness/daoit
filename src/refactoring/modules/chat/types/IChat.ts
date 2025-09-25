@@ -52,6 +52,8 @@ export interface IChatInvite {
     id: number
     invited_user: IUser
     is_accepted: boolean
+    created_by?: IUser
+    chat?: IChat
 }
 
 // Обновленная структура чата
@@ -145,6 +147,13 @@ export interface IChatInvitation {
     invited_user?: IUser
     is_accepted: boolean
     created_at?: string
+}
+
+// Interface for chat updates that allows File objects for icon uploads
+export interface IChatUpdatePayload {
+    title?: string
+    description?: string
+    icon?: File | string | null
 }
 
 export interface IChatStoreState {

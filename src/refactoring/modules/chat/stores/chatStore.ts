@@ -33,6 +33,7 @@ import type {
     IEmployee,
     ISearchResults,
     IChatInvitation,
+    IChatUpdatePayload,
 } from '@/refactoring/modules/chat/types/IChat'
 import { useCentrifugeStore } from '@/refactoring/modules/centrifuge/stores/centrifugeStore'
 import { useUserStore } from '@/refactoring/modules/user/stores/userStore'
@@ -424,7 +425,7 @@ export const useChatStore = defineStore('chatStore', {
         },
 
         // Обновляет информацию о чате
-        async updateChat(chatId: number, payload: Partial<IChat>): Promise<IChat> {
+        async updateChat(chatId: number, payload: IChatUpdatePayload): Promise<IChat> {
             try {
                 const form = new FormData()
 
@@ -435,7 +436,9 @@ export const useChatStore = defineStore('chatStore', {
                 if (payload.icon !== undefined) {
                     if (payload.icon === null) {
                         form.append('icon', '')
-                    } else if (payload.icon instanceof File) {
+                    } else if (typeof payload.icon === 'object' && payload.icon instanceof File) {
+                        form.append('icon', payload.icon)
+                    } else if (typeof payload.icon === 'string') {
                         form.append('icon', payload.icon)
                     }
                 }

@@ -283,14 +283,14 @@ import {
     isThumbReaction,
 } from '@/refactoring/modules/chat/composables/useReactions'
 import { setImageDimensions } from '@/refactoring/modules/chat/composables/usePhotoSwipe'
-import type { IMessage, IReactionType, IUser } from '@/refactoring/modules/chat/types/IChat'
+import type { IMessage, IReactionType, IUser, IChatMember } from '@/refactoring/modules/chat/types/IChat'
 
 const props = defineProps<{
     message: IMessage
     reactionTypes: IReactionType[]
     currentUserId?: string | number | null
     currentUserName?: string | null
-    chatMembers?: Array<{ user: string | IUser; user_name?: string; user_uuid?: string; is_admin?: boolean; joined_at?: string }>
+    chatMembers?: IChatMember[]
 }>()
 
 const emit = defineEmits<{

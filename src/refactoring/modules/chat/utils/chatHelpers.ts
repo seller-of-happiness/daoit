@@ -338,8 +338,7 @@ export function isUserChatCreator(chat: IChat | null, currentUserId: string | nu
     ).trim()
 
     // Возвращаем результат сравнения
-    const isCreator = !!(normalizedUserId && creatorId && normalizedUserId === creatorId)
+    const isCreator: boolean = !!(normalizedUserId && creatorId && normalizedUserId === creatorId)
     
-
     return isCreator
 }
