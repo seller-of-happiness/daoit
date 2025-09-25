@@ -68,7 +68,7 @@
             
             <!-- Кнопка диагностики WebSocket (только в dev режиме) -->
             <Button
-                v-if="import.meta.env.DEV || showDebugTools"
+                v-if="isDevelopment || showDebugTools"
                 icon="pi pi-cog"
                 severity="help"
                 text
@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { withBase, canUserPerformAction } from '@/refactoring/modules/chat/utils/chatHelpers'
 import { UserService } from '@/refactoring/modules/chat/utils/UserService'
 import { useCurrentUser } from '@/refactoring/modules/chat/composables/useCurrentUser'
@@ -124,6 +124,9 @@ const { id: currentUserId } = useCurrentUser()
 
 // Показываем debug инструменты в dev режиме или при необходимости
 const showDebugTools = ref(false)
+
+// Проверка dev режима (для использования в template)
+const isDevelopment = computed(() => import.meta.env.DEV)
 
 
 // Используем композабл для звука
