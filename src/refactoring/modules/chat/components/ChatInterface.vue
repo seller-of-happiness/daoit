@@ -29,6 +29,7 @@
                 @invite-users="showInviteDialog = true"
                 @manage-chat="showManageDialog = true"
                 @show-members="showMembersDialog = true"
+                @debug-websocket="debugWebSocket"
             />
 
             <!-- Область сообщений -->
@@ -242,6 +243,42 @@ const createChat = async (payload: {
 const inviteUsers = async (userIds: string[]) => {
     await inviteUsersToChat(userIds)
     showInviteDialog.value = false
+}
+
+// Диагностика WebSocket соединения
+const debugWebSocket = () => {
+    console.log('=== ДИАГНОСТИКА WEBSOCKET ===')
+    
+    const connectionStatus = chatStore.checkWebSocketConnection()
+    console.log('Состояние соединения:', connectionStatus)
+    
+    // Показываем в интерфейсе тоже
+    const fb = useFeedbackStore()
+    
+    if (!connectionStatus.connected) {
+        fb.showToast({
+            type: 'warning',
+            title: 'WebSocket не подключен',
+            message: `Статус: ${connectionStatus.connecting ? 'подключается' : 'отключен'}. Попробовать переподключение?`,
+            time: 10000,
+        })
+        
+        // Предлагаем переподключиться
+        setTimeout(async () => {
+            try {
+                await chatStore.reconnectToWebSocket()
+            } catch (error) {
+                console.error('Ошибка переподключения:', error)
+            }
+        }, 2000)
+    } else {
+        fb.showToast({
+            type: 'info',
+            title: 'WebSocket диагностика',
+            message: `Подключен к ${connectionStatus.subscriptions.length} каналам. Подписан на пользовательский канал: ${connectionStatus.subscribedToUserChannel ? 'Да' : 'Нет'}`,
+            time: 5000,
+        })
+    }
 }
 
 const onChatUpdated = (updatedChat: IChat) => {

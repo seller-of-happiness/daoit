@@ -281,13 +281,27 @@ export const useCentrifugeStore = defineStore('centrifuge', {
                         offset: ctx.offset,
                         tags: ctx.tags,
                     })
+                    
+                    // Дополнительное логирование для отладки приглашений
+                    if (ctx.data && (ctx.data.event_type === 'new_invite' || ctx.data.event_type === 'invitation_created' || ctx.data.event_type === 'user_invited' || ctx.data.event_type === 'chat_invitation')) {
+                        console.log('[CENTRIFUGE INVITATION DEBUG] Получено приглашение через WebSocket:', {
+                            channel,
+                            eventType: ctx.data.event_type,
+                            data: ctx.data,
+                            timestamp: new Date().toISOString()
+                        })
+                    }
+                    
                     const handler = this.handlers.get(channel)
                     if (handler) {
                         try {
                             handler(ctx.data)
                         } catch (e) {
                             this.logEvent('Handler error', e)
+                            console.error('[CENTRIFUGE] Ошибка в обработчике канала', channel, ':', e)
                         }
+                    } else {
+                        console.warn('[CENTRIFUGE] Нет обработчика для канала:', channel)
                     }
                 })
 
