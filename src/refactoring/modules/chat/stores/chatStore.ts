@@ -482,7 +482,7 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Обновляет информацию о чате
+        // Обновляет информацию о чате (полное обновление)
         async updateChat(chatId: number, payload: IChatUpdatePayload): Promise<IChat> {
             try {
                 const form = new FormData()
@@ -538,13 +538,113 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
+        // Частично обновляет информацию о чате (согласно документации)
+        async partialUpdateChat(chatId: number, payload: IChatUpdatePayload): Promise<IChat> {
+            try {
+                const form = new FormData()
+
+                // Добавляем только обновляемые поля
+                if (payload.title !== undefined) form.append('title', payload.title)
+                if (payload.description !== undefined)
+                    form.append('description', payload.description)
+                if (payload.icon !== undefined) {
+                    if (payload.icon === null) {
+                        form.append('icon', '')
+                    } else if (typeof payload.icon === 'object' && payload.icon instanceof File) {
+                        form.append('icon', payload.icon)
+                    } else if (typeof payload.icon === 'string') {
+                        form.append('icon', payload.icon)
+                    }
+                }
+
+                const res = await axios.patch(`${BASE_URL}/api/chat/chat/${chatId}/`, form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                })
+                const updatedChat = (res.data?.results ?? res.data) as IChat
+
+                // Обновляем чат в списке
+                const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
+                if (chatIndex !== -1) {
+                    this.chats.splice(chatIndex, 1, updatedChat)
+                    // Пересортируем список после обновления
+                    this.chats = sortChatsByLastMessage(this.chats)
+                }
+
+                // Обновляем текущий чат, если это он
+                if (this.currentChat?.id === chatId) {
+                    this.currentChat = updatedChat
+                }
+
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Обновлено',
+                    message: 'Чат успешно обновлен',
+                    time: 3000,
+                })
+
+                return updatedChat
+            } catch (error) {
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось обновить чат',
+                    time: 7000,
+                })
+                throw error
+            }
+        },
+
+        // Удаляет чат (согласно документации)
+        async deleteChat(chatId: number): Promise<void> {
+            try {
+                await axios.delete(`${BASE_URL}/api/chat/chat/${chatId}/`)
+
+                // Удаляем чат из списка
+                this.chats = this.chats.filter((chat) => chat.id !== chatId)
+
+                // Если это был текущий чат, сбрасываем выбор
+                if (this.currentChat?.id === chatId) {
+                    this.currentChat = null
+                    this.messages = []
+                    try {
+                        localStorage.removeItem('selectedChatId')
+                    } catch (e) {
+                        // Игнорируем ошибки localStorage
+                    }
+                }
+
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Удалено',
+                    message: 'Чат успешно удален',
+                    time: 3000,
+                })
+            } catch (error) {
+                let errorMessage = 'Не удалось удалить чат'
+                if (error?.response?.status === 403) {
+                    errorMessage = 'У вас нет прав для удаления этого чата'
+                } else if (error?.response?.status === 404) {
+                    errorMessage = 'Чат не найден'
+                    // Удаляем из локального списка если чат уже не существует
+                    this.chats = this.chats.filter((chat) => chat.id !== chatId)
+                }
+
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: errorMessage,
+                    time: 7000,
+                })
+                throw error
+            }
+        },
+
         // Добавляет участников в чат (отправляет приглашения)
         async addMembersToChat(chatId: number, userIds: string[]): Promise<void> {
             console.log('[ChatStore] Отправляем приглашения:', { chatId, userIds })
             try {
-                // Используем правильный API эндпоинт для создания приглашений
-                const response = await axios.post(`${BASE_URL}/api/chat/invite/`, {
-                    chat_id: chatId,
+                // ИСПРАВЛЕНО: Используем правильный API эндпоинт согласно документации
+                const response = await axios.post(`${BASE_URL}/api/chat/chat/${chatId}/add-members/`, {
                     user_ids: userIds,
                 })
                 console.log('[ChatStore] Ответ сервера на отправку приглашений:', response.data)
@@ -1317,7 +1417,7 @@ export const useChatStore = defineStore('chatStore', {
             }
         },
 
-        // Обновляет сообщение
+        // Частично обновляет сообщение (PATCH)
         async updateMessage(chatId: number, messageId: number, content: string): Promise<IMessage> {
             try {
                 const res = await axios.patch(
@@ -1345,6 +1445,40 @@ export const useChatStore = defineStore('chatStore', {
                     type: 'error',
                     title: 'Ошибка',
                     message: 'Не удалось изменить сообщение',
+                    time: 7000,
+                })
+                throw error
+            }
+        },
+
+        // Полностью обновляет сообщение (PUT) - согласно документации
+        async replaceMessage(chatId: number, messageId: number, content: string): Promise<IMessage> {
+            try {
+                const res = await axios.put(
+                    `${BASE_URL}/api/chat/chat/${chatId}/message/${messageId}/`,
+                    { content },
+                )
+                const updatedMessage = res.data as IMessage
+
+                // Обновляем сообщение в локальном списке
+                const messageIndex = this.messages.findIndex((m) => m.id === messageId)
+                if (messageIndex !== -1) {
+                    this.messages.splice(messageIndex, 1, updatedMessage)
+                }
+
+                useFeedbackStore().showToast({
+                    type: 'success',
+                    title: 'Обновлено',
+                    message: 'Сообщение заменено',
+                    time: 3000,
+                })
+
+                return updatedMessage
+            } catch (error) {
+                useFeedbackStore().showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Не удалось заменить сообщение',
                     time: 7000,
                 })
                 throw error
@@ -1409,10 +1543,14 @@ export const useChatStore = defineStore('chatStore', {
         async addReaction(messageId: number, reactionId: number): Promise<void> {
             if (!this.currentChat) return
             try {
+                // ИСПРАВЛЕНО: Согласно документации, параметр реакции передается как "content", но логически должен быть reaction_type_id
+                // Проверим оба варианта для совместимости
                 await axios.post(
                     `${BASE_URL}/api/chat/chat/${this.currentChat.id}/message/${messageId}/reactions/`,
                     {
                         reaction_type_id: reactionId,
+                        // Добавляем content для совместимости с документацией, если API его ожидает
+                        content: reactionId.toString(),
                     },
                 )
                 // Убираем перезагрузку сообщений - реакции обновятся через WebSocket
@@ -1517,6 +1655,7 @@ export const useChatStore = defineStore('chatStore', {
         },
 
         // Приглашает участников в чат (для обратной совместимости)
+        // ПРИМЕЧАНИЕ: Теперь использует addMembersToChat с исправленным API эндпоинтом
         async inviteUsersToChat(chatId: number, userIds: string[]): Promise<void> {
             return await this.addMembersToChat(chatId, userIds)
         },
