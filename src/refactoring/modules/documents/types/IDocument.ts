@@ -10,8 +10,8 @@ export interface IDocumentFolder {
     id: number | null
     folder_id?: string
     name: string
-    description: string
-    path: string
+    description?: string
+    path?: string | null
     virtual_path: string | null
     is_dir: true
     visibility: 'creator' | 'public' | 'private' | 'department'
@@ -23,21 +23,21 @@ export interface IDocumentFolder {
     created_at: string | null
     updated_at: string | null
     size: null
-    extension: ''
+    extension: string
     items: (IDocumentFolder | IDocument)[]
 }
 
 export interface IDocument {
     id: number
-    type: number
+    type?: number
     name: string
-    number: string
+    number?: string
     description?: string
-    path?: string
+    path?: string | null
     virtual_path: string
     is_dir?: false
     visibility: 'creator' | 'public' | 'private' | 'department'
-    created_by: string | {
+    created_by?: string | {
         id: string
         first_name: string
         last_name: string
@@ -45,13 +45,14 @@ export interface IDocument {
     created_at: string
     updated_at: string
     size: number | null
-    extension?: string
+    extension: string
     type_name?: string
     status?: string
     approved_at?: string
     versions?: IDocumentVersion[]
     file_url?: string
-    download_url?: string
+    download_url?: string | null
+    items?: [] // В новом формате есть пустой массив items для документов
 }
 
 export type IDocumentItem = IDocumentFolder | IDocument
@@ -115,6 +116,7 @@ export interface IListDocumentsPayload {
     sort_order?: 'ascending' | 'descending'
     created_by?: string[] // Множественный выбор создателей
     types?: number[] // Множественный выбор типов документов
+    cursor?: string // Для cursor-based пагинации
 }
 
 export interface IDocumentDetailsResponse {

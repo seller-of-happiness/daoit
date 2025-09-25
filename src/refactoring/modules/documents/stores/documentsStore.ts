@@ -40,6 +40,13 @@ interface IExtendedDocumentsStoreState extends Omit<IDocumentsStoreState, 'bread
         types: number[]
     }
     isFiltersActive: boolean
+    // Пагинация
+    pagination: {
+        next: string | null
+        previous: string | null
+        hasNext: boolean
+        hasPrevious: boolean
+    }
 }
 
 import type { IListDocumentsResponse } from '@/refactoring/modules/documents/types/ApiTypes'
@@ -71,6 +78,13 @@ export const useDocumentsStore = defineStore('documentsStore', {
             types: []
         },
         isFiltersActive: false,
+        // Пагинация
+        pagination: {
+            next: null,
+            previous: null,
+            hasNext: false,
+            hasPrevious: false
+        },
     }),
 
     getters: {
@@ -139,19 +153,34 @@ export const useDocumentsStore = defineStore('documentsStore', {
         _processApiResponse(data: IListDocumentsResponse, payload: IListDocumentsPayload): void {
             if (!data || typeof data !== 'object') return
 
-            // Новый формат API: данные находятся в results
-            if (data.results && typeof data.results === 'object' && data.results.items) {
-                this.currentPath = data.results.path || this._getRequestPath(payload)
-                this.currentItems = data.results.items || []
-                // В новом формате currentFolderId не передается, используем payload
+            // Новый формат API: results - массив документов напрямую
+            if (data.results && Array.isArray(data.results)) {
+                this.currentItems = data.results
+                this.currentPath = this._getRequestPath(payload)
+                this.currentFolderId = payload.folder_id || null
+                
+                // Обновляем информацию о пагинации
+                this._updatePagination(data)
+                
+                // Обновляем breadcrumbs только если не в режиме поиска
+                if (!payload.search) {
+                    // Для нового формата создаем минимальные breadcrumbs
+                    this._updateBreadcrumbsFromNewFormat(payload)
+                }
+            }
+            // Старый формат API: данные находятся в results как объекте
+            else if (data.results && typeof data.results === 'object' && (data.results as any).items) {
+                const results = data.results as any
+                this.currentPath = results.path || this._getRequestPath(payload)
+                this.currentItems = results.items || []
                 this.currentFolderId = payload.folder_id || null
                 
                 // Обновляем breadcrumbs только если не в режиме поиска
                 if (!payload.search) {
-                    this._updateBreadcrumbsFromResults(data.results)
+                    this._updateBreadcrumbsFromResults(results)
                 }
             } else {
-                // Старый формат API для обратной совместимости
+                // Самый старый формат API для обратной совместимости
                 this.currentPath = data.path || this._getRequestPath(payload)
                 this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
                 this.currentItems = data.items || []
@@ -216,7 +245,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         /**
          * Обновляет breadcrumbs на основе новой структуры results
          */
-        _updateBreadcrumbsFromResults(results: IListDocumentsResponse['results']): void {
+        _updateBreadcrumbsFromResults(results: any): void {
             // Кешируем путь текущей папки по её virtual_path
             if (results.virtual_path && results.path) {
                 this._navigationService.cacheFolderPath(results.virtual_path, results.path)
@@ -229,6 +258,126 @@ export const useDocumentsStore = defineStore('documentsStore', {
                 null, // В новом формате нет path_parent, будем генерировать из virtual_path
                 results.path
             )
+        },
+
+        /**
+         * Обновляет информацию о пагинации
+         */
+        _updatePagination(data: IListDocumentsResponse): void {
+            this.pagination.next = data.next || null
+            this.pagination.previous = data.previous || null
+            this.pagination.hasNext = !!data.next
+            this.pagination.hasPrevious = !!data.previous
+        },
+
+        /**
+         * Извлекает cursor из URL пагинации
+         */
+        _extractCursorFromUrl(url: string): string | null {
+            try {
+                const urlObj = new URL(url)
+                return urlObj.searchParams.get('cursor')
+            } catch {
+                return null
+            }
+        },
+
+        /**
+         * Загружает следующую страницу
+         */
+        async loadNextPage(): Promise<void> {
+            if (!this.pagination.hasNext || !this.pagination.next) {
+                return
+            }
+
+            const cursor = this._extractCursorFromUrl(this.pagination.next)
+            if (!cursor) {
+                return
+            }
+
+            const payload: IListDocumentsPayload = {
+                cursor,
+                ...(this.currentFolderId ? { folder_id: this.currentFolderId } : { path: this.currentPath })
+            }
+
+            // Добавляем активные фильтры если они есть
+            if (this._shouldIncludeFilters()) {
+                if (this.currentFilters.created_by.length > 0) {
+                    payload.created_by = this.currentFilters.created_by
+                }
+                if (this.currentFilters.types.length > 0) {
+                    payload.types = this.currentFilters.types
+                }
+            }
+
+            await this.fetchDocuments(payload)
+        },
+
+        /**
+         * Загружает предыдущую страницу
+         */
+        async loadPreviousPage(): Promise<void> {
+            if (!this.pagination.hasPrevious || !this.pagination.previous) {
+                return
+            }
+
+            const cursor = this._extractCursorFromUrl(this.pagination.previous)
+            if (!cursor) {
+                return
+            }
+
+            const payload: IListDocumentsPayload = {
+                cursor,
+                ...(this.currentFolderId ? { folder_id: this.currentFolderId } : { path: this.currentPath })
+            }
+
+            // Добавляем активные фильтры если они есть
+            if (this._shouldIncludeFilters()) {
+                if (this.currentFilters.created_by.length > 0) {
+                    payload.created_by = this.currentFilters.created_by
+                }
+                if (this.currentFilters.types.length > 0) {
+                    payload.types = this.currentFilters.types
+                }
+            }
+
+            await this.fetchDocuments(payload)
+        },
+
+        /**
+         * Обновляет breadcrumbs для нового формата API (results как массив)
+         */
+        _updateBreadcrumbsFromNewFormat(payload: IListDocumentsPayload): void {
+            // В новом формате у нас нет информации о текущей папке в ответе
+            // Пытаемся определить breadcrumbs из текущего состояния или payload
+            
+            if (payload.folder_id) {
+                // Если есть folder_id, используем его для поиска в кэше
+                const cachedPath = this._navigationService.getCachedPath(payload.folder_id)
+                if (cachedPath) {
+                    this.breadcrumbs = this._navigationService.updateBreadcrumbsFromVirtualPath(
+                        cachedPath,
+                        null,
+                        payload.folder_id
+                    )
+                } else {
+                    // Создаем минимальные breadcrumbs
+                    this.breadcrumbs = [
+                        { name: 'Документы', path: '/', id: null },
+                        { name: 'Папка', path: payload.folder_id, id: payload.folder_id }
+                    ]
+                }
+            } else if (payload.path && payload.path !== '/') {
+                // Если есть path, создаем breadcrumbs на его основе
+                this.breadcrumbs = this._navigationService.updateBreadcrumbsFromVirtualPath(
+                    payload.path,
+                    null,
+                    payload.path
+                )
+            } else {
+                // Корневая папка
+                this.breadcrumbs = [{ name: 'Документы', path: '/', id: null }]
+            }
         },
 
         async fetchDocuments(payload: IListDocumentsPayload = {}): Promise<void> {
@@ -845,6 +994,14 @@ export const useDocumentsStore = defineStore('documentsStore', {
             // Очищаем фильтры
             this.currentFilters = { created_by: [], types: [] }
             this.isFiltersActive = false
+
+            // Очищаем пагинацию
+            this.pagination = {
+                next: null,
+                previous: null,
+                hasNext: false,
+                hasPrevious: false
+            }
 
             this._navigationService.cleanup()
         },
