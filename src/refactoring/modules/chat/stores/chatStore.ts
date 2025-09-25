@@ -992,6 +992,9 @@ export const useChatStore = defineStore('chatStore', {
             // Очищаем сообщения при переключении чата для показа прелоадера
             this.messages = []
 
+            // Запоминаем время начала загрузки для обеспечения минимального времени показа скелетона (500ms)
+            const loadingStartTime = Date.now()
+
             try {
                 localStorage.setItem('selectedChatId', String(chatId))
             } catch (e) {
@@ -1059,6 +1062,15 @@ export const useChatStore = defineStore('chatStore', {
                     await this.markChatAsRead(chatId)
                 }
             } finally {
+                // Обеспечиваем минимальное время показа скелетона (500ms)
+                const loadingElapsed = Date.now() - loadingStartTime
+                const minimumSkeletonTime = 500
+                
+                if (loadingElapsed < minimumSkeletonTime) {
+                    const remainingTime = minimumSkeletonTime - loadingElapsed
+                    await new Promise(resolve => setTimeout(resolve, remainingTime))
+                }
+                
                 // Снимаем состояние загрузки после завершения в любом случае
                 this.isLoadingMessages = false
             }
@@ -1084,10 +1096,9 @@ export const useChatStore = defineStore('chatStore', {
                 this.messages.length = 0
 
                 // Не выбрасываем ошибку дальше, чтобы не ломать UI
-            } finally {
-                // Снимаем состояние загрузки в любом случае
-                this.isLoadingMessages = false
             }
+            // Убираем finally блок, который сбрасывал isLoadingMessages - 
+            // теперь это контролируется в openChat с минимальным временем показа
         },
 
         // Отправляет текстовое сообщение в текущий чат
