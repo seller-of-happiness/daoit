@@ -22,3 +22,9 @@ export { default as SoundSettings } from './SoundSettings.vue'
 // Новые компоненты для скользящего чата
 export { default as SlidingChat } from './SlidingChat.vue'
 export { default as ChatToggleButton } from './ChatToggleButton.vue'
+
+// Скелетоны
+export { default as MessageSkeleton } from './MessageSkeleton.vue'
+export { default as MessagesSkeletonGroup } from './MessagesSkeletonGroup.vue'
+export { default as ChatListItemSkeleton } from './ChatListItemSkeleton.vue'
+export { default as ChatListSkeletonGroup } from './ChatListSkeletonGroup.vue'

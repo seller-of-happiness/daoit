@@ -108,6 +108,8 @@ export const useChatStore = defineStore('chatStore', {
         invitations: [],
         // Состояние загрузки сообщений
         isLoadingMessages: false,
+        // Состояние загрузки списка чатов
+        isLoadingChats: false,
     }),
     actions: {
         // Получает UUID текущего пользователя для подписки на центрифуго
@@ -220,6 +222,7 @@ export const useChatStore = defineStore('chatStore', {
             this.searchResults = null
             this.invitations = []
             this.isLoadingMessages = false
+            this.isLoadingChats = false
             // Сбрасываем счетчик непрочитанных сообщений в заголовке
             globalUnreadMessages.resetUnread()
         },
@@ -228,6 +231,7 @@ export const useChatStore = defineStore('chatStore', {
         async fetchChats(): Promise<void> {
             const fb = useFeedbackStore()
             fb.isGlobalLoading = true
+            this.isLoadingChats = true
 
             try {
                 const res = await axios.get(`${BASE_URL}/api/chat/chat/`)
@@ -263,6 +267,7 @@ export const useChatStore = defineStore('chatStore', {
                 // НЕ выбрасываем ошибку дальше, чтобы не ломать приложение
             } finally {
                 fb.isGlobalLoading = false
+                this.isLoadingChats = false
             }
         },
 
