@@ -442,20 +442,32 @@ const hasInfoChanges = computed(() => {
 })
 
 // Вспомогательные функции
+
+/**
+ * Очищает HTML теги из строки, оставляя только текст
+ */
+const stripHtmlTags = (str: string): string => {
+    if (!str) return str
+    return str.replace(/<[^>]*>/g, '')
+}
+
 const getMemberDisplayName = (member: IChatMember): string => {
     const { first_name, last_name, middle_name } = member.user
-    return [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'Пользователь'
+    const fullName = [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'Пользователь'
+    return stripHtmlTags(fullName)
 }
 
 const getInviteeDisplayName = (invite: IChatInvite | IChatInvitation): string => {
     if (!invite.invited_user) return 'Неизвестный пользователь'
     const { first_name, last_name, middle_name } = invite.invited_user
-    return [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'Пользователь'
+    const fullName = [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'Пользователь'
+    return stripHtmlTags(fullName)
 }
 
 const getCreatedByName = (createdBy: any): string => {
     const { first_name, last_name, middle_name } = createdBy
-    return [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'неизвестно кем'
+    const fullName = [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'неизвестно кем'
+    return stripHtmlTags(fullName)
 }
 
 const isCurrentUser = (member: IChatMember): boolean => {
@@ -567,6 +579,16 @@ const handleInviteUsers = async (userIds: string[]) => {
         // Обновляем локальное состояние чата
         const updatedChat = await chatStore.fetchChat(props.chat.id)
         emit('chat-updated', updatedChat)
+
+        // Принудительно обновляем список глобальных приглашений
+        // чтобы новые приглашения сразу появились в интерфейсе
+        setTimeout(async () => {
+            try {
+                await chatStore.fetchInvitations()
+            } catch (error) {
+                console.warn('Не удалось обновить список приглашений:', error)
+            }
+        }, 500)
 
         showInviteDialog.value = false
     } catch (error) {
