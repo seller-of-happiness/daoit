@@ -219,13 +219,13 @@
                 </div>
 
                 <!-- Выбранные участники -->
-                <div v-if="selectedUsers.length > 0" class="selected-users">
+                <div v-if="selectedUsers.length > 0" class="selected-users mt-2">
                     <div class="flex items-center justify-between mb-2">
                         <div class="label-small">
                             Выбранные участники ({{ selectedUsers.length }})
                         </div>
                         <div class="flex gap-2">
-                            <Button
+                            <!-- <Button
                                 icon="pi pi-check-square"
                                 label="Выбрать всех"
                                 size="small"
@@ -234,7 +234,7 @@
                                 @click="selectAllEmployees"
                                 :disabled="isSearching"
                                 v-tooltip.top="'Выбрать всех сотрудников'"
-                            />
+                            /> -->
                             <Button
                                 icon="pi pi-times-circle"
                                 label="Очистить"
@@ -1258,14 +1258,11 @@ onUnmounted(() => {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    max-height: 100px;
-    overflow-y: auto;
 }
 
 .selected-user-chip {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     background-color: var(--primary-100);
     color: var(--primary-700);
     padding: 0.375rem 0.75rem;
@@ -1278,7 +1275,6 @@ onUnmounted(() => {
     width: 1.25rem !important;
     height: 1.25rem !important;
     min-width: 1.25rem !important;
-    color: var(--primary-600) !important;
 }
 
 .label-small {
