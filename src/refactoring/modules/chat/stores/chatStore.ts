@@ -1024,7 +1024,7 @@ export const useChatStore = defineStore('chatStore', {
             } catch (error) {
                 console.error('[ChatStore] Ошибка диагностики WebSocket:', error)
             }
-        }
+        },
 
         // Симулирует WebSocket событие приглашения для тестирования
         simulateInvitationEvent(chatId?: number, userName?: string): void {
