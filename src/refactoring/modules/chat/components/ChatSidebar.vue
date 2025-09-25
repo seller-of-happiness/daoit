@@ -139,8 +139,8 @@
                         v-for="invitation in invitations"
                         :key="`invitation-${invitation.chat.id}-${invitation.invited_user?.id || invitation.id}`"
                         :invitation="invitation"
-                        @accept="$emit('accept-invitation', invitation)"
-                        @decline="$emit('decline-invitation', invitation)"
+                        @accept="handleAcceptInvitation(invitation)"
+                        @decline="handleDeclineInvitation(invitation)"
                     />
                 </div>
 
@@ -314,6 +314,17 @@ const handleCreateDialog = (employee: IEmployee) => {
 // Получение инициалов для иконки чата
 const getChatInitials = (chat: IChat) => {
     return generateChatInitials(chat.title)
+}
+
+// Обработчики приглашений с логированием
+const handleAcceptInvitation = (invitation: IChatInvitation) => {
+    console.log('[ChatSidebar] handleAcceptInvitation вызван для приглашения:', invitation)
+    emit('accept-invitation', invitation)
+}
+
+const handleDeclineInvitation = (invitation: IChatInvitation) => {
+    console.log('[ChatSidebar] handleDeclineInvitation вызван для приглашения:', invitation)
+    emit('decline-invitation', invitation)
 }
 
 // Удалена функция joinPublicChat - используйте приглашения

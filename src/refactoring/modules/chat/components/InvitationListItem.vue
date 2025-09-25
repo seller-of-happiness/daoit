@@ -25,8 +25,9 @@
                 rounded
                 outlined
                 v-tooltip.left="'Принять'"
-                @click="$emit('accept')"
+                @click="handleAccept"
                 :loading="isProcessing"
+                :disabled="isProcessing"
             />
             <Button
                 icon="pi pi-times"
@@ -35,8 +36,9 @@
                 rounded
                 outlined
                 v-tooltip.left="'Отклонить'"
-                @click="$emit('decline')"
+                @click="handleDecline"
                 :loading="isProcessing"
+                :disabled="isProcessing"
             />
         </div>
     </div>
@@ -57,9 +59,48 @@ interface Emits {
 }
 
 const props = defineProps<Props>()
-defineEmits<Emits>()
+const emit = defineEmits<Emits>()
 
 const isProcessing = ref(false)
+
+// Обработчики для кнопок
+const handleAccept = async () => {
+    if (isProcessing.value || !props.invitation.id) {
+        console.warn('[InvitationListItem] handleAccept: кнопка заблокирована или нет ID', {
+            isProcessing: isProcessing.value,
+            invitationId: props.invitation.id
+        })
+        return
+    }
+    
+    console.log('[InvitationListItem] handleAccept: принимаем приглашение', props.invitation.id)
+    isProcessing.value = true
+    try {
+        emit('accept')
+    } finally {
+        // Не сбрасываем флаг сразу, так как приглашение должно исчезнуть из списка
+        // isProcessing.value = false
+    }
+}
+
+const handleDecline = async () => {
+    if (isProcessing.value || !props.invitation.id) {
+        console.warn('[InvitationListItem] handleDecline: кнопка заблокирована или нет ID', {
+            isProcessing: isProcessing.value,
+            invitationId: props.invitation.id
+        })
+        return
+    }
+    
+    console.log('[InvitationListItem] handleDecline: отклоняем приглашение', props.invitation.id)
+    isProcessing.value = true
+    try {
+        emit('decline')
+    } finally {
+        // Не сбрасываем флаг сразу, так как приглашение должно исчезнуть из списка
+        // isProcessing.value = false
+    }
+}
 
 /**
  * Очищает HTML теги из строки, оставляя только текст
