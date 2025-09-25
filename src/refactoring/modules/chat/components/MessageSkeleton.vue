@@ -6,7 +6,10 @@
                 <div class="message-skeleton-content py-4 px-4">
                     <div class="skeleton-text-lines">
                         <div class="skeleton-line skeleton-line--long"></div>
-                        <div class="skeleton-line skeleton-line--medium" v-if="linesCount > 1"></div>
+                        <div
+                            class="skeleton-line skeleton-line--medium"
+                            v-if="linesCount > 1"
+                        ></div>
                         <div class="skeleton-line skeleton-line--short" v-if="linesCount > 2"></div>
                     </div>
                     <div class="skeleton-time"></div>
@@ -58,7 +61,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 .message-skeleton--theirs {
     justify-content: flex-start;
-    
+
     .message-skeleton-bubble {
         background: var(--surface-card);
         border-radius: 1rem 1rem 1rem 0.25rem;
@@ -69,7 +72,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 .message-skeleton--mine {
     justify-content: flex-end;
-    
+
     .message-skeleton-bubble {
         background: var(--primary-color);
         border-radius: 1rem 1rem 0.25rem 1rem;
@@ -94,15 +97,15 @@ const props = withDefaults(defineProps<Props>(), {
     height: 1rem;
     border-radius: 0.5rem;
     background: rgba(255, 255, 255, 0.2);
-    
+
     &--short {
         width: 40%;
     }
-    
+
     &--medium {
         width: 65%;
     }
-    
+
     &--long {
         width: 85%;
     }
@@ -118,7 +121,8 @@ const props = withDefaults(defineProps<Props>(), {
 }
 
 @keyframes pulse {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 1;
     }
     50% {
@@ -132,11 +136,10 @@ html.p-dark {
     .message-skeleton--theirs .skeleton-time {
         background: rgba(255, 255, 255, 0.1);
     }
-    
+
     .message-skeleton--mine .skeleton-line,
     .message-skeleton--mine .skeleton-time {
         background: rgba(255, 255, 255, 0.3);
     }
 }
 </style>
-</template>

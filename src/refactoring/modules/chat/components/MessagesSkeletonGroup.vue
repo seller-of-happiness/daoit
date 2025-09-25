@@ -4,10 +4,10 @@
         <div class="text-center text-sm text-surface-500 my-2 select-none">
             <div class="skeleton-date"></div>
         </div>
-        
+
         <!-- Группа скелетонов сообщений -->
-        <MessageSkeleton 
-            v-for="(skeleton, index) in skeletons" 
+        <MessageSkeleton
+            v-for="(skeleton, index) in skeletons"
             :key="`skeleton-${index}`"
             :type="skeleton.type"
             :lines-count="skeleton.linesCount"
@@ -36,18 +36,18 @@ const props = withDefaults(defineProps<Props>(), {
 // Генерируем случайную последовательность скелетонов сообщений
 const skeletons = computed<SkeletonMessage[]>(() => {
     const result: SkeletonMessage[] = []
-    
+
     for (let i = 0; i < props.count; i++) {
         // Чередуем типы сообщений с небольшой случайностью
         const isTheirs = Math.random() > 0.4 // 60% сообщений от собеседника
         const linesCount = Math.floor(Math.random() * 3) + 1 // 1-3 строки
-        
+
         result.push({
             type: isTheirs ? 'theirs' : 'mine',
             linesCount,
         })
     }
-    
+
     return result
 })
 </script>
@@ -67,7 +67,8 @@ html.p-dark .skeleton-date {
 }
 
 @keyframes pulse {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 1;
     }
     50% {
@@ -75,4 +76,3 @@ html.p-dark .skeleton-date {
     }
 }
 </style>
-</template>
