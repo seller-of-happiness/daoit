@@ -117,13 +117,26 @@ export const useDocumentsStore = defineStore('documentsStore', {
         _processApiResponse(data: IListDocumentsResponse, payload: IListDocumentsPayload): void {
             if (!data || typeof data !== 'object') return
 
-            this.currentPath = data.path || this._getRequestPath(payload)
-            this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
-            this.currentItems = data.items || []
+            // Обрабатываем новую структуру ответа с results
+            if (data.results) {
+                this.currentPath = data.results.path || this._getRequestPath(payload)
+                this.currentFolderId = payload.folder_id || this.currentFolderId
+                this.currentItems = data.results.items || []
 
-            // Обновляем breadcrumbs только если не в режиме поиска
-            if (!payload.search) {
-                this._updateBreadcrumbs(data)
+                // Обновляем breadcrumbs только если не в режиме поиска
+                if (!payload.search) {
+                    this._updateBreadcrumbsFromResults(data.results)
+                }
+            } else {
+                // Обратная совместимость с старым форматом
+                this.currentPath = data.path || this._getRequestPath(payload)
+                this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
+                this.currentItems = data.items || []
+
+                // Обновляем breadcrumbs только если не в режиме поиска
+                if (!payload.search) {
+                    this._updateBreadcrumbs(data)
+                }
             }
         },
 
@@ -149,7 +162,25 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         /**
-         * Обновляет breadcrumbs на основе данных API
+         * Обновляет breadcrumbs на основе новой структуры results
+         */
+        _updateBreadcrumbsFromResults(results: IListDocumentsResponse['results']): void {
+            // Кешируем путь текущей папки по её virtual_path
+            if (results.virtual_path && results.path) {
+                this._navigationService.cacheFolderPath(results.virtual_path, results.path)
+            }
+
+            // Обрабатываем virtual_path или name из results
+            const virtualPath = results.virtual_path || results.name || 'Документы'
+            this.breadcrumbs = this._navigationService.updateBreadcrumbsFromVirtualPath(
+                virtualPath, 
+                null, // parent_paths не предоставляется в новой структуре
+                results.path
+            )
+        },
+
+        /**
+         * Обновляет breadcrumbs на основе данных API (старый формат)
          */
         _updateBreadcrumbs(data: IListDocumentsResponse): void {
             // Кешируем путь текущей папки по её virtual_path
