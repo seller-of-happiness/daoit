@@ -452,6 +452,18 @@ export const useChatStore = defineStore('chatStore', {
                 const res = await axios.get(`${BASE_URL}/api/chat/chat/${chatId}/`)
                 return (res.data?.results ?? res.data) as IChat
             } catch (error) {
+                console.error(`[ChatStore] Ошибка при загрузке чата ${chatId}:`, error)
+                
+                // Если чат не найден (404), показываем пользователю уведомление
+                if (error?.response?.status === 404) {
+                    useFeedbackStore().showToast({
+                        type: 'error',
+                        title: 'Чат не найден',
+                        message: 'Запрашиваемый чат не существует или был удален',
+                        time: 5000,
+                    })
+                }
+                
                 throw error
             }
         },
@@ -946,8 +958,14 @@ export const useChatStore = defineStore('chatStore', {
                 const currentUser = userStore.user
                 const currentUserUuid = this.getCurrentUserUuid()
 
+                // Проверяем наличие реального ID приглашения
+                if (!invitationData.id) {
+                    console.warn('[ChatStore] Приглашение без ID получено через WebSocket, пропускаем:', invitationData)
+                    return
+                }
+
                 const invitation: IChatInvitation = {
-                    id: invitationData.id || Date.now(), // Используем временный ID если основной null
+                    id: invitationData.id, // Используем только реальный ID от сервера
                     chat: invitationData.chat,
                     created_by: invitationData.created_by,
                     invited_user:
@@ -1085,6 +1103,21 @@ export const useChatStore = defineStore('chatStore', {
                         this.chats.splice(chatIndex, 1, actualChat)
                     }
                 } catch (error) {
+                    console.error(`[ChatStore] Ошибка при получении чата ${chatId}:`, error)
+                    
+                    // Если чат не найден (404), очищаем currentChat и удаляем из localStorage
+                    if (error?.response?.status === 404) {
+                        this.currentChat = null
+                        try {
+                            localStorage.removeItem('selectedChatId')
+                        } catch (e) {
+                            // Игнорируем ошибки localStorage
+                        }
+                        
+                        // Не выбрасываем ошибку дальше, позволяем приложению продолжить работу
+                        return
+                    }
+                    
                     // Если не удалось загрузить актуальную информацию о чате,
                     // используем данные из переданного объекта (если есть)
                     if (typeof chatOrId !== 'number') {
@@ -1096,13 +1129,8 @@ export const useChatStore = defineStore('chatStore', {
                             this.currentChat = chatFromList
                         } else {
                             // Критическая ошибка - не можем открыть чат
-                            useFeedbackStore().showToast({
-                                type: 'error',
-                                title: 'Ошибка',
-                                message: 'Не удалось загрузить информацию о чате',
-                                time: 7000,
-                            })
-                            throw error
+                            this.currentChat = null
+                            return
                         }
                     }
                 }
@@ -1512,10 +1540,25 @@ export const useChatStore = defineStore('chatStore', {
                 })
             } catch (error) {
                 console.error('[ChatStore] acceptInvitation: ошибка:', error)
+                
+                // Проверяем тип ошибки для более точных сообщений
+                let errorMessage = 'Не удалось принять приглашение'
+                if (error?.response?.status === 404) {
+                    errorMessage = 'Приглашение не найдено или уже недействительно'
+                    // Удаляем недействительное приглашение из списка
+                    this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
+                } else if (error?.response?.status === 403) {
+                    errorMessage = 'У вас нет прав для принятия этого приглашения'
+                } else if (error?.response?.status === 400) {
+                    errorMessage = 'Приглашение уже было принято или отклонено'
+                    // Удаляем уже обработанное приглашение из списка
+                    this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
+                }
+                
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
-                    message: 'Не удалось принять приглашение',
+                    message: errorMessage,
                     time: 7000,
                 })
                 throw error
@@ -1544,10 +1587,25 @@ export const useChatStore = defineStore('chatStore', {
                 })
             } catch (error) {
                 console.error('[ChatStore] declineInvitation: ошибка:', error)
+                
+                // Проверяем тип ошибки для более точных сообщений
+                let errorMessage = 'Не удалось отклонить приглашение'
+                if (error?.response?.status === 404) {
+                    errorMessage = 'Приглашение не найдено или уже недействительно'
+                    // Удаляем недействительное приглашение из списка
+                    this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
+                } else if (error?.response?.status === 403) {
+                    errorMessage = 'У вас нет прав для отклонения этого приглашения'
+                } else if (error?.response?.status === 400) {
+                    errorMessage = 'Приглашение уже было принято или отклонено'
+                    // Удаляем уже обработанное приглашение из списка
+                    this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
+                }
+                
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
-                    message: 'Не удалось отклонить приглашение',
+                    message: errorMessage,
                     time: 7000,
                 })
                 throw error

@@ -1,6 +1,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, shallowRef } from 'vue'
 import { useChatStore } from '@/refactoring/modules/chat/stores/chatStore'
 import { useCurrentUser } from '@/refactoring/modules/chat/composables/useCurrentUser'
+import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import { toApiDate, formatDateOnly } from '@/refactoring/utils/formatters'
 
 import type {
@@ -231,8 +232,16 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     const acceptInvitation = async (invitationOrId: number | IChatInvitation) => {
         try {
             const invitationId = typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
-            if (!invitationId) {
-                console.error('[useChatLogic] acceptInvitation: invitationId отсутствует', invitationOrId)
+            if (!invitationId || invitationId <= 0) {
+                console.error('[useChatLogic] acceptInvitation: недействительный invitationId', invitationOrId)
+                // Показываем уведомление пользователю
+                const fb = useFeedbackStore()
+                fb.showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Недействительное приглашение. Попробуйте перезагрузить страницу.',
+                    time: 7000,
+                })
                 return
             }
             
@@ -247,8 +256,16 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     const declineInvitation = async (invitationOrId: number | IChatInvitation) => {
         try {
             const invitationId = typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
-            if (!invitationId) {
-                console.error('[useChatLogic] declineInvitation: invitationId отсутствует', invitationOrId)
+            if (!invitationId || invitationId <= 0) {
+                console.error('[useChatLogic] declineInvitation: недействительный invitationId', invitationOrId)
+                // Показываем уведомление пользователю
+                const fb = useFeedbackStore()
+                fb.showToast({
+                    type: 'error',
+                    title: 'Ошибка',
+                    message: 'Недействительное приглашение. Попробуйте перезагрузить страницу.',
+                    time: 7000,
+                })
                 return
             }
             
