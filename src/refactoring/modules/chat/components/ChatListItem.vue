@@ -60,7 +60,7 @@ const { chatTitle, chatIcon } = useChatTitle(currentChatRef)
 
 // Получение инициалов для иконки с учетом новой структуры
 const chatInitials = computed(() => {
-    return generateChatInitialsForChat(props.chat, currentUserId.value)
+    return generateChatInitialsForChat(props.chat, currentUserId.value || undefined)
 })
 
 // Количество непрочитанных сообщений

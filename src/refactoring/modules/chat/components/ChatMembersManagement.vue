@@ -153,9 +153,9 @@
                                 <div class="text-sm text-surface-500">
                                     Приглашен
                                     {{
-                                        invite.created_by
+                                        ('created_by' in invite && invite.created_by)
                                             ? getCreatedByName(invite.created_by)
-                                            : 'неизвестно когда'
+                                            : 'неизвестно кем'
                                     }}
                                 </div>
                             </div>
@@ -327,7 +327,7 @@ import { useChatStore } from '@/refactoring/modules/chat/stores/chatStore'
 import { useCurrentUser } from '@/refactoring/modules/chat/composables/useCurrentUser'
 import { useFeedbackStore } from '@/refactoring/modules/feedback/stores/feedbackStore'
 import InviteUsersDialog from './InviteUsersDialog.vue'
-import type { IChat, IChatMember, IChatInvitation } from '@/refactoring/modules/chat/types/IChat'
+import type { IChat, IChatMember, IChatInvitation, IChatInvite } from '@/refactoring/modules/chat/types/IChat'
 
 interface Props {
     visible: boolean
@@ -447,7 +447,7 @@ const getMemberDisplayName = (member: IChatMember): string => {
     return [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'Пользователь'
 }
 
-const getInviteeDisplayName = (invite: IChatInvitation): string => {
+const getInviteeDisplayName = (invite: IChatInvite | IChatInvitation): string => {
     if (!invite.invited_user) return 'Неизвестный пользователь'
     const { first_name, last_name, middle_name } = invite.invited_user
     return [first_name, middle_name, last_name].filter(Boolean).join(' ') || 'Пользователь'
@@ -526,7 +526,7 @@ const makeAdmin = async (member: IChatMember) => {
     })
 }
 
-const removeInvite = async (invite: IChatInvitation) => {
+const removeInvite = async (invite: IChatInvite | IChatInvitation) => {
     if (!invite.id) return
 
     removingInvites.value.add(invite.id)

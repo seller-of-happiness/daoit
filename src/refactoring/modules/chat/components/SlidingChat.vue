@@ -111,7 +111,7 @@
                         :current-chat="chatStore.currentChat"
                         :is-sending="chatStore.isSending"
                         @send-message="sendMessage"
-                        @upload-file="uploadFile"
+                        @upload-file="handleUploadFile"
                     />
                 </section>
 
@@ -199,7 +199,7 @@ const {
     clearSearch,
     createNewDialog,
     sendMessage,
-    uploadFile,
+    // uploadFile, // TODO: implement uploadFile functionality
     createChat: createChatBase,
     inviteUsersToChat,
     changeReaction,
@@ -209,6 +209,11 @@ const {
     initialize,
     cleanup,
 } = chatLogic
+
+// TODO: implement uploadFile functionality
+const handleUploadFile = (file: File) => {
+    console.warn('Upload file functionality not implemented yet', file)
+}
 
 // Вычисляемые свойства
 const isVisible = computed({

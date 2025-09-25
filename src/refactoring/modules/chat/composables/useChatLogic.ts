@@ -199,7 +199,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
         if (!chatStore.currentChat) return
 
         try {
-            const updatedChat = await chatStore.updateChat(chatStore.currentChat.id, payload)
+            const updatedChat = await chatStore.updateChat(chatStore.currentChat.id, payload as any)
             return updatedChat
         } catch (error) {
             // Ошибка обновления чата
@@ -288,7 +288,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                     chatToOpen = await chatStore.createDialog(options.initialUserId)
                 } else if (options.initialChatId) {
                     // Сначала ищем чат по ID в загруженном списке
-                    chatToOpen = chatStore.chats.find((c) => c.id === options.initialChatId) || null
+                    chatToOpen = chatStore.chats.find((c: IChat) => c.id === options.initialChatId) || null
                     
                     // Если чат не найден в списке, попробуем открыть напрямую по ID
                     if (!chatToOpen) {
@@ -309,7 +309,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         const savedId = Number(localStorage.getItem('selectedChatId') || '')
                         if (savedId && !Number.isNaN(savedId)) {
                             // Сначала пытаемся найти чат в уже загруженном списке
-                            chatToOpen = chatStore.chats.find((c) => c.id === savedId) || null
+                            chatToOpen = chatStore.chats.find((c: IChat) => c.id === savedId) || null
                             
                             // Если чат не найден в списке, попробуем открыть по ID
                             // (это загрузит актуальную информацию с сервера)
