@@ -112,6 +112,7 @@ export const useChatStore = defineStore('chatStore', {
         isLoadingMessages: false,
         // Состояние загрузки списка чатов
         isLoadingChats: false,
+        isSubscribedToUserChannel: false,
     }),
     actions: {
         // Получает UUID текущего пользователя для подписки на центрифуго
@@ -123,6 +124,12 @@ export const useChatStore = defineStore('chatStore', {
         // Подписывается на единый канал пользователя для получения уведомлений о всех чатах
         // Используется новая система: один канал chats:user#${userUuid} вместо подписки на каждый чат отдельно
         subscribeToUserChannel(): void {
+            // Проверяем, не подписаны ли мы уже
+            if (this.isSubscribedToUserChannel) {
+                console.log('[ChatStore] Уже подписаны на канал пользователя')
+                return
+            }
+
             const centrifuge = useCentrifugeStore()
             const userUuid = this.getCurrentUserUuid()
 
@@ -140,6 +147,8 @@ export const useChatStore = defineStore('chatStore', {
                 console.log('[ChatStore] Получено сообщение из centrifuge:', data)
                 this.handleCentrifugoMessage(data)
             })
+
+            this.isSubscribedToUserChannel = true
         },
 
         // Обрабатывает сообщения из центрифуго
@@ -204,8 +213,14 @@ export const useChatStore = defineStore('chatStore', {
 
         // Инициализирует чаты только один раз для предотвращения дублирования запросов
         async initializeOnce(): Promise<void> {
+            console.log('[ChatStore] initializeOnce вызван, состояние:', {
+                isInitialized: this.isInitialized,
+                isInitializing: this.isInitializing,
+            })
+
             // Если уже инициализировано или идет инициализация - выходим
             if (this.isInitialized || this.isInitializing) {
+                console.log('[ChatStore] Инициализация пропущена - уже выполнена или выполняется')
                 return
             }
 
@@ -214,19 +229,18 @@ export const useChatStore = defineStore('chatStore', {
             try {
                 await this.fetchChats()
 
-                // Загружаем приглашения после загрузки чатов
-                // Ошибки загрузки приглашений не должны блокировать инициализацию
+                // Загружаем приглашения после загрузки чатов (с обработкой ошибок)
                 try {
                     await this.fetchInvitations()
                 } catch (invitationError) {
-                    console.warn('[ChatStore] Не удалось загрузить приглашения при инициализации:', invitationError)
-                    // Продолжаем инициализацию даже если приглашения не загрузились
+                    console.warn('[ChatStore] Не удалось загрузить приглашения:', invitationError)
                 }
 
                 this.isInitialized = true
+                console.log('[ChatStore] Инициализация завершена успешно')
             } catch (error) {
-                // Не устанавливаем isInitialized в true при ошибке,
-                // чтобы можно было повторить инициализацию
+                console.error('[ChatStore] Ошибка инициализации:', error)
+                // Не устанавливаем isInitialized в true при ошибке
             } finally {
                 this.isInitializing = false
             }
@@ -236,6 +250,7 @@ export const useChatStore = defineStore('chatStore', {
         resetInitialization(): void {
             this.isInitialized = false
             this.isInitializing = false
+            this.isSubscribedToUserChannel = false // Сбрасываем флаг подписки
             this.chats = []
             this.currentChat = null
             this.messages = []
@@ -243,7 +258,6 @@ export const useChatStore = defineStore('chatStore', {
             this.invitations = []
             this.isLoadingMessages = false
             this.isLoadingChats = false
-            // Сбрасываем счетчик непрочитанных сообщений в заголовке
             globalUnreadMessages.resetUnread()
         },
 
@@ -453,7 +467,7 @@ export const useChatStore = defineStore('chatStore', {
                 return (res.data?.results ?? res.data) as IChat
             } catch (error) {
                 console.error(`[ChatStore] Ошибка при загрузке чата ${chatId}:`, error)
-                
+
                 // Если чат не найден (404), показываем пользователю уведомление
                 if (error?.response?.status === 404) {
                     useFeedbackStore().showToast({
@@ -463,7 +477,7 @@ export const useChatStore = defineStore('chatStore', {
                         time: 5000,
                     })
                 }
-                
+
                 throw error
             }
         },
@@ -960,7 +974,10 @@ export const useChatStore = defineStore('chatStore', {
 
                 // Проверяем наличие реального ID приглашения
                 if (!invitationData.id) {
-                    console.warn('[ChatStore] Приглашение без ID получено через WebSocket, пропускаем:', invitationData)
+                    console.warn(
+                        '[ChatStore] Приглашение без ID получено через WebSocket, пропускаем:',
+                        invitationData,
+                    )
                     return
                 }
 
@@ -1061,106 +1078,94 @@ export const useChatStore = defineStore('chatStore', {
 
         // Открывает чат: получает актуальную информацию, грузит сообщения, типы реакций и подписывается на realtime-канал
         async openChat(chatOrId: IChat | number): Promise<void> {
-            console.log('chatStore.openChat вызван с параметром:', chatOrId)
             let chatId: number
 
-            // Определяем ID чата
             if (typeof chatOrId === 'number') {
                 chatId = chatOrId
-                console.log('chatStore.openChat: открываем чат по ID:', chatId)
             } else {
                 chatId = chatOrId.id
-                console.log('chatStore.openChat: открываем чат по объекту, ID:', chatId)
-                // Временно устанавливаем чат для UI, чтобы не ломался
-                this.currentChat = chatOrId
+                // Если передан объект чата и он такой же как текущий - выходим
+                if (this.currentChat?.id === chatId) {
+                    console.log('[ChatStore] Чат уже открыт, пропускаем')
+                    return
+                }
             }
 
-            // Устанавливаем состояние загрузки сообщений
+            // Если тот же чат уже открыт - выходим
+            if (this.currentChat?.id === chatId) {
+                console.log('[ChatStore] Чат уже открыт:', chatId)
+                return
+            }
+
+            console.log('[ChatStore] Открываем чат:', chatId)
+
+            // Остальной код остается без изменений...
             this.isLoadingMessages = true
-            // Очищаем сообщения при переключении чата для показа прелоадера
             this.messages = []
 
-            // Запоминаем время начала загрузки для обеспечения минимального времени показа скелетона (500ms)
             const loadingStartTime = Date.now()
 
             try {
                 localStorage.setItem('selectedChatId', String(chatId))
             } catch (e) {
-                // Игнорируем ошибки localStorage в приватном режиме
+                // Игнорируем ошибки localStorage
             }
 
             try {
+                // Получаем актуальную информацию о чате
                 try {
-                    // Получаем актуальную информацию о чате с сервера
                     const actualChat = await this.fetchChat(chatId)
-
-                    // Устанавливаем актуальные данные чата
                     this.currentChat = actualChat
 
-                    // Обновляем чат в общем списке, если он там есть
                     const chatIndex = this.chats.findIndex((c) => c.id === chatId)
                     if (chatIndex !== -1) {
                         this.chats.splice(chatIndex, 1, actualChat)
                     }
                 } catch (error) {
-                    console.error(`[ChatStore] Ошибка при получении чата ${chatId}:`, error)
-                    
-                    // Если чат не найден (404), очищаем currentChat и удаляем из localStorage
+                    console.error(`[ChatStore] Ошибка получения чата ${chatId}:`, error)
                     if (error?.response?.status === 404) {
                         this.currentChat = null
                         try {
                             localStorage.removeItem('selectedChatId')
-                        } catch (e) {
-                            // Игнорируем ошибки localStorage
-                        }
-                        
-                        // Не выбрасываем ошибку дальше, позволяем приложению продолжить работу
+                        } catch (e) {}
                         return
                     }
-                    
-                    // Если не удалось загрузить актуальную информацию о чате,
-                    // используем данные из переданного объекта (если есть)
+
                     if (typeof chatOrId !== 'number') {
                         this.currentChat = chatOrId
                     } else {
-                        // Если передан только ID, пытаемся найти чат в списке
                         const chatFromList = this.chats.find((c) => c.id === chatId)
                         if (chatFromList) {
                             this.currentChat = chatFromList
                         } else {
-                            // Критическая ошибка - не можем открыть чат
                             this.currentChat = null
                             return
                         }
                     }
                 }
 
-                try {
-                    // Загружаем типы реакций до загрузки сообщений
-                    if (!this.reactionTypes.length) {
+                // Загружаем типы реакций только если их еще нет
+                if (!this.reactionTypes.length) {
+                    try {
                         await this.fetchReactionTypes()
+                    } catch (error) {
+                        console.warn('[ChatStore] Не удалось загрузить типы реакций:', error)
                     }
-                } catch (error) {
-                    // Продолжаем работу с fallback типами
                 }
 
-                // Загружаем сообщения (ошибки обрабатываются внутри функции)
+                // Загружаем сообщения
                 await this.fetchMessages(chatId)
 
-                // Автоматически отмечаем чат как прочитанный при открытии
+                // Отмечаем как прочитанное
                 if (this.messages.length > 0) {
                     try {
                         const lastMessage = this.messages[this.messages.length - 1]
                         await this.markChatAsRead(chatId, lastMessage.id)
-                    } catch (error) {
-                        // Игнорируем ошибки отметки прочтения
-                    }
+                    } catch (error) {}
                 } else {
-                    // Если нет сообщений, все равно отмечаем чат как прочитанный
                     await this.markChatAsRead(chatId)
                 }
             } finally {
-                // Обеспечиваем минимальное время показа скелетона (500ms)
                 const loadingElapsed = Date.now() - loadingStartTime
                 const minimumSkeletonTime = 500
 
@@ -1169,7 +1174,6 @@ export const useChatStore = defineStore('chatStore', {
                     await new Promise((resolve) => setTimeout(resolve, remainingTime))
                 }
 
-                // Снимаем состояние загрузки после завершения в любом случае
                 this.isLoadingMessages = false
             }
         },
@@ -1500,7 +1504,9 @@ export const useChatStore = defineStore('chatStore', {
                     })
                     console.log('[ChatStore] Обработанные приглашения:', this.invitations)
                 } else {
-                    console.log('[ChatStore] Получен не массив приглашений, устанавливаем пустой массив')
+                    console.log(
+                        '[ChatStore] Получен не массив приглашений, устанавливаем пустой массив',
+                    )
                     this.invitations = []
                 }
             } catch (error) {
@@ -1519,14 +1525,21 @@ export const useChatStore = defineStore('chatStore', {
         async acceptInvitation(invitationId: number): Promise<void> {
             console.log('[ChatStore] acceptInvitation вызван с ID:', invitationId)
             try {
-                const response = await axios.post(`${BASE_URL}/api/chat/invite/${invitationId}/accept/`)
+                const response = await axios.post(
+                    `${BASE_URL}/api/chat/invite/${invitationId}/accept/`,
+                )
                 console.log('[ChatStore] acceptInvitation: ответ сервера:', response.data)
 
                 // Удаляем приглашение из списка
                 const beforeCount = this.invitations.length
                 this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
                 const afterCount = this.invitations.length
-                console.log('[ChatStore] acceptInvitation: приглашения до/после удаления:', beforeCount, '/', afterCount)
+                console.log(
+                    '[ChatStore] acceptInvitation: приглашения до/после удаления:',
+                    beforeCount,
+                    '/',
+                    afterCount,
+                )
 
                 // Обновляем список чатов после принятия приглашения
                 await this.fetchChats()
@@ -1540,7 +1553,7 @@ export const useChatStore = defineStore('chatStore', {
                 })
             } catch (error) {
                 console.error('[ChatStore] acceptInvitation: ошибка:', error)
-                
+
                 // Проверяем тип ошибки для более точных сообщений
                 let errorMessage = 'Не удалось принять приглашение'
                 if (error?.response?.status === 404) {
@@ -1554,7 +1567,7 @@ export const useChatStore = defineStore('chatStore', {
                     // Удаляем уже обработанное приглашение из списка
                     this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
                 }
-                
+
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -1570,14 +1583,21 @@ export const useChatStore = defineStore('chatStore', {
             console.log('[ChatStore] declineInvitation вызван с ID:', invitationId)
             try {
                 // Используем правильный endpoint для отклонения приглашения
-                const response = await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/decline/`)
+                const response = await axios.delete(
+                    `${BASE_URL}/api/chat/invite/${invitationId}/decline/`,
+                )
                 console.log('[ChatStore] declineInvitation: ответ сервера:', response.data)
 
                 // Удаляем приглашение из списка
                 const beforeCount = this.invitations.length
                 this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
                 const afterCount = this.invitations.length
-                console.log('[ChatStore] declineInvitation: приглашения до/после удаления:', beforeCount, '/', afterCount)
+                console.log(
+                    '[ChatStore] declineInvitation: приглашения до/после удаления:',
+                    beforeCount,
+                    '/',
+                    afterCount,
+                )
 
                 useFeedbackStore().showToast({
                     type: 'info',
@@ -1587,7 +1607,7 @@ export const useChatStore = defineStore('chatStore', {
                 })
             } catch (error) {
                 console.error('[ChatStore] declineInvitation: ошибка:', error)
-                
+
                 // Проверяем тип ошибки для более точных сообщений
                 let errorMessage = 'Не удалось отклонить приглашение'
                 if (error?.response?.status === 404) {
@@ -1601,7 +1621,7 @@ export const useChatStore = defineStore('chatStore', {
                     // Удаляем уже обработанное приглашение из списка
                     this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
                 }
-                
+
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',

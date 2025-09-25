@@ -231,9 +231,13 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     // Управление приглашениями
     const acceptInvitation = async (invitationOrId: number | IChatInvitation) => {
         try {
-            const invitationId = typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
+            const invitationId =
+                typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
             if (!invitationId || invitationId <= 0) {
-                console.error('[useChatLogic] acceptInvitation: недействительный invitationId', invitationOrId)
+                console.error(
+                    '[useChatLogic] acceptInvitation: недействительный invitationId',
+                    invitationOrId,
+                )
                 // Показываем уведомление пользователю
                 const fb = useFeedbackStore()
                 fb.showToast({
@@ -244,7 +248,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                 })
                 return
             }
-            
+
             console.log('[useChatLogic] Принимаем приглашение с ID:', invitationId)
             await chatStore.acceptInvitation(invitationId)
         } catch (error) {
@@ -255,9 +259,13 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
 
     const declineInvitation = async (invitationOrId: number | IChatInvitation) => {
         try {
-            const invitationId = typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
+            const invitationId =
+                typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
             if (!invitationId || invitationId <= 0) {
-                console.error('[useChatLogic] declineInvitation: недействительный invitationId', invitationOrId)
+                console.error(
+                    '[useChatLogic] declineInvitation: недействительный invitationId',
+                    invitationOrId,
+                )
                 // Показываем уведомление пользователю
                 const fb = useFeedbackStore()
                 fb.showToast({
@@ -268,7 +276,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                 })
                 return
             }
-            
+
             console.log('[useChatLogic] Отклоняем приглашение с ID:', invitationId)
             await chatStore.declineInvitation(invitationId)
         } catch (error) {
@@ -280,7 +288,7 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     // Инициализация
     const initialize = async () => {
         console.log('useChatLogic.initialize вызван с опциями:', options)
-        
+
         // Инициализация медиа-запросов для мобильной адаптации
         if (typeof window !== 'undefined' && 'matchMedia' in window) {
             mediaQueryList = window.matchMedia('(max-width: 767px)')
@@ -312,8 +320,9 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                     chatToOpen = await chatStore.createDialog(options.initialUserId)
                 } else if (options.initialChatId) {
                     // Сначала ищем чат по ID в загруженном списке
-                    chatToOpen = chatStore.chats.find((c: IChat) => c.id === options.initialChatId) || null
-                    
+                    chatToOpen =
+                        chatStore.chats.find((c: IChat) => c.id === options.initialChatId) || null
+
                     // Если чат не найден в списке, попробуем открыть напрямую по ID
                     if (!chatToOpen) {
                         try {
@@ -333,8 +342,9 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
                         const savedId = Number(localStorage.getItem('selectedChatId') || '')
                         if (savedId && !Number.isNaN(savedId)) {
                             // Сначала пытаемся найти чат в уже загруженном списке
-                            chatToOpen = chatStore.chats.find((c: IChat) => c.id === savedId) || null
-                            
+                            chatToOpen =
+                                chatStore.chats.find((c: IChat) => c.id === savedId) || null
+
                             // Если чат не найден в списке, попробуем открыть по ID
                             // (это загрузит актуальную информацию с сервера)
                             if (!chatToOpen) {
