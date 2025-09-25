@@ -52,7 +52,28 @@ export interface IAddVersionRequest {
 // === API Ответы ===
 
 export interface IListDocumentsResponse {
-    path: string
+    next?: string | null
+    previous?: string | null
+    results: {
+        id: number | null
+        path: string
+        virtual_path: string | null
+        is_dir: true
+        name: string
+        visibility: 'creator' | 'public' | 'private' | 'department'
+        created_at: string | null
+        updated_at: string | null
+        size: number | null
+        extension: string
+        items: Array<IDocument | IDocumentFolder>
+        created_by?: {
+            id: string
+            first_name: string
+            last_name: string
+        }
+    }
+    // Поддерживаем старый формат для обратной совместимости
+    path?: string
     current_folder?: {
         folder_id: string
         name: string
@@ -66,7 +87,7 @@ export interface IListDocumentsResponse {
     virtual_path?: string
     name?: string
     path_parent?: string[] | string
-    items: Array<IDocument | IDocumentFolder>
+    items?: Array<IDocument | IDocumentFolder>
     total_count?: number
     page?: number
     page_size?: number

@@ -15,6 +15,11 @@ export interface IDocumentFolder {
     virtual_path: string | null
     is_dir: true
     visibility: 'creator' | 'public' | 'private' | 'department'
+    created_by?: {
+        id: string
+        first_name: string
+        last_name: string
+    }
     created_at: string | null
     updated_at: string | null
     size: null
@@ -32,7 +37,11 @@ export interface IDocument {
     virtual_path: string
     is_dir?: false
     visibility: 'creator' | 'public' | 'private' | 'department'
-    created_by: string
+    created_by: string | {
+        id: string
+        first_name: string
+        last_name: string
+    }
     created_at: string
     updated_at: string
     size: number | null

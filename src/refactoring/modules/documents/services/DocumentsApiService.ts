@@ -78,7 +78,9 @@ export class DocumentsApiService {
             `${BASE_URL}/api/documents/list/`,
             requestPayload,
         )
-        return response.data
+        
+        // Обрабатываем новый формат ответа
+        return this._normalizeApiResponse(response.data)
     }
 
     /**
@@ -126,7 +128,22 @@ export class DocumentsApiService {
         const response = await axios.get<IListDocumentsResponse>(
             `${BASE_URL}/api/documents/document/?${params.toString()}`,
         )
-        return response.data
+        
+        // Обрабатываем новый формат ответа
+        return this._normalizeApiResponse(response.data)
+    }
+
+    /**
+     * Нормализует ответ API к единому формату
+     */
+    private _normalizeApiResponse(data: any): IListDocumentsResponse {
+        // Если ответ в новом формате (с results как объектом)
+        if (data && data.results && typeof data.results === 'object' && data.results.items) {
+            return data as IListDocumentsResponse
+        }
+        
+        // Если ответ в старом формате или нужна нормализация
+        return data as IListDocumentsResponse
     }
 
     /**
