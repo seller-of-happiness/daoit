@@ -1,0 +1,24 @@
+{
+    "extends": "@tsconfig/node22/tsconfig.json",
+    "include": [
+        "vite.config.*",
+        "vitest.config.*",
+        "cypress.config.*",
+        "nightwatch.conf.*",
+        "playwright.config.*",
+        "eslint.config.*"
+    ],
+    "compilerOptions": {
+        "composite": true,
+        "noEmit": true,
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "types": ["node", "vite/client"],
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "baseUrl": "."
+    }
+}

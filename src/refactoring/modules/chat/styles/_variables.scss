@@ -1,0 +1,66 @@
+
+
+
+
+
+$chat-accent-green: #34d399;
+$chat-dark-green: #059669;
+$chat-message-bg-mine: #059669;
+$chat-message-bg-theirs: var(--p-surface-100);
+$chat-border-color: var(--p-content-border-color);
+$chat-hover-bg: var(--p-content-hover-background);
+$chat-text-primary: var(--text-color);
+$chat-text-secondary: var(--text-color-secondary);
+$chat-surface-100: var(--p-surface-100);
+$chat-surface-200: var(--p-surface-200);
+$chat-surface-600: var(--p-surface-600);
+
+
+
+$chat-icon-size: 36px;
+$chat-icon-size-small: 2rem;
+$chat-icon-size-large: 2.5rem;
+$chat-icon-border-radius: 8px;
+$chat-icon-border-radius-rounded: 50%;
+
+$chat-item-padding: 12px 14px;
+$chat-item-gap: 12px;
+$chat-item-min-height: 64px;
+$chat-item-border-radius: 0.5rem;
+
+$chat-button-size: 36px;
+$chat-button-border-radius: 8px;
+
+$chat-message-padding: 0.5rem 0.75rem;
+$chat-message-border-radius: 16px;
+
+
+
+$chat-title-font-weight: 600;
+$chat-subtitle-font-size: 12px;
+$chat-initials-font-size: 14px;
+$chat-initials-font-weight: 600;
+
+
+
+$chat-transition-duration: 0.2s;
+$chat-animation-duration: 0.3s;
+$chat-pulse-duration: 1s;
+
+
+
+$chat-shadow-subtle: rgba(0, 0, 0, 0.05);
+
+
+
+$z-chat-overlay: 9990;
+$z-chat-container: 9991;
+$z-chat-modal-mask: 9996;
+$z-chat-modal: 9997;
+
+
+
+$attachment-card-width: 300px;
+$attachment-icon-size: 56px;
+$attachment-padding: 10px 12px;
+$attachment-border-radius: 14px;
