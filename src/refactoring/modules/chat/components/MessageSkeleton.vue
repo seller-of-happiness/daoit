@@ -50,8 +50,11 @@ const props = withDefaults(defineProps<Props>(), {
 </script>
 
 <style scoped lang="scss">
+@use '../styles/skeletons' as *;
+
 .message-skeleton {
-    animation: pulse 1.5s ease-in-out infinite;
+    @include skeleton-animation;
+    margin-bottom: 1.5rem;
 }
 
 .message-skeleton-wrapper {
@@ -63,10 +66,7 @@ const props = withDefaults(defineProps<Props>(), {
     justify-content: flex-start;
 
     .message-skeleton-bubble {
-        background: var(--surface-card);
-        border-radius: 1rem 1rem 1rem 0.25rem;
-        max-width: 70%;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        @extend .skeleton-message-bubble--theirs;
     }
 }
 
@@ -74,10 +74,7 @@ const props = withDefaults(defineProps<Props>(), {
     justify-content: flex-end;
 
     .message-skeleton-bubble {
-        background: var(--primary-color);
-        border-radius: 1rem 1rem 0.25rem 1rem;
-        max-width: 70%;
-        opacity: 0.8;
+        @extend .skeleton-message-bubble--mine;
     }
 }
 
@@ -85,6 +82,7 @@ const props = withDefaults(defineProps<Props>(), {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    padding: 1rem;
 }
 
 .skeleton-text-lines {
@@ -94,52 +92,12 @@ const props = withDefaults(defineProps<Props>(), {
 }
 
 .skeleton-line {
-    height: 1rem;
-    border-radius: 0.5rem;
-    background: rgba(255, 255, 255, 0.2);
-
-    &--short {
-        width: 40%;
-    }
-
-    &--medium {
-        width: 65%;
-    }
-
-    &--long {
-        width: 85%;
-    }
+    @extend .skeleton-line;
 }
 
 .skeleton-time {
-    width: 3rem;
-    height: 0.75rem;
-    border-radius: 0.375rem;
-    background: rgba(255, 255, 255, 0.15);
+    @extend .skeleton-time;
     align-self: flex-end;
     margin-top: 0.25rem;
-}
-
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* Темная тема */
-html.p-dark {
-    .message-skeleton--theirs .skeleton-line,
-    .message-skeleton--theirs .skeleton-time {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .message-skeleton--mine .skeleton-line,
-    .message-skeleton--mine .skeleton-time {
-        background: rgba(255, 255, 255, 0.3);
-    }
 }
 </style>

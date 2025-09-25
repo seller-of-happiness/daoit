@@ -157,6 +157,7 @@ export interface IChatStoreState {
     isInitializing: boolean
     invitations: IChatInvitation[]
     isLoadingMessages: boolean
+    isLoadingChats: boolean
 }
 
 // Улучшенные типы для реакций

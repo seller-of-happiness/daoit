@@ -120,54 +120,62 @@
 
         <!-- Список чатов -->
         <div v-else class="chat-list">
-            <!-- Приглашения в чаты -->
-            <div v-if="invitations.length > 0" class="invitations-section">
-                <div class="section-header">
-                    <h4 class="section-title">
-                        <i class="pi pi-bell mr-2"></i>
-                        Приглашения ({{ invitations.length }})
-                    </h4>
-                </div>
-                <InvitationListItem
-                    v-for="invitation in invitations"
-                    :key="`invitation-${invitation.chat.id}-${invitation.invited_user?.id || invitation.id}`"
-                    :invitation="invitation"
-                    @accept="$emit('accept-invitation', invitation)"
-                    @decline="$emit('decline-invitation', invitation)"
-                />
-            </div>
-
-            <!-- Обычные чаты -->
-            <div v-if="filteredChats.length > 0" class="chats-section">
-                <div v-if="invitations.length > 0" class="section-header">
-                    <h4 class="section-title">
-                        <i class="pi pi-comments mr-2"></i>
-                        Чаты
-                    </h4>
-                </div>
-                <ChatListItem
-                    v-for="chat in filteredChats"
-                    :key="chat.id"
-                    :chat="chat"
-                    :is-active="currentChatId === chat.id"
-                    @select="$emit('select-chat', chat)"
-                />
-            </div>
-
-            <!-- Подсказка для пустого списка -->
-            <div v-if="filteredChats.length === 0 && invitations.length === 0" class="text-center py-8 text-surface-500">
-                <div class="mb-2">
-                    <i class="pi pi-comments text-4xl mb-4 block"></i>
-                </div>
-                <div class="mb-2 font-semibold">Нет чатов</div>
-                <div class="text-xs space-y-1">
-                    <div>
-                        • Нажмите <i class="pi pi-plus text-green-500"></i> чтобы создать
-                        группу/канал
+            <!-- Показываем скелетоны во время загрузки -->
+            <template v-if="isLoadingChats">
+                <ChatListSkeletonGroup :count="8" />
+            </template>
+            
+            <!-- Показываем реальные чаты после загрузки -->
+            <template v-else>
+                <!-- Приглашения в чаты -->
+                <div v-if="invitations.length > 0" class="invitations-section">
+                    <div class="section-header">
+                        <h4 class="section-title">
+                            <i class="pi pi-bell mr-2"></i>
+                            Приглашения ({{ invitations.length }})
+                        </h4>
                     </div>
-                    <div>• Найдите сотрудника в поиске для диалога</div>
+                    <InvitationListItem
+                        v-for="invitation in invitations"
+                        :key="`invitation-${invitation.chat.id}-${invitation.invited_user?.id || invitation.id}`"
+                        :invitation="invitation"
+                        @accept="$emit('accept-invitation', invitation)"
+                        @decline="$emit('decline-invitation', invitation)"
+                    />
                 </div>
-            </div>
+
+                <!-- Обычные чаты -->
+                <div v-if="filteredChats.length > 0" class="chats-section">
+                    <div v-if="invitations.length > 0" class="section-header">
+                        <h4 class="section-title">
+                            <i class="pi pi-comments mr-2"></i>
+                            Чаты
+                        </h4>
+                    </div>
+                    <ChatListItem
+                        v-for="chat in filteredChats"
+                        :key="chat.id"
+                        :chat="chat"
+                        :is-active="currentChatId === chat.id"
+                        @select="$emit('select-chat', chat)"
+                    />
+                </div>
+
+                <!-- Подсказка для пустого списка -->
+                <div v-if="filteredChats.length === 0 && invitations.length === 0" class="text-center py-8 text-surface-500">
+                    <div class="mb-2">
+                        <i class="pi pi-comments text-4xl mb-4 block"></i>
+                    </div>
+                    <div class="mb-2 font-semibold">Нет чатов</div>
+                    <div class="text-xs space-y-1">
+                        <div>
+                            • Нажмите <i class="pi pi-plus text-green-500"></i> чтобы создать
+                            группу/канал
+                        </div>
+                        <div>• Найдите сотрудника в поиске для диалога</div>
+                    </div>
+                </div>
+            </template>
         </div>
     </aside>
 </template>
@@ -178,6 +186,7 @@ import { generateChatInitials, withBase } from '@/refactoring/modules/chat/utils
 import ChatListItem from './ChatListItem.vue'
 import EmployeeListItem from './EmployeeListItem.vue'
 import InvitationListItem from './InvitationListItem.vue'
+import ChatListSkeletonGroup from './ChatListSkeletonGroup.vue'
 import type { IChat, IEmployee, ISearchResults, IChatInvitation } from '@/refactoring/modules/chat/types/IChat'
 
 interface Props {
@@ -185,6 +194,7 @@ interface Props {
     currentChatId: number | null
     searchResults: ISearchResults | null
     isSearching: boolean
+    isLoadingChats?: boolean
     mobileClass?: string[]
     invitations: IChatInvitation[]
 }

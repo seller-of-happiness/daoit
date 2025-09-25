@@ -1,0 +1,124 @@
+// Общие стили для скелетонов в модуле чата
+// Обеспечивают единообразие анимации и базовых цветов
+
+// Базовая анимация пульсации для всех скелетонов
+@keyframes skeleton-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+// Миксин для применения анимации скелетона
+@mixin skeleton-animation {
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+// Цвета скелетонов для светлой темы
+@mixin skeleton-colors-light {
+    --skeleton-bg-primary: var(--surface-300);
+    --skeleton-bg-secondary: var(--surface-400);
+    --skeleton-bg-accent: rgba(255, 255, 255, 0.2);
+    --skeleton-bg-time: rgba(255, 255, 255, 0.15);
+}
+
+// Цвета скелетонов для темной темы
+@mixin skeleton-colors-dark {
+    --skeleton-bg-primary: var(--surface-600);
+    --skeleton-bg-secondary: var(--surface-500);
+    --skeleton-bg-accent: rgba(255, 255, 255, 0.1);
+    --skeleton-bg-time: rgba(255, 255, 255, 0.3);
+}
+
+// Применяем цвета по умолчанию
+:root {
+    @include skeleton-colors-light;
+}
+
+html.p-dark {
+    @include skeleton-colors-dark;
+}
+
+// Базовые классы для элементов скелетонов
+.skeleton-base {
+    @include skeleton-animation;
+    border-radius: 0.5rem;
+    background: var(--skeleton-bg-primary);
+}
+
+.skeleton-avatar {
+    @extend .skeleton-base;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.skeleton-text {
+    @extend .skeleton-base;
+    height: 1rem;
+    
+    &--small {
+        height: 0.75rem;
+    }
+    
+    &--large {
+        height: 1.25rem;
+    }
+}
+
+.skeleton-line {
+    @extend .skeleton-text;
+    
+    &--short {
+        width: 40%;
+    }
+    
+    &--medium {
+        width: 65%;
+    }
+    
+    &--long {
+        width: 85%;
+    }
+}
+
+// Специальные стили для сообщений
+.skeleton-message-bubble {
+    @include skeleton-animation;
+    border-radius: 1rem 1rem 1rem 0.25rem;
+    max-width: 85%; // Унифицированная ширина для всех скелетонов сообщений
+    
+    &--mine {
+        border-radius: 1rem 1rem 0.25rem 1rem;
+        background: var(--primary-color);
+        opacity: 0.8;
+        
+        .skeleton-line,
+        .skeleton-time {
+            background: var(--skeleton-bg-time);
+        }
+    }
+    
+    &--theirs {
+        background: var(--surface-card);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        
+        .skeleton-line,
+        .skeleton-time {
+            background: var(--skeleton-bg-accent);
+        }
+    }
+}
+
+// Стили для времени в скелетонах
+.skeleton-time {
+    @extend .skeleton-base;
+    width: 3rem;
+    height: 0.75rem;
+    border-radius: 0.375rem;
+    background: var(--skeleton-bg-accent);
+}

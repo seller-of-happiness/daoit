@@ -53,26 +53,11 @@ const skeletons = computed<SkeletonMessage[]>(() => {
 </script>
 
 <style scoped lang="scss">
+@use '../styles/skeletons' as *;
+
 .skeleton-date {
+    @extend .skeleton-text;
     width: 4rem;
-    height: 1rem;
-    background: var(--surface-300);
-    border-radius: 0.5rem;
     margin: 0 auto;
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-html.p-dark .skeleton-date {
-    background: var(--surface-600);
-}
-
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
 }
 </style>

@@ -6,6 +6,7 @@
             :current-chat-id="chatStore.currentChat?.id || null"
             :search-results="chatStore.searchResults"
             :is-searching="chatStore.isSearching"
+            :is-loading-chats="chatStore.isLoadingChats"
             :invitations="chatStore.invitations"
             :mobile-class="mobileAsideClass"
             @select-chat="openChatFromList"
