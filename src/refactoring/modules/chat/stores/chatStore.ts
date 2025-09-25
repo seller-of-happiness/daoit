@@ -215,7 +215,13 @@ export const useChatStore = defineStore('chatStore', {
                 await this.fetchChats()
 
                 // Загружаем приглашения после загрузки чатов
-                await this.fetchInvitations()
+                // Ошибки загрузки приглашений не должны блокировать инициализацию
+                try {
+                    await this.fetchInvitations()
+                } catch (invitationError) {
+                    console.warn('[ChatStore] Не удалось загрузить приглашения при инициализации:', invitationError)
+                    // Продолжаем инициализацию даже если приглашения не загрузились
+                }
 
                 this.isInitialized = true
             } catch (error) {
@@ -925,6 +931,7 @@ export const useChatStore = defineStore('chatStore', {
             try {
                 // Извлекаем данные приглашения из WebSocket сообщения
                 const invitationData = data?.data || data
+                console.log('[ChatStore] Данные приглашения из WebSocket:', invitationData)
 
                 if (!invitationData?.chat || !invitationData?.created_by) {
                     console.log(
@@ -961,8 +968,11 @@ export const useChatStore = defineStore('chatStore', {
 
                 // Проверяем, что приглашение для текущего пользователя
                 if (invitation.invited_user && invitation.invited_user.id !== currentUserUuid) {
+                    console.log('[ChatStore] Приглашение не для текущего пользователя, пропускаем')
                     return
                 }
+
+                console.log('[ChatStore] Добавляем приглашение в список:', invitation)
 
                 // Добавляем приглашение в список, если его еще нет
                 const existingIndex = this.invitations.findIndex(
@@ -973,11 +983,15 @@ export const useChatStore = defineStore('chatStore', {
 
                 if (existingIndex !== -1) {
                     // Обновляем существующее приглашение
+                    console.log('[ChatStore] Обновляем существующее приглашение')
                     this.invitations.splice(existingIndex, 1, invitation)
                 } else {
                     // Добавляем новое приглашение в начало списка
+                    console.log('[ChatStore] Добавляем новое приглашение')
                     this.invitations.unshift(invitation)
                 }
+
+                console.log('[ChatStore] Текущий список приглашений:', this.invitations)
 
                 // Показываем уведомление
                 const fb = useFeedbackStore()
@@ -988,6 +1002,7 @@ export const useChatStore = defineStore('chatStore', {
                     time: 5000,
                 })
             } catch (error) {
+                console.error('[ChatStore] Ошибка при обработке нового приглашения:', error)
                 // Игнорируем ошибки обработки приглашений
             }
         },
@@ -1422,9 +1437,11 @@ export const useChatStore = defineStore('chatStore', {
 
         // Получает список приглашений в чаты
         async fetchInvitations(): Promise<void> {
+            console.log('[ChatStore] Загружаем приглашения...')
             try {
                 const res = await axios.get(`${BASE_URL}/api/chat/invite/`)
                 const invitationsData = res.data?.results ?? res.data
+                console.log('[ChatStore] Получены приглашения:', invitationsData)
 
                 // Проверяем что получили массив и сохраняем в состояние
                 if (Array.isArray(invitationsData)) {
@@ -1450,10 +1467,13 @@ export const useChatStore = defineStore('chatStore', {
                         }
                         return invitation
                     })
+                    console.log('[ChatStore] Обработанные приглашения:', this.invitations)
                 } else {
+                    console.log('[ChatStore] Получен не массив приглашений, устанавливаем пустой массив')
                     this.invitations = []
                 }
             } catch (error) {
+                console.error('[ChatStore] Ошибка при загрузке приглашений:', error)
                 // При ошибке устанавливаем пустой массив
                 this.invitations = []
             }

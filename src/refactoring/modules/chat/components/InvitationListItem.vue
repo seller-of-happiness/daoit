@@ -11,7 +11,7 @@
             <div class="invitation-title">{{ invitation.chat.title }}</div>
             <div class="invitation-sub">
                 <span class="invitation-message">
-                    {{ invitation.created_by.first_name }} {{ invitation.created_by.last_name }} приглашает вас
+                    {{ stripHtmlTags(invitation.created_by.first_name) }} {{ stripHtmlTags(invitation.created_by.last_name) }} приглашает вас
                 </span>
             </div>
         </div>
@@ -60,6 +60,14 @@ const props = defineProps<Props>()
 defineEmits<Emits>()
 
 const isProcessing = ref(false)
+
+/**
+ * Очищает HTML теги из строки, оставляя только текст
+ */
+const stripHtmlTags = (str: string): string => {
+    if (!str) return str
+    return str.replace(/<[^>]*>/g, '')
+}
 
 // Получение инициалов для иконки
 const chatInitials = computed(() => {
