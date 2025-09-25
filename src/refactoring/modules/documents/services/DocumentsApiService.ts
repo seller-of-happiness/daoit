@@ -156,7 +156,7 @@ export class DocumentsApiService {
                 // Дополнительные поля для обратной совместимости
                 items: data.results,
                 path: '/', // Будет обновлен в store
-                virtual_path: null
+                virtual_path: undefined
             } as IListDocumentsResponse
         }
         

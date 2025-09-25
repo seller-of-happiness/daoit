@@ -19,6 +19,8 @@ export interface IUser {
     }
     // Поле для аватарки
     avatar?: string | null
+    // Разрешения пользователя
+    can_create_dialog?: boolean
     // Дополнительные поля для совместимости со старой системой
     uuid?: string
     full_name?: string

@@ -33,7 +33,7 @@
                         <div class="member-avatar">
                             <img 
                                 v-if="getMemberAvatar(member)"
-                                :src="getMemberAvatar(member)"
+                                :src="getMemberAvatar(member)!"
                                 :alt="getMemberDisplayName(member)"
                                 class="avatar-image"
                             />

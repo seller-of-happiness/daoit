@@ -150,7 +150,7 @@ export function withBase(path: string | null): string {
     if (!path) return ''
     if (path.startsWith('http')) return path
 
-    const base = import.meta.env.BASE_URL || '/'
+    const base = ((import.meta as any).env?.BASE_URL as string) || '/'
     return `${base.replace(/\/$/, '')}${path}`
 }
 
@@ -338,7 +338,7 @@ export function isUserChatCreator(chat: IChat | null, currentUserId: string | nu
     ).trim()
 
     // Возвращаем результат сравнения
-    const isCreator = normalizedUserId && creatorId && normalizedUserId === creatorId
+    const isCreator = !!(normalizedUserId && creatorId && normalizedUserId === creatorId)
     
 
     return isCreator

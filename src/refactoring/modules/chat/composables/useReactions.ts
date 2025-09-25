@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue'
 import type {
     IMessage,
     IReactionType,
+    IUser,
     ReactionUser,
     ReactionGroup,
     OptimisticReaction,
@@ -26,7 +27,7 @@ export function useReactions(
     message: IMessage,
     currentUserId: string | null,
     reactionTypes: IReactionType[],
-    chatMembers?: Array<{ user: string; user_name: string; user_uuid?: string }>,
+    chatMembers?: Array<{ user: string | IUser; user_name?: string; user_uuid?: string; is_admin?: boolean; joined_at?: string }>,
 ) {
     const optimisticReactions = ref<OptimisticReaction[]>([])
     const hasQuickLike = ref(false)
@@ -246,7 +247,7 @@ export function useReactions(
 
 // Вспомогательные функции
 
-function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?: Array<{ user: string; user_name: string; user_uuid?: string }>, reactionTypes?: IReactionType[]) {
+function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?: Array<{ user: string | IUser; user_name?: string; user_uuid?: string; is_admin?: boolean; joined_at?: string }>, reactionTypes?: IReactionType[]) {
     for (const item of array) {
         const id = String(
             item?.type_id ??
@@ -295,9 +296,13 @@ function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?
             
             if (!alreadyExists) {
                 // Ищем пользователя в участниках чата для дополнительной информации
-                const chatMember = chatMembers?.find(m => 
-                    m.user === userId || m.user_uuid === userId
-                )
+                const chatMember = chatMembers?.find(m => {
+                    if (typeof m.user === 'string') {
+                        return m.user === userId || m.user_uuid === userId
+                    } else {
+                        return m.user?.id === userId || m.user_uuid === userId
+                    }
+                })
                 
                 // Создаем объект пользователя из данных реакции
                 const userObj = {
@@ -325,9 +330,13 @@ function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?
             )
             
             if (!alreadyExists) {
-                const chatMember = chatMembers?.find(m => 
-                    m.user === userId || m.user_uuid === userId
-                )
+                const chatMember = chatMembers?.find(m => {
+                    if (typeof m.user === 'string') {
+                        return m.user === userId || m.user_uuid === userId
+                    } else {
+                        return m.user?.id === userId || m.user_uuid === userId
+                    }
+                })
                 
                 const userObj = {
                     id: userId,
@@ -348,7 +357,7 @@ function processArrayFormat(array: any[], addUserToGroup: Function, chatMembers?
     }
 }
 
-function processObjectFormat(obj: any, addUserToGroup: Function, chatMembers?: Array<{ user: string; user_name: string; user_uuid?: string }>, reactionTypes?: IReactionType[]) {
+function processObjectFormat(obj: any, addUserToGroup: Function, chatMembers?: Array<{ user: string | IUser; user_name?: string; user_uuid?: string; is_admin?: boolean; joined_at?: string }>, reactionTypes?: IReactionType[]) {
     for (const [key, val] of Object.entries(obj)) {
         const v: any = val
         if (Array.isArray(v)) {
