@@ -498,6 +498,8 @@ const selectAllEmployees = () => {
 
 const clearAllSelection = () => {
     selectedKeys.value = {}
+    // Вызываем onSelectionChange для синхронизации состояния
+    onSelectionChange({})
 }
 
 // Обработчики событий
