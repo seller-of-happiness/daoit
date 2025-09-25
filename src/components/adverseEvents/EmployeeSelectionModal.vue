@@ -711,7 +711,7 @@ onUnmounted(() => {
     class="employee-tree-label"
     @click="handleNodeLabelClick(node, $event)"
 >
-  <span v-html="highlightMatch(node.label, search)"></span>
+  <span v-html="highlightMatch(node.label, searchQuery)"></span>
 </span>
                 </template>
             </Tree>

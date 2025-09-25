@@ -39,7 +39,7 @@
                             class="employee-tree-label flex-1"
                             @click="handleNodeLabelClick(node, $event)"
                         >
-                            <span v-html="highlightMatch(node.label, search)"></span>
+                            <span v-html="highlightMatch(node.label, searchQuery)"></span>
                         </span>
                         <!-- Кнопки для групповых операций с отделами и должностями -->
                         <div v-if="!node.isLeaf && node.children" class="flex gap-1">

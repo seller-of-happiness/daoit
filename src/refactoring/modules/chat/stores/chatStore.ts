@@ -127,12 +127,15 @@ export const useChatStore = defineStore('chatStore', {
             const userUuid = this.getCurrentUserUuid()
 
             if (!userUuid) {
+                console.warn('[ChatStore] Не удалось получить UUID пользователя для подписки на канал')
                 return
             }
 
             const channelName = `chats:user#${userUuid}`
+            console.log('[ChatStore] Подписываемся на канал:', channelName)
 
             centrifuge.subscribe(channelName, (data: any) => {
+                console.log('[ChatStore] Получено сообщение из centrifuge:', data)
                 this.handleCentrifugoMessage(data)
             })
         },
@@ -253,6 +256,20 @@ export const useChatStore = defineStore('chatStore', {
                 // Обновляем счетчик в заголовке после загрузки чатов
                 this.updateTitleUnreadCount()
 
+                // Проверяем состояние подключения к Centrifuge
+                const centrifuge = useCentrifugeStore()
+                console.log('[ChatStore] Состояние Centrifuge:', centrifuge.diagnostics())
+                
+                // Если Centrifuge не подключен, пытаемся инициализировать
+                if (!centrifuge.connected) {
+                    console.log('[ChatStore] Centrifuge не подключен, инициализируем...')
+                    try {
+                        await centrifuge.initCentrifuge()
+                    } catch (error) {
+                        console.error('[ChatStore] Ошибка инициализации Centrifuge:', error)
+                    }
+                }
+                
                 // Подписываемся на единый канал пользователя для получения уведомлений о всех чатах
                 this.subscribeToUserChannel()
             } catch (error) {
@@ -482,13 +499,17 @@ export const useChatStore = defineStore('chatStore', {
 
         // Добавляет участников в чат (отправляет приглашения)
         async addMembersToChat(chatId: number, userIds: string[]): Promise<void> {
+            console.log('[ChatStore] Отправляем приглашения:', { chatId, userIds })
             try {
-                await axios.post(`${BASE_URL}/api/chat/chat/${chatId}/add-members/`, {
+                const response = await axios.post(`${BASE_URL}/api/chat/chat/${chatId}/add-members/`, {
                     user_ids: userIds,
                 })
+                console.log('[ChatStore] Ответ сервера на отправку приглашений:', response.data)
 
                 // Обновляем информацию о чате после добавления участников
                 const updatedChat = await this.fetchChat(chatId)
+                console.log('[ChatStore] Обновленные данные чата:', updatedChat)
+                
                 const chatIndex = this.chats.findIndex((chat) => chat.id === chatId)
                 if (chatIndex !== -1) {
                     this.chats.splice(chatIndex, 1, updatedChat)
@@ -508,6 +529,7 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
+                console.error('[ChatStore] Ошибка при отправке приглашений:', error)
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -883,11 +905,13 @@ export const useChatStore = defineStore('chatStore', {
 
         // Обрабатывает новое приглашение в чат
         handleNewInvitation(data: any): void {
+            console.log('[ChatStore] Получено новое приглашение через WebSocket:', data)
             try {
                 // Извлекаем данные приглашения из WebSocket сообщения
                 const invitationData = data?.data || data
 
                 if (!invitationData?.chat || !invitationData?.created_by) {
+                    console.log('[ChatStore] Некорректные данные приглашения, пропускаем:', invitationData)
                     return
                 }
 
