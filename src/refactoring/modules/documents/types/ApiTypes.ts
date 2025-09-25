@@ -26,6 +26,7 @@ export interface IListDocumentsRequest {
     sort_order?: 'ascending' | 'descending'
     created_by?: string[] // Множественный выбор создателей
     types?: number[] // Множественный выбор типов документов
+    cursor?: string // Для cursor-based пагинации
 }
 
 export interface ICreateDocumentRequest {
@@ -54,7 +55,10 @@ export interface IAddVersionRequest {
 export interface IListDocumentsResponse {
     next?: string | null
     previous?: string | null
-    results: {
+    // Новый формат: results - массив документов/папок напрямую
+    results?: Array<IDocument | IDocumentFolder>
+    // Старый формат: results как объект с items
+    results_legacy?: {
         id: number | null
         path: string
         virtual_path: string | null

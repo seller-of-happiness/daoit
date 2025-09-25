@@ -74,6 +74,11 @@ export class DocumentsApiService {
             requestPayload.types = payload.types
         }
 
+        // Добавляем cursor для пагинации если есть
+        if (payload.cursor) {
+            requestPayload.cursor = payload.cursor
+        }
+
         const response = await axios.post<IListDocumentsResponse>(
             `${BASE_URL}/api/documents/list/`,
             requestPayload,
@@ -125,6 +130,11 @@ export class DocumentsApiService {
             params.append('types', payload.types.map(String).join(','))
         }
 
+        // Добавляем cursor для пагинации если есть
+        if (payload.cursor) {
+            params.append('cursor', payload.cursor)
+        }
+
         const response = await axios.get<IListDocumentsResponse>(
             `${BASE_URL}/api/documents/document/?${params.toString()}`,
         )
@@ -137,12 +147,25 @@ export class DocumentsApiService {
      * Нормализует ответ API к единому формату
      */
     private _normalizeApiResponse(data: any): IListDocumentsResponse {
-        // Если ответ в новом формате (с results как объектом)
+        // Если ответ в новом формате (results - массив документов)
+        if (data && data.results && Array.isArray(data.results)) {
+            return {
+                next: data.next,
+                previous: data.previous,
+                results: data.results,
+                // Дополнительные поля для обратной совместимости
+                items: data.results,
+                path: '/', // Будет обновлен в store
+                virtual_path: null
+            } as IListDocumentsResponse
+        }
+        
+        // Если ответ в старом формате (с results как объектом)
         if (data && data.results && typeof data.results === 'object' && data.results.items) {
             return data as IListDocumentsResponse
         }
         
-        // Если ответ в старом формате или нужна нормализация
+        // Если ответ в старом формате без results
         return data as IListDocumentsResponse
     }
 
