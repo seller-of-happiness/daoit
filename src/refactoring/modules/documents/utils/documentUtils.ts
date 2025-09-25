@@ -8,7 +8,7 @@
  * - Определение типов файлов
  */
 
-import type { IDocumentItem } from '@/refactoring/modules/documents/types/IDocument'
+import type { IDocumentItem, IDocument, IDocumentFolder } from '@/refactoring/modules/documents/types/IDocument'
 
 /**
  * Форматирует размер файла в человекочитаемый формат
@@ -172,4 +172,42 @@ export const getVisibilityLabel = (visibility?: string): string => {
         department: 'Отдел',
     }
     return visibilityMap[visibility || ''] || visibility || '—'
+}
+
+/**
+ * Получает имя автора документа в унифицированном формате
+ * @param createdBy - информация об авторе (строка или объект)
+ * @returns отформатированное имя автора
+ */
+export const getCreatorName = (createdBy: string | { id: string; first_name: string; last_name: string } | undefined): string => {
+    if (!createdBy) return '—'
+    
+    if (typeof createdBy === 'string') {
+        return createdBy
+    }
+    
+    if (typeof createdBy === 'object' && createdBy.first_name && createdBy.last_name) {
+        return `${createdBy.first_name} ${createdBy.last_name}`
+    }
+    
+    return '—'
+}
+
+/**
+ * Получает ID автора документа
+ * @param createdBy - информация об авторе (строка или объект)
+ * @returns ID автора
+ */
+export const getCreatorId = (createdBy: string | { id: string; first_name: string; last_name: string } | undefined): string | null => {
+    if (!createdBy) return null
+    
+    if (typeof createdBy === 'string') {
+        return createdBy
+    }
+    
+    if (typeof createdBy === 'object' && createdBy.id) {
+        return createdBy.id
+    }
+    
+    return null
 }
