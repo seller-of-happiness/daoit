@@ -933,7 +933,7 @@ export const useChatStore = defineStore('chatStore', {
                 const invitationData = data?.data || data
                 console.log('[ChatStore] Данные приглашения из WebSocket:', invitationData)
 
-                if (!invitationData?.chat || !invitationData?.created_by) {
+                if (!invitationData?.chat || !invitationData?.created_by || !invitationData?.id || typeof invitationData.id !== 'number') {
                     console.log(
                         '[ChatStore] Некорректные данные приглашения, пропускаем:',
                         invitationData,
@@ -965,6 +965,8 @@ export const useChatStore = defineStore('chatStore', {
                     is_accepted: invitationData.is_accepted || false,
                     created_at: new Date().toISOString(),
                 }
+
+                console.log('[ChatStore] Сформированное приглашение:', invitation)
 
                 // Проверяем, что приглашение для текущего пользователя
                 if (invitation.invited_user && invitation.invited_user.id !== currentUserUuid) {
@@ -1486,14 +1488,20 @@ export const useChatStore = defineStore('chatStore', {
 
         // Принимает приглашение в чат
         async acceptInvitation(invitationId: number): Promise<void> {
+            console.log('[ChatStore] acceptInvitation вызван с ID:', invitationId)
             try {
-                await axios.post(`${BASE_URL}/api/chat/invite/${invitationId}/accept/`)
+                const response = await axios.post(`${BASE_URL}/api/chat/invite/${invitationId}/accept/`)
+                console.log('[ChatStore] acceptInvitation: ответ сервера:', response.data)
 
                 // Удаляем приглашение из списка
+                const beforeCount = this.invitations.length
                 this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
+                const afterCount = this.invitations.length
+                console.log('[ChatStore] acceptInvitation: приглашения до/после удаления:', beforeCount, '/', afterCount)
 
                 // Обновляем список чатов после принятия приглашения
                 await this.fetchChats()
+                console.log('[ChatStore] acceptInvitation: список чатов обновлен')
 
                 useFeedbackStore().showToast({
                     type: 'success',
@@ -1502,6 +1510,7 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
+                console.error('[ChatStore] acceptInvitation: ошибка:', error)
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',
@@ -1514,12 +1523,17 @@ export const useChatStore = defineStore('chatStore', {
 
         // Отклоняет полученное приглашение
         async declineInvitation(invitationId: number): Promise<void> {
+            console.log('[ChatStore] declineInvitation вызван с ID:', invitationId)
             try {
                 // Используем правильный endpoint для отклонения приглашения
-                await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/decline/`)
+                const response = await axios.delete(`${BASE_URL}/api/chat/invite/${invitationId}/decline/`)
+                console.log('[ChatStore] declineInvitation: ответ сервера:', response.data)
 
                 // Удаляем приглашение из списка
+                const beforeCount = this.invitations.length
                 this.invitations = this.invitations.filter((inv) => inv.id !== invitationId)
+                const afterCount = this.invitations.length
+                console.log('[ChatStore] declineInvitation: приглашения до/после удаления:', beforeCount, '/', afterCount)
 
                 useFeedbackStore().showToast({
                     type: 'info',
@@ -1528,6 +1542,7 @@ export const useChatStore = defineStore('chatStore', {
                     time: 3000,
                 })
             } catch (error) {
+                console.error('[ChatStore] declineInvitation: ошибка:', error)
                 useFeedbackStore().showToast({
                     type: 'error',
                     title: 'Ошибка',

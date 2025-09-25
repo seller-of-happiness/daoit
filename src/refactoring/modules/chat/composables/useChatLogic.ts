@@ -231,22 +231,32 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     const acceptInvitation = async (invitationOrId: number | IChatInvitation) => {
         try {
             const invitationId = typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
-            if (invitationId) {
-                await chatStore.acceptInvitation(invitationId)
+            if (!invitationId) {
+                console.error('[useChatLogic] acceptInvitation: invitationId отсутствует', invitationOrId)
+                return
             }
+            
+            console.log('[useChatLogic] Принимаем приглашение с ID:', invitationId)
+            await chatStore.acceptInvitation(invitationId)
         } catch (error) {
-            // Ошибка принятия приглашения
+            console.error('[useChatLogic] Ошибка принятия приглашения:', error)
+            // Ошибка уже обработана в store
         }
     }
 
     const declineInvitation = async (invitationOrId: number | IChatInvitation) => {
         try {
             const invitationId = typeof invitationOrId === 'number' ? invitationOrId : invitationOrId.id
-            if (invitationId) {
-                await chatStore.declineInvitation(invitationId)
+            if (!invitationId) {
+                console.error('[useChatLogic] declineInvitation: invitationId отсутствует', invitationOrId)
+                return
             }
+            
+            console.log('[useChatLogic] Отклоняем приглашение с ID:', invitationId)
+            await chatStore.declineInvitation(invitationId)
         } catch (error) {
-            // Ошибка отклонения приглашения
+            console.error('[useChatLogic] Ошибка отклонения приглашения:', error)
+            // Ошибка уже обработана в store
         }
     }
 
