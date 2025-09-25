@@ -311,6 +311,7 @@ import {
     formatFileSize,
     formatDate,
     getDocumentIcon,
+    getCreatorDisplayName,
 } from '@/refactoring/modules/documents/utils/documentUtils'
 import { pathToArray, arrayToPath } from '@/refactoring/modules/documents/utils/pathUtils'
 import type {
