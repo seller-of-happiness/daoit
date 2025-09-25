@@ -393,7 +393,7 @@ const expandedKeys = ref<Record<string, boolean>>({})
 function handleNodeLabelClick(node: any, event: MouseEvent) {
     // Родители — только раскрытие/сворачивание
     if (node?.children && node?.key) {
-        event.stopPropagation()
+        event.preventDefault()
         expandedKeys.value = {
             ...expandedKeys.value,
             [node.key]: !expandedKeys.value[node.key]
@@ -401,15 +401,15 @@ function handleNodeLabelClick(node: any, event: MouseEvent) {
         return
     }
 
-    // Лист: если уже выбран — сразу триггерим подтверждение, как кнопка "Выбрать"
-    if (node?.isLeaf && node?.key && selectedKeys.value?.[node.key]) {
-        event.stopPropagation()
+    // Для листьев (сотрудников) в режиме single selection - автоматически выбираем и закрываем
+    if (node?.isLeaf && node?.data) {
+        event.preventDefault()
         const emp = node.data as IEmployee
 
-        selectedEmployees.value = isSingle
-            ? [emp]
-            : [emp, ...selectedEmployees.value.filter(e => e.id !== emp.id)]
-
+        // Устанавливаем выбор и закрываем модалку
+        selectedEmployees.value = [emp]
+        selectedKeys.value = { [node.key]: true }
+        
         nextTick(() => setData())
     }
 }

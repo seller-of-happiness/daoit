@@ -724,9 +724,16 @@ const onSelectionChange = (val: Record<string, boolean>) => {
 }
 
 const handleNodeLabelClick = (node: any, event: MouseEvent) => {
+    // Проверяем, что клик не был по чекбоксу или его части
+    const target = event.target as HTMLElement
+    if (target.closest('.p-checkbox') || target.classList.contains('p-checkbox-icon')) {
+        // Если клик был по чекбоксу - не обрабатываем, позволяем стандартному поведению Tree работать
+        return
+    }
+
     // Родители — только раскрытие/сворачивание
     if (node?.children && node?.key) {
-        event.stopPropagation()
+        event.preventDefault()
         expandedKeys.value = {
             ...expandedKeys.value,
             [node.key]: !expandedKeys.value[node.key],
@@ -734,23 +741,8 @@ const handleNodeLabelClick = (node: any, event: MouseEvent) => {
         return
     }
 
-    // Для листьев (сотрудников) клик по label переключает выбор
-    if (node?.isLeaf && node?.data) {
-        event.stopPropagation()
-        const isSelected = selectedKeys.value[node.key]
-        if (isSelected) {
-            // Снимаем выбор
-            const newSelectedKeys = { ...selectedKeys.value }
-            delete newSelectedKeys[node.key]
-            selectedKeys.value = newSelectedKeys
-        } else {
-            // Добавляем в выбор
-            selectedKeys.value = {
-                ...selectedKeys.value,
-                [node.key]: true,
-            }
-        }
-    }
+    // Для листьев (сотрудников) клик по label НЕ переключает выбор
+    // Оставляем это для чекбоксов Tree компонента
 }
 
 // Обработчики раскрытия/сворачивания узлов
@@ -1028,6 +1020,13 @@ onUnmounted(() => {
     display: block;
     width: 100%;
     transition: color 0.2s;
+    /* Исключаем pointer-events для области чекбокса */
+    pointer-events: none;
+}
+
+/* Включаем pointer-events для текста внутри label */
+.employee-tree-label span {
+    pointer-events: auto;
 }
 
 .employee-tree-label:hover {
@@ -1057,11 +1056,20 @@ onUnmounted(() => {
 /* Показываем чекбоксы только для листьев (сотрудников) */
 :deep(.p-tree .p-tree-container .p-treenode .p-treenode-content .p-checkbox) {
     margin-right: 0.5rem;
+    pointer-events: auto;
+    z-index: 1;
 }
 
 /* Скрываем чекбоксы для не-листьев (отделов и должностей) */
 :deep(.p-tree .p-tree-container .p-treenode:not(.p-treenode-leaf) .p-treenode-content .p-checkbox) {
     display: none;
+}
+
+/* Обеспечиваем что чекбокс кликабелен */
+:deep(.p-tree .p-tree-container .p-treenode-leaf .p-treenode-content .p-checkbox) {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 2;
 }
 
 /* Стили для wrapper узла с кнопкой */
