@@ -106,6 +106,8 @@ export const useChatStore = defineStore('chatStore', {
         isInitializing: false,
         // Приглашения в чаты
         invitations: [],
+        // Состояние загрузки сообщений
+        isLoadingMessages: false,
     }),
     actions: {
         // Получает UUID текущего пользователя для подписки на центрифуго
@@ -217,6 +219,7 @@ export const useChatStore = defineStore('chatStore', {
             this.messages = []
             this.searchResults = null
             this.invitations = []
+            this.isLoadingMessages = false
             // Сбрасываем счетчик непрочитанных сообщений в заголовке
             globalUnreadMessages.resetUnread()
         },
@@ -984,6 +987,11 @@ export const useChatStore = defineStore('chatStore', {
                 this.currentChat = chatOrId
             }
 
+            // Устанавливаем состояние загрузки сообщений
+            this.isLoadingMessages = true
+            // Очищаем сообщения при переключении чата для показа прелоадера
+            this.messages = []
+
             try {
                 localStorage.setItem('selectedChatId', String(chatId))
             } catch (e) {
@@ -991,63 +999,68 @@ export const useChatStore = defineStore('chatStore', {
             }
 
             try {
-                // 🎯 ПОЛУЧАЕМ АКТУАЛЬНУЮ ИНФОРМАЦИЮ О ЧАТЕ С СЕРВЕРА
-                const actualChat = await this.fetchChat(chatId)
-                
-                // Устанавливаем актуальные данные чата
-                this.currentChat = actualChat
-                
-                // Обновляем чат в общем списке, если он там есть
-                const chatIndex = this.chats.findIndex((c) => c.id === chatId)
-                if (chatIndex !== -1) {
-                    this.chats.splice(chatIndex, 1, actualChat)
-                }
-            } catch (error) {
-                // Если не удалось загрузить актуальную информацию о чате,
-                // используем данные из переданного объекта (если есть)
-                if (typeof chatOrId !== 'number') {
-                    this.currentChat = chatOrId
-                } else {
-                    // Если передан только ID, пытаемся найти чат в списке
-                    const chatFromList = this.chats.find((c) => c.id === chatId)
-                    if (chatFromList) {
-                        this.currentChat = chatFromList
+                try {
+                    // 🎯 ПОЛУЧАЕМ АКТУАЛЬНУЮ ИНФОРМАЦИЮ О ЧАТЕ С СЕРВЕРА
+                    const actualChat = await this.fetchChat(chatId)
+                    
+                    // Устанавливаем актуальные данные чата
+                    this.currentChat = actualChat
+                    
+                    // Обновляем чат в общем списке, если он там есть
+                    const chatIndex = this.chats.findIndex((c) => c.id === chatId)
+                    if (chatIndex !== -1) {
+                        this.chats.splice(chatIndex, 1, actualChat)
+                    }
+                } catch (error) {
+                    // Если не удалось загрузить актуальную информацию о чате,
+                    // используем данные из переданного объекта (если есть)
+                    if (typeof chatOrId !== 'number') {
+                        this.currentChat = chatOrId
                     } else {
-                        // Критическая ошибка - не можем открыть чат
-                        useFeedbackStore().showToast({
-                            type: 'error',
-                            title: 'Ошибка',
-                            message: 'Не удалось загрузить информацию о чате',
-                            time: 7000,
-                        })
-                        throw error
+                        // Если передан только ID, пытаемся найти чат в списке
+                        const chatFromList = this.chats.find((c) => c.id === chatId)
+                        if (chatFromList) {
+                            this.currentChat = chatFromList
+                        } else {
+                            // Критическая ошибка - не можем открыть чат
+                            useFeedbackStore().showToast({
+                                type: 'error',
+                                title: 'Ошибка',
+                                message: 'Не удалось загрузить информацию о чате',
+                                time: 7000,
+                            })
+                            throw error
+                        }
                     }
                 }
-            }
 
-            try {
-                // Загружаем типы реакций ДО загрузки сообщений
-                if (!this.reactionTypes.length) {
-                    await this.fetchReactionTypes()
-                }
-            } catch (error) {
-                // Продолжаем работу с fallback типами
-            }
-
-            // Загружаем сообщения (ошибки обрабатываются внутри функции)
-            await this.fetchMessages(chatId)
-
-            // Автоматически отмечаем чат как прочитанный при открытии
-            if (this.messages.length > 0) {
                 try {
-                    const lastMessage = this.messages[this.messages.length - 1]
-                    await this.markChatAsRead(chatId, lastMessage.id)
+                    // Загружаем типы реакций ДО загрузки сообщений
+                    if (!this.reactionTypes.length) {
+                        await this.fetchReactionTypes()
+                    }
                 } catch (error) {
-                    // Игнорируем ошибки отметки прочтения
+                    // Продолжаем работу с fallback типами
                 }
-            } else {
-                // Если нет сообщений, все равно отмечаем чат как прочитанный
-                await this.markChatAsRead(chatId)
+
+                // Загружаем сообщения (ошибки обрабатываются внутри функции)
+                await this.fetchMessages(chatId)
+
+                // Автоматически отмечаем чат как прочитанный при открытии
+                if (this.messages.length > 0) {
+                    try {
+                        const lastMessage = this.messages[this.messages.length - 1]
+                        await this.markChatAsRead(chatId, lastMessage.id)
+                    } catch (error) {
+                        // Игнорируем ошибки отметки прочтения
+                    }
+                } else {
+                    // Если нет сообщений, все равно отмечаем чат как прочитанный
+                    await this.markChatAsRead(chatId)
+                }
+            } finally {
+                // Снимаем состояние загрузки после завершения в любом случае
+                this.isLoadingMessages = false
             }
         },
 
@@ -1071,6 +1084,9 @@ export const useChatStore = defineStore('chatStore', {
                 this.messages.length = 0
 
                 // Не выбрасываем ошибку дальше, чтобы не ломать UI
+            } finally {
+                // Снимаем состояние загрузки в любом случае
+                this.isLoadingMessages = false
             }
         },
 
