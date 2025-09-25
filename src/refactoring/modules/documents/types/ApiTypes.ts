@@ -88,7 +88,7 @@ export interface IListDocumentsResponse {
         name: string
         path: string
     }>
-    virtual_path?: string
+    virtual_path?: string | null
     name?: string
     path_parent?: string[] | string
     items?: Array<IDocument | IDocumentFolder>

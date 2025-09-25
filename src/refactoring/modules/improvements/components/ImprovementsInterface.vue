@@ -279,7 +279,7 @@ const downvote = async (id: number) => {
 const onCreateSubmit = async (payload: {
     title: string
     text: string
-    department: { id: string }
+    department: { id: string } | null
 }) => {
     await improvements.createSuggestion(payload)
     showCreate.value = false
@@ -331,7 +331,7 @@ const openEdit = (row: any) => {
     showEdit.value = true
 }
 
-const onEditSubmit = async (payload: { status: string | null; answer: string }) => {
+const onEditSubmit = async (payload: { status: string | null; answer: string | null }) => {
     if (!editForm.value.id) return
     await improvements.updateSuggestion(editForm.value.id, {
         status: (payload.status ?? undefined) as any,
@@ -345,7 +345,8 @@ const onDelete = async (row: any) => {
     await improvements.deleteSuggestion(row.id)
 }
 
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (status: string | null) => {
+    if (!status) return 'Не указан'
     const statusMap: Record<string, string> = {
         new: 'Новое',
         in_progress: 'В работе',
@@ -355,7 +356,8 @@ const getStatusLabel = (status: string) => {
     return statusMap[status] || status
 }
 
-const getStatusSeverity = (status: string) => {
+const getStatusSeverity = (status: string | null) => {
+    if (!status) return 'secondary'
     const severityMap: Record<string, string> = {
         new: 'info',
         in_progress: 'warn',
@@ -394,10 +396,11 @@ const authorName = (row: any): string => {
 
 // Status toggles (store expects array of statuses)
 const isStatusActive = (status: string | null) => {
-    if (status === null) return filters.value.status.length === 0
-    return filters.value.status.includes(status as any)
+    if (status === null) return (filters.value.status?.length || 0) === 0
+    return filters.value.status?.includes(status as any) || false
 }
 const toggleStatus = (status: string | null) => {
+    if (!filters.value.status) filters.value.status = []
     if (status === null) {
         filters.value.status = []
     } else {
@@ -410,7 +413,7 @@ const toggleStatus = (status: string | null) => {
 // Watch filters and refetch
 watch(
     () => [
-        filters.value.status.slice(),
+        filters.value.status?.slice() || [],
         filters.value.mine,
         filters.value.my_department,
         filters.value.to_my_department,

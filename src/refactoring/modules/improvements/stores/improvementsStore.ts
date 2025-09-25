@@ -40,7 +40,7 @@ export const useImprovementsStore = defineStore('improvementsStore', {
          * Возвращает суммарное число голосов: серверные + локальные изменения
          */
         countVotes: (state) => (id: number) => {
-            const serverVotes = (state.items.find((i) => i.id === id)?.votes ?? 0) as number
+            const serverVotes = (state.items.find((i: IImprovementSuggestion) => i.id === id)?.votes ?? 0) as number
             const local = state.localVotes[id] || 0
             return serverVotes + local
         },
@@ -73,7 +73,7 @@ export const useImprovementsStore = defineStore('improvementsStore', {
          */
         async fetchSuggestions(cursor?: string) {
             const params: Record<string, any> = {}
-            if (this.filters.status.length) params.status = this.filters.status
+            if (this.filters.status?.length) params.status = this.filters.status
             if (this.filters.mine) params.mine = 1
             // Интерпретируем «моего отделения» как адресованные в отделение пользователя
             if (this.filters.my_department) params.to_my_department = 1

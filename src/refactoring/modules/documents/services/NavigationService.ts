@@ -101,7 +101,7 @@ export class NavigationService {
             { name: 'Документы', path: '/', id: null },
             ...fullChain.map((folder) => ({
                 name: folder.name,
-                path: folder.folder_id || folder.path || '/',
+                path: (folder.folder_id || folder.path || '/'),
                 id: folder.folder_id || null,
             })),
         ]

@@ -828,7 +828,11 @@ export const useDocumentsStore = defineStore('documentsStore', {
 
         async fetchDocumentDetails(documentId: number): Promise<IDocumentDetailsResponse> {
             try {
-                return await this._apiService.fetchDocumentDetails(documentId)
+                const apiResponse = await this._apiService.fetchDocumentDetails(documentId)
+                return {
+                    ...apiResponse,
+                    type: apiResponse.type ?? 0
+                } as IDocumentDetailsResponse
             } catch (error) {
                 logger.error('documents_fetchDetails_error', {
                     file: 'documentsStore',

@@ -10,6 +10,7 @@ import type {
     IChatInvitation,
     MediaQueryMethods,
     MobileViewType,
+    IChatUpdatePayload,
 } from '@/refactoring/modules/chat/types/IChat'
 
 export interface ChatLogicOptions {
@@ -191,15 +192,11 @@ export function useChatLogic(options: ChatLogicOptions = {}) {
     }
 
     // Обновление информации о чате
-    const updateChatInfo = async (payload: {
-        title?: string
-        description?: string
-        icon?: File | null
-    }) => {
+    const updateChatInfo = async (payload: IChatUpdatePayload) => {
         if (!chatStore.currentChat) return
 
         try {
-            const updatedChat = await chatStore.updateChat(chatStore.currentChat.id, payload as any)
+            const updatedChat = await chatStore.updateChat(chatStore.currentChat.id, payload)
             return updatedChat
         } catch (error) {
             // Ошибка обновления чата
