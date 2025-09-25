@@ -117,7 +117,7 @@ export const useDocumentsStore = defineStore('documentsStore', {
         _processApiResponse(data: IListDocumentsResponse, payload: IListDocumentsPayload): void {
             if (!data || typeof data !== 'object') return
 
-            // Обрабатываем новую структуру ответа с results
+            // Бэкенд теперь всегда возвращает новую структуру ответа с пагинацией {next, previous, results}
             if (data.results) {
                 this.currentPath = data.results.path || this._getRequestPath(payload)
                 this.currentFolderId = payload.folder_id || this.currentFolderId
@@ -128,15 +128,10 @@ export const useDocumentsStore = defineStore('documentsStore', {
                     this._updateBreadcrumbsFromResults(data.results)
                 }
             } else {
-                // Обратная совместимость с старым форматом
-                this.currentPath = data.path || this._getRequestPath(payload)
-                this.currentFolderId = data.current_folder?.folder_id || payload.folder_id || this.currentFolderId
-                this.currentItems = data.items || []
-
-                // Обновляем breadcrumbs только если не в режиме поиска
-                if (!payload.search) {
-                    this._updateBreadcrumbs(data)
-                }
+                // Fallback на случай если структура ответа неожиданная
+                console.warn('Unexpected API response structure:', data)
+                this.currentPath = this._getRequestPath(payload)
+                this.currentItems = []
             }
         },
 
@@ -180,9 +175,12 @@ export const useDocumentsStore = defineStore('documentsStore', {
         },
 
         /**
-         * Обновляет breadcrumbs на основе данных API (старый формат)
+         * Обновляет breadcrumbs на основе данных API (старый формат) - DEPRECATED
+         * Оставлено для обратной совместимости, но больше не используется
          */
         _updateBreadcrumbs(data: IListDocumentsResponse): void {
+            console.warn('_updateBreadcrumbs is deprecated. API should use new paginated format.')
+            
             // Кешируем путь текущей папки по её virtual_path
             if (data.virtual_path && data.path) {
                 this._navigationService.cacheFolderPath(data.virtual_path, data.path)

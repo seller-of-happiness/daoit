@@ -69,6 +69,8 @@ export class DocumentsApiService {
             `${BASE_URL}/api/documents/list/`, 
             requestPayload
         )
+        
+        // API теперь всегда возвращает структуру с пагинацией {next, previous, results}
         return response.data
     }
 
